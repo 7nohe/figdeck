@@ -1,0 +1,18 @@
+{
+  "name": "@figdeck/plugin",
+  "version": "0.1.0",
+  "description": "Figma Plugin for generating slides from Markdown",
+  "scripts": {
+    "build": "esbuild src/code.ts --bundle --outfile=dist/code.js --target=es2018 --format=iife --legal-comments=none --minify && cp src/ui.html dist/",
+    "watch": "esbuild src/code.ts --bundle --outfile=dist/code.js --target=es2018 --format=iife --legal-comments=none --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.100.0",
+    "esbuild": "^0.27.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1"
+  }
+}

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      padding: 16px;
+      margin: 0;
+    }
+    form {
+      margin: 0;
+    }
+    .connection {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-end;
+      margin-bottom: 12px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: #444;
+    }
+    .field input {
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .connection button {
+      padding: 8px 10px;
+      font-size: 13px;
+      border: 1px solid #1a73e8;
+      background: #1a73e8;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .connection button:active {
+      transform: translateY(1px);
+    }
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
+    .status.connected {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status.disconnected {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .status.waiting {
+      background: #fff3cd;
+      color: #856404;
+    }
+    .log {
+      font-size: 12px;
+      color: #666;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #ddd;
+      padding: 8px;
+      border-radius: 4px;
+      background: #f9f9f9;
+    }
+    .log-entry {
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+  <form id="connection-form" class="connection">
+    <label class="field">
+      <span>Host</span>
+      <input id="host" name="host" type="text" placeholder="localhost" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>Port</span>
+      <input id="port" name="port" type="number" min="1" max="65535" placeholder="4141" autocomplete="off">
+    </label>
+    <button id="connect" type="button">Connect</button>
+  </form>
+  <div id="status" class="status waiting">Connecting to WebSocket server...</div>
+  <div id="log" class="log"></div>
+
+  <script>
+    const DEFAULT_HOST = 'localhost';
+    const DEFAULT_PORT = 4141;
+    const HOST_KEY = 'figdeck-ws-host';
+    const PORT_KEY = 'figdeck-ws-port';
+    const statusEl = document.getElementById('status');
+    const logEl = document.getElementById('log');
+    const hostInput = document.getElementById('host');
+    const portInput = document.getElementById('port');
+    const form = document.getElementById('connection-form');
+    const connectButton = document.getElementById('connect');
+    let ws = null;
+    let currentHost = DEFAULT_HOST;
+    let currentPort = DEFAULT_PORT;
+
+    function safeGet(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function safeSet(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        // Ignore storage failures (e.g., sandboxed environments)
+      }
+    }
+
+    function log(message) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setStatus(text, className) {
+      statusEl.textContent = text;
+      statusEl.className = 'status ' + className;
+    }
+
+    function loadStoredConnection() {
+      const storedHost = safeGet(HOST_KEY);
+      const storedPort = parseInt(safeGet(PORT_KEY) || '', 10);
+
+      currentHost = storedHost && storedHost.trim() ? storedHost.trim() : DEFAULT_HOST;
+      currentPort = Number.isFinite(storedPort) ? storedPort : DEFAULT_PORT;
+
+      hostInput.value = currentHost;
+      portInput.value = String(currentPort);
+    }
+
+    function connect(host = currentHost, port = currentPort) {
+      const parsedPort = parseInt(port, 10);
+      currentHost = host && String(host).trim() ? String(host).trim() : DEFAULT_HOST;
+      currentPort = Number.isFinite(parsedPort) ? parsedPort : DEFAULT_PORT;
+
+      safeSet(HOST_KEY, currentHost);
+      safeSet(PORT_KEY, String(currentPort));
+
+      if (ws) {
+        ws.onclose = null;
+        ws.onerror = null;
+        ws.onmessage = null;
+        ws.onopen = null;
+        ws.close();
+      }
+
+      setStatus(`Connecting to ws://${currentHost}:${currentPort}...`, 'waiting');
+      log(`Connecting to ws://${currentHost}:${currentPort}`);
+
+      try {
+        ws = new WebSocket(`ws://${currentHost}:${currentPort}`);
+
+        ws.onopen = () => {
+          setStatus(`Connected to ws://${currentHost}:${currentPort} - Waiting for slides...`, 'connected');
+          log('Connected to CLI');
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            log(`Received: ${msg.type}`);
+            if (msg.type === 'generate-slides') {
+              log(`Generating ${msg.slides.length} slides...`);
+              parent.postMessage({ pluginMessage: msg }, '*');
+            }
+          } catch (e) {
+            log('Error parsing message: ' + e);
+          }
+        };
+
+        ws.onclose = () => {
+          setStatus(`Disconnected - Reconnecting to ws://${currentHost}:${currentPort}...`, 'disconnected');
+          log('Disconnected, retrying in 3s...');
+          setTimeout(() => connect(currentHost, currentPort), 3000);
+        };
+
+        ws.onerror = () => {
+          log('WebSocket error');
+        };
+      } catch (e) {
+        log('Connection failed: ' + e);
+        setTimeout(() => connect(currentHost, currentPort), 3000);
+      }
+    }
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (msg) {
+        if (msg.type === 'success') {
+          log(`Success! Generated ${msg.count} slides`);
+        } else if (msg.type === 'error') {
+          log(`Error: ${msg.message}`);
+        }
+      }
+    };
+
+    loadStoredConnection();
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      connect(hostInput.value, portInput.value);
+    });
+
+    connectButton.addEventListener('click', () => {
+      connect(hostInput.value, portInput.value);
+    });
+
+    connect(currentHost, currentPort);
+  </script>
+</body>
+</html>

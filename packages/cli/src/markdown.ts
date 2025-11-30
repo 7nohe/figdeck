@@ -43,6 +43,7 @@ import type {
   SlideNumberConfig,
   SlideStyles,
   TableAlignment,
+  TitlePrefixConfig,
 } from "./types.js";
 
 // Processor instance for parsing markdown with frontmatter and GFM support
@@ -303,12 +304,14 @@ function parseSlideMarkdown(
   defaultBackground: SlideBackground | null,
   defaultStyles: SlideStyles,
   defaultSlideNumber: SlideNumberConfig | undefined,
+  defaultTitlePrefix: TitlePrefixConfig | null | undefined,
   figmaBlocks: FigmaBlockPlaceholder[],
   basePath?: string,
 ): SlideContent | null {
   let slideBackground: SlideBackground | null = null;
   let slideStyles: SlideStyles = {};
   let slideSlideNumber: SlideNumberConfig | undefined;
+  let slideTitlePrefix: TitlePrefixConfig | null | undefined;
 
   const { body: slideBody, config: frontmatterConfig } = extractFrontmatter(
     slideMarkdown,
@@ -320,6 +323,7 @@ function parseSlideMarkdown(
       slideBackground = frontmatterConfig.background;
     slideStyles = frontmatterConfig.styles;
     slideSlideNumber = frontmatterConfig.slideNumber;
+    slideTitlePrefix = frontmatterConfig.titlePrefix;
   }
 
   const tree = processor.parse(slideBody) as Root;
@@ -361,6 +365,15 @@ function parseSlideMarkdown(
       defaultSlideNumber,
       slideSlideNumber,
     );
+    // Merge titlePrefix config (slide-specific overrides global defaults)
+    // null means explicitly disabled, undefined means use default
+    if (slideTitlePrefix === null) {
+      builder.slide.titlePrefix = null;
+    } else if (slideTitlePrefix !== undefined) {
+      builder.slide.titlePrefix = slideTitlePrefix;
+    } else if (defaultTitlePrefix !== undefined) {
+      builder.slide.titlePrefix = defaultTitlePrefix;
+    }
     if (builder.blocks.length > 0) {
       builder.slide.blocks = builder.blocks;
     }
@@ -483,6 +496,7 @@ export function parseMarkdown(
   let globalDefaultBackground: SlideBackground | null = null;
   let globalDefaultStyles: SlideStyles = {};
   let globalDefaultSlideNumber: SlideNumberConfig | undefined;
+  let globalDefaultTitlePrefix: TitlePrefixConfig | null | undefined;
   let contentWithoutGlobalFrontmatter = processedMarkdown;
   const slides: SlideContent[] = [];
 
@@ -491,12 +505,16 @@ export function parseMarkdown(
   if (frontmatterMatch) {
     try {
       const config = parseYaml(frontmatterMatch[1]) as SlideConfig;
-      const { background, styles, slideNumber } = parseSlideConfig(config, {
-        basePath,
-      });
+      const { background, styles, slideNumber, titlePrefix } = parseSlideConfig(
+        config,
+        {
+          basePath,
+        },
+      );
       if (background) globalDefaultBackground = background;
       globalDefaultStyles = styles;
       globalDefaultSlideNumber = slideNumber;
+      globalDefaultTitlePrefix = titlePrefix;
     } catch {
       // Invalid YAML, ignore
     }
@@ -514,6 +532,7 @@ export function parseMarkdown(
       globalDefaultBackground,
       globalDefaultStyles,
       globalDefaultSlideNumber,
+      globalDefaultTitlePrefix,
       figmaBlocks,
       basePath,
     );

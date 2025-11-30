@@ -100,6 +100,63 @@ describe("parseSlideConfig", () => {
     });
   });
 
+  describe("titlePrefix parsing", () => {
+    it("should parse explicit titlePrefix config with link", () => {
+      const result = parseSlideConfig({
+        titlePrefix: {
+          link: "https://www.figma.com/design/abc?node-id=123-456",
+          spacing: 20,
+        },
+      });
+      expect(result.titlePrefix).toEqual({
+        link: "https://www.figma.com/design/abc?node-id=123-456",
+        nodeId: "123:456",
+        spacing: 20,
+      });
+    });
+
+    it("should parse titlePrefix with nodeId directly", () => {
+      const result = parseSlideConfig({
+        titlePrefix: {
+          nodeId: "789:012",
+          spacing: 16,
+        },
+      });
+      expect(result.titlePrefix).toEqual({
+        link: undefined,
+        nodeId: "789:012",
+        spacing: 16,
+      });
+    });
+
+    it("should set titlePrefix to null when explicitly disabled", () => {
+      const result = parseSlideConfig({
+        titlePrefix: false,
+      });
+      expect(result.titlePrefix).toBeNull();
+    });
+
+    it("should return undefined titlePrefix when not specified", () => {
+      const result = parseSlideConfig({
+        background: "#fff",
+      });
+      expect(result.titlePrefix).toBeUndefined();
+    });
+
+    it("should parse titlePrefix with only link", () => {
+      const result = parseSlideConfig({
+        titlePrefix: {
+          link: "https://www.figma.com/design/xyz?node-id=111-222",
+        },
+      });
+      expect(result.titlePrefix).toEqual({
+        link: "https://www.figma.com/design/xyz?node-id=111-222",
+        nodeId: "111:222",
+        spacing: undefined,
+      });
+    });
+  });
+
   describe("text styles parsing", () => {
     it("should parse heading styles", () => {
       const result = parseSlideConfig({
@@ -188,6 +245,67 @@ describe("parseSlideConfig", () => {
       expect(
         parseSlideConfig({ slideNumber: { size: 14 } }).slideNumber?.size,
       ).toBe(14);
+    });
+
+    it("should parse slideNumber with link", () => {
+      const result = parseSlideConfig({
+        slideNumber: {
+          show: true,
+          link: "https://www.figma.com/design/abc?node-id=123-456",
+          position: "bottom-right",
+        },
+      });
+      expect(result.slideNumber?.show).toBe(true);
+      expect(result.slideNumber?.link).toBe(
+        "https://www.figma.com/design/abc?node-id=123-456",
+      );
+      expect(result.slideNumber?.nodeId).toBe("123:456");
+      expect(result.slideNumber?.position).toBe("bottom-right");
+    });
+
+    it("should parse slideNumber with direct nodeId", () => {
+      const result = parseSlideConfig({
+        slideNumber: {
+          nodeId: "789:012",
+        },
+      });
+      expect(result.slideNumber?.nodeId).toBe("789:012");
+      expect(result.slideNumber?.link).toBeUndefined();
+    });
+
+    it("should parse slideNumber with startFrom", () => {
+      const result = parseSlideConfig({
+        slideNumber: {
+          show: true,
+          startFrom: 2,
+        },
+      });
+      expect(result.slideNumber?.startFrom).toBe(2);
+    });
+
+    it("should parse slideNumber with offset", () => {
+      const result = parseSlideConfig({
+        slideNumber: {
+          show: true,
+          offset: -1,
+        },
+      });
+      expect(result.slideNumber?.offset).toBe(-1);
+    });
+
+    it("should ignore invalid startFrom values", () => {
+      expect(
+        parseSlideConfig({ slideNumber: { startFrom: 0 } }).slideNumber
+          ?.startFrom,
+      ).toBeUndefined();
+      expect(
+        parseSlideConfig({ slideNumber: { startFrom: -1 } }).slideNumber
+          ?.startFrom,
+      ).toBeUndefined();
+      expect(
+        parseSlideConfig({ slideNumber: { startFrom: 1 } }).slideNumber
+          ?.startFrom,
+      ).toBe(1);
     });
   });
 });

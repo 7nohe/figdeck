@@ -15,14 +15,183 @@ import {
   renderSlideNumber,
 } from "./slide-utils";
 import { LAYOUT, resolveSlideStyles } from "./styles";
-import type { SlideBlock, SlideContent } from "./types";
+import type { SlideBlock, SlideContent, TitlePrefixConfig } from "./types";
 
 // Security limits
 const MAX_SLIDES = 100;
 const MAX_BLOCKS_PER_SLIDE = 50;
 const MAX_STRING_LENGTH = 100000;
 
+// Cache to track failed node lookups
+const failedNodeIds = new Set<string>();
+
+// Default spacing between prefix component and title text
+const DEFAULT_PREFIX_SPACING = 16;
+
 figma.showUI(__html__, { visible: true, width: 360, height: 420 });
+
+// Cache for cloneable nodes (Frame, Component, etc.)
+const nodeCache = new Map<string, SceneNode | null>();
+
+/**
+ * Find a node by nodeId that can be cloned for title prefix
+ * Supports FRAME, COMPONENT, COMPONENT_SET, and INSTANCE nodes
+ * Returns null if not found, with caching
+ */
+async function findCloneableNode(nodeId: string): Promise<SceneNode | null> {
+  // Check cache first
+  if (nodeCache.has(nodeId)) {
+    return nodeCache.get(nodeId) || null;
+  }
+
+  // Skip if already known to fail
+  if (failedNodeIds.has(nodeId)) {
+    return null;
+  }
+
+  try {
+    const node = await figma.getNodeByIdAsync(nodeId);
+    if (!node) {
+      console.warn(`[figdeck] Node "${nodeId}" not found`);
+      failedNodeIds.add(nodeId);
+      figma.notify(`Node not found: ${nodeId}`, { error: true });
+      return null;
+    }
+
+    // Frame - can be cloned directly
+    if (node.type === "FRAME" || node.type === "GROUP") {
+      nodeCache.set(nodeId, node as SceneNode);
+      return node as SceneNode;
+    }
+
+    // Direct component - can create instance
+    if (node.type === "COMPONENT") {
+      nodeCache.set(nodeId, node as SceneNode);
+      return node as SceneNode;
+    }
+
+    // Component set - use default variant
+    if (node.type === "COMPONENT_SET") {
+      const componentSet = node as ComponentSetNode;
+      const defaultVariant = componentSet.defaultVariant;
+      if (defaultVariant) {
+        nodeCache.set(nodeId, defaultVariant);
+        return defaultVariant;
+      }
+      const firstChild = componentSet.children[0];
+      if (firstChild && firstChild.type === "COMPONENT") {
+        nodeCache.set(nodeId, firstChild as SceneNode);
+        return firstChild as SceneNode;
+      }
+    }
+
+    // Instance - can be cloned directly
+    if (node.type === "INSTANCE") {
+      nodeCache.set(nodeId, node as SceneNode);
+      return node as SceneNode;
+    }
+
+    console.warn(
+      `[figdeck] Node "${nodeId}" is type "${node.type}", cannot be used as prefix`,
+    );
+    failedNodeIds.add(nodeId);
+    figma.notify(`Cannot use as prefix: ${nodeId} (${node.type})`, {
+      error: true,
+    });
+    return null;
+  } catch (e) {
+    console.warn(`[figdeck] Failed to find node: ${nodeId}`, e);
+    failedNodeIds.add(nodeId);
+    figma.notify(`Node not found: ${nodeId}`, { error: true });
+    return null;
+  }
+}
+
+/**
+ * Clone a node for use as title prefix
+ * Components create instances, other nodes are cloned
+ */
+function cloneNodeForPrefix(node: SceneNode): SceneNode {
+  if (node.type === "COMPONENT") {
+    return (node as ComponentNode).createInstance();
+  }
+  return node.clone();
+}
+
+/**
+ * Render title with optional prefix component
+ * Returns a frame containing prefix instance (if any) and title text
+ */
+async function renderTitleWithPrefix(
+  title: string,
+  titleStyle: { fontSize: number; fontStyle: string; fills?: Paint[] },
+  titlePrefix: TitlePrefixConfig | null | undefined,
+  x: number,
+  y: number,
+): Promise<{ node: SceneNode; height: number }> {
+  // If no prefix or explicitly disabled, render title normally
+  if (!titlePrefix || !titlePrefix.nodeId) {
+    const heading = figma.createText();
+    heading.fontName = { family: "Inter", style: titleStyle.fontStyle };
+    heading.fontSize = titleStyle.fontSize;
+    heading.characters = title;
+    if (titleStyle.fills) {
+      heading.fills = titleStyle.fills;
+    }
+    heading.x = x;
+    heading.y = y;
+    return { node: heading, height: heading.height };
+  }
+
+  // Try to find the prefix node by nodeId
+  const prefixNode = await findCloneableNode(titlePrefix.nodeId);
+
+  if (!prefixNode) {
+    // Fallback to plain title if node not found
+    const heading = figma.createText();
+    heading.fontName = { family: "Inter", style: titleStyle.fontStyle };
+    heading.fontSize = titleStyle.fontSize;
+    heading.characters = title;
+    if (titleStyle.fills) {
+      heading.fills = titleStyle.fills;
+    }
+    heading.x = x;
+    heading.y = y;
+    return { node: heading, height: heading.height };
+  }
+
+  // Clone the prefix node (creates instance for components, clone for frames)
+  const prefixClone = cloneNodeForPrefix(prefixNode);
+
+  // Create title text node
+  const titleText = figma.createText();
+  titleText.fontName = { family: "Inter", style: titleStyle.fontStyle };
+  titleText.fontSize = titleStyle.fontSize;
+  titleText.characters = title;
+  if (titleStyle.fills) {
+    titleText.fills = titleStyle.fills;
+  }
+
+  // Create horizontal auto-layout frame
+  const container = figma.createFrame();
+  container.name = "Title with Prefix";
+  container.layoutMode = "HORIZONTAL";
+  container.primaryAxisSizingMode = "AUTO";
+  container.counterAxisSizingMode = "AUTO";
+  container.itemSpacing = titlePrefix.spacing ?? DEFAULT_PREFIX_SPACING;
+  container.fills = []; // Transparent background
+  container.counterAxisAlignItems = "CENTER";
+
+  // Add prefix and title to container
+  container.appendChild(prefixClone);
+  container.appendChild(titleText);
+
+  // Position the container
+  container.x = x;
+  container.y = y;
+
+  return { node: container, height: container.height };
+}
 
 async function loadFont() {
   await figma.loadFontAsync({ family: "Inter", style: "Regular" });
@@ -216,13 +385,13 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
   let yOffset: number = LAYOUT.INITIAL_Y_OFFSET;
   const styles = resolveSlideStyles(slide.styles);
 
-  // Render title if present
+  // Render title if present (with optional prefix component)
   if (slide.title) {
     const titleStyle = slide.type === "title" ? styles.h1 : styles.h2;
-    const result = await renderHeading(
+    const result = await renderTitleWithPrefix(
       slide.title,
-      undefined,
       titleStyle,
+      slide.titlePrefix,
       LAYOUT.LEFT_MARGIN,
       yOffset,
     );

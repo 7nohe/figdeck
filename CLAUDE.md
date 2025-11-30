@@ -156,6 +156,13 @@ slideNumber:
   size: 14
   color: "#888"
   format: "{{current}} / {{total}}"
+  link: "https://www.figma.com/design/xxx?node-id=789-012"  # Custom Frame design (optional)
+  startFrom: 2                  # Start showing from slide 2 (default: 2, skips cover)
+  # offset is auto-calculated so slide 2 displays as "1"
+titlePrefix:
+  link: "https://www.figma.com/design/xxx?node-id=123-456"  # Figma component link
+  spacing: 16                   # Gap between prefix and title (default: 16)
+titlePrefix: false              # Disable inherited prefix for this slide
 ---
 ```
 

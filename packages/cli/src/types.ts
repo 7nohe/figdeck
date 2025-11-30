@@ -70,6 +70,24 @@ export interface SlideNumberConfig {
   paddingX?: number;
   paddingY?: number;
   format?: string;
+  /** Figma URL to a Frame/Component for custom slide number design */
+  link?: string;
+  /** Figma node ID (extracted from link or specified directly) */
+  nodeId?: string;
+  /** Start displaying slide numbers from this slide (1-indexed). Default: 1 */
+  startFrom?: number;
+  /** Offset to add to the displayed slide number. Default: 0 */
+  offset?: number;
+}
+
+/**
+ * Title prefix configuration for inserting a component instance before the title
+ * Uses Figma URL or nodeId to reference a component in the current file
+ */
+export interface TitlePrefixConfig {
+  link?: string;
+  nodeId?: string;
+  spacing?: number;
 }
 
 export type TableAlignment = "left" | "center" | "right" | null;
@@ -123,6 +141,7 @@ export interface SlideContent {
   background?: SlideBackground;
   styles?: SlideStyles;
   slideNumber?: SlideNumberConfig;
+  titlePrefix?: TitlePrefixConfig | null;
 }
 
 export interface GenerateSlidesMessage {

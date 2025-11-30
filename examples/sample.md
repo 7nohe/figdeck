@@ -1,5 +1,5 @@
 ---
-background: "#f0f4f8"
+background: "#ffffff"
 color: "#1a1a2e"
 ---
 

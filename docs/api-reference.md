@@ -198,8 +198,65 @@ interface SlideNumberConfig {
   paddingX?: number;
   paddingY?: number;
   format?: string;             // 例: "{{current}} / {{total}}"
+  link?: string;               // カスタムデザイン用 Figma Frame/Component リンク
+  nodeId?: string;             // Figma ノード ID（link から自動抽出可能）
+  startFrom?: number;          // この番号のスライドから表示開始（1-indexed）。デフォルト: 2
+  offset?: number;             // 表示番号に加算するオフセット。デフォルト: -(startFrom-1)
 }
 ```
+
+**デフォルト動作:**
+
+デフォルトでは `startFrom: 2` のため、表紙（1枚目）にはページ番号が表示されません。
+また、2枚目は自動的に「1」として表示されます（`offset` が自動計算される）。
+
+**カスタマイズ例:**
+
+1. **1枚目から表示したい場合:**
+```yaml
+slideNumber:
+  show: true
+  startFrom: 1
+```
+
+2. **スライド個別で非表示にする:**
+```yaml
+---
+slideNumber: false  # このスライドは非表示
+---
+# セクション区切り
+```
+
+3. **3枚目から表示（表紙+目次をスキップ）:**
+```yaml
+slideNumber:
+  show: true
+  startFrom: 3  # 3枚目が「1」として表示される
+```
+
+**カスタムデザインの使用方法:**
+
+`link` を指定すると、指定した Frame/Component を複製してスライド番号として使用します。
+Frame 内のテキストノードは名前で動的に置換されます：
+
+- `{{current}}` または `current` という名前のテキストノード → 現在のスライド番号
+- `{{total}}` または `total` という名前のテキストノード → 総スライド数
+
+### TitlePrefixConfig
+
+タイトルの前にコンポーネントを挿入する設定です。
+
+```typescript
+interface TitlePrefixConfig {
+  link?: string;               // Figma コンポーネントへのリンク URL
+  nodeId?: string;             // Figma ノード ID（link から自動抽出可能）
+  spacing?: number;            // プレフィックスとタイトル間のスペース (デフォルト: 16)
+}
+```
+
+`link` に Figma の選択リンク（例: `https://www.figma.com/design/xxx?node-id=123-456`）を指定すると、`nodeId` が自動的に抽出されます。
+
+タイトルプレフィックスは、テンプレートのデフォルトとして設定するか、スライド毎に指定/無効化できます。`titlePrefix: false` で明示的に無効化できます。
 
 ### GenerateSlidesMessage
 
@@ -259,6 +316,7 @@ color: "#58a6ff"
 | `bullets` | `object` | 箇条書きスタイル |
 | `code` | `object` | コードブロックスタイル |
 | `slideNumber` | `object \| boolean` | スライド番号設定 |
+| `titlePrefix` | `object \| false` | タイトルプレフィックス設定 |
 
 ## WebSocket API
 

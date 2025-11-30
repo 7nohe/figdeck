@@ -27,14 +27,14 @@ Plugin が起動し、WebSocket 接続を試みます。
 ### 1. CLI を起動
 
 ```bash
-bun run packages/cli/dist/index.js build examples/sample.md
+bun run packages/cli/dist/index.js serve examples/sample.md
 ```
 
 CLI が WebSocket サーバーを起動し、接続待機状態になります：
 
 ```
 Parsed 4 slides from examples/sample.md
-WebSocket server started on ws://localhost:4141
+WebSocket server started on ws://127.0.0.1:4141
 Waiting for Figma plugin to connect...
 ```
 
@@ -45,8 +45,19 @@ Figma で Plugin を起動すると、自動的に CLI に接続し、スライ�
 Plugin UI には接続状態とログが表示されます：
 
 - 緑: Connected - Waiting for slides...
-- 黄: Connecting to WebSocket server...
-- 赤: Disconnected - Reconnecting...
+- 黄: Connecting to WebSocket server... / Authenticating...
+- 赤: Disconnected - Reconnecting... / Authentication failed
+
+### 3. リモート接続（オプション）
+
+ネットワーク経由で接続する場合は、セキュリティオプションが必要です：
+
+```bash
+# リモートアクセスを許可（認証シークレットが自動生成されます）
+bun run packages/cli/dist/index.js serve examples/sample.md --host 0.0.0.0 --allow-remote
+```
+
+CLI 出力に表示されるシークレットを Plugin UI の「Secret」フィールドに入力してください。
 
 ## manifest.json 設定
 

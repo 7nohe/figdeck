@@ -1,7 +1,7 @@
 import { readFileSync, watchFile, writeFileSync } from "node:fs";
 import { Command } from "commander";
 import { parseMarkdown } from "./markdown.js";
-import { startServer } from "./ws-server.js";
+import { generateSecret, isLoopbackHost, startServer } from "./ws-server.js";
 
 const program = new Command();
 
@@ -39,23 +39,67 @@ program
   .command("serve")
   .description("Start WebSocket server for Figma plugin connection")
   .argument("<file>", "Markdown file path")
-  .option("--host <host>", "WebSocket host", "localhost")
+  .option("--host <host>", "WebSocket host", "127.0.0.1")
   .option("-p, --port <port>", "WebSocket port", "4141")
   .option("--no-watch", "Disable watching for file changes")
+  .option("--allow-remote", "Allow binding to non-loopback hosts")
+  .option("--secret <secret>", "Require authentication with this secret")
+  .option("--no-auth", "Disable authentication (not recommended for remote)")
   .action(
     async (
       file: string,
-      options: { host: string; port: string; watch: boolean },
+      options: {
+        host: string;
+        port: string;
+        watch: boolean;
+        allowRemote?: boolean;
+        secret?: string;
+        auth: boolean;
+      },
     ) => {
       try {
+        const host = options.host;
+        const isLoopback = isLoopbackHost(host);
+
+        // Security check: require --allow-remote for non-loopback hosts
+        if (!isLoopback && !options.allowRemote) {
+          console.error(
+            `Error: Binding to non-loopback host "${host}" requires --allow-remote flag`,
+          );
+          console.error(
+            "This exposes the server to the network. Use --allow-remote to confirm.",
+          );
+          process.exit(1);
+        }
+
+        // Generate or use provided secret for auth
+        let secret: string | undefined;
+        if (options.auth !== false) {
+          if (!isLoopback) {
+            // Always require auth for remote connections
+            secret = options.secret || generateSecret();
+          } else if (options.secret) {
+            // Use provided secret even for loopback
+            secret = options.secret;
+          }
+          // For loopback without explicit secret, no auth required (backwards compat)
+        }
+
         let markdown = readFileSync(file, "utf-8");
         let slides = parseMarkdown(markdown);
 
         console.log(`Parsed ${slides.length} slides from ${file}`);
 
+        if (!isLoopback) {
+          console.log(
+            "\n⚠️  WARNING: Server is exposed to the network. Ensure firewall is configured.",
+          );
+        }
+
         const server = await startServer(slides, {
-          host: options.host,
+          host,
           port: parseInt(options.port, 10),
+          secret,
         });
 
         if (options.watch) {

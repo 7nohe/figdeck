@@ -1,6 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   extractFigmaBlocks,
+  isValidFigmaHostname,
   matchFigmaPlaceholder,
   parseFigmaUrl,
 } from "./figma-block";
@@ -147,16 +148,15 @@ y=200
     expect(figmaBlocks).toHaveLength(0);
   });
 
-  it("should handle invalid Figma URL gracefully", () => {
+  it("should reject invalid Figma URL", () => {
     const markdown = `:::figma
 link=not-a-valid-url
 :::`;
 
     const { figmaBlocks } = extractFigmaBlocks(markdown);
 
-    expect(figmaBlocks).toHaveLength(1);
-    expect(figmaBlocks[0].link.url).toBe("not-a-valid-url");
-    expect(figmaBlocks[0].link.fileKey).toBeUndefined();
+    // Invalid URLs are now rejected for security
+    expect(figmaBlocks).toHaveLength(0);
   });
 });
 
@@ -175,5 +175,64 @@ describe("matchFigmaPlaceholder", () => {
     expect(
       matchFigmaPlaceholder("FIGDECK_FIGMA_BLOCK_abc_PLACEHOLDER"),
     ).toBeNull();
+  });
+});
+
+describe("isValidFigmaHostname", () => {
+  describe("valid hostnames", () => {
+    it("should accept figma.com", () => {
+      expect(isValidFigmaHostname("figma.com")).toBe(true);
+    });
+
+    it("should accept www.figma.com", () => {
+      expect(isValidFigmaHostname("www.figma.com")).toBe(true);
+    });
+
+    it("should accept subdomains of figma.com", () => {
+      expect(isValidFigmaHostname("api.figma.com")).toBe(true);
+      expect(isValidFigmaHostname("staging.figma.com")).toBe(true);
+    });
+  });
+
+  describe("invalid hostnames (security)", () => {
+    it("should reject evilfigma.com (suffix attack)", () => {
+      expect(isValidFigmaHostname("evilfigma.com")).toBe(false);
+    });
+
+    it("should reject sub.evilfigma.com", () => {
+      expect(isValidFigmaHostname("sub.evilfigma.com")).toBe(false);
+    });
+
+    it("should reject figma.com.evil.com", () => {
+      expect(isValidFigmaHostname("figma.com.evil.com")).toBe(false);
+    });
+
+    it("should reject notfigma.com", () => {
+      expect(isValidFigmaHostname("notfigma.com")).toBe(false);
+    });
+
+    it("should reject figma.org", () => {
+      expect(isValidFigmaHostname("figma.org")).toBe(false);
+    });
+  });
+});
+
+describe("extractFigmaBlocks security", () => {
+  it("should reject figma blocks with spoofed hostname", () => {
+    const markdown = `:::figma
+https://evilfigma.com/file/abc/Name?node-id=1-2
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+    expect(figmaBlocks).toHaveLength(0);
+  });
+
+  it("should reject figma blocks with invalid URL format", () => {
+    const markdown = `:::figma
+not-a-valid-url
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+    expect(figmaBlocks).toHaveLength(0);
   });
 });

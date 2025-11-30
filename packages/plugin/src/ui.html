@@ -68,6 +68,24 @@
     .connection button:active {
       transform: translateY(1px);
     }
+    .field.secret-field {
+      flex-grow: 1;
+    }
+    .field.secret-field input {
+      width: 100%;
+    }
+    .warning-banner {
+      background: #fff3cd;
+      color: #856404;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      display: none;
+    }
+    .warning-banner.visible {
+      display: block;
+    }
     .import-section {
       margin-bottom: 12px;
     }
@@ -150,14 +168,21 @@
   </div>
 
   <div id="tab-websocket" class="tab-content active">
+    <div id="remote-warning" class="warning-banner">
+      ⚠️ Connecting to non-loopback host. Ensure you trust this server.
+    </div>
     <form id="connection-form" class="connection">
       <label class="field">
         <span>Host</span>
-        <input id="host" name="host" type="text" placeholder="localhost" autocomplete="off">
+        <input id="host" name="host" type="text" placeholder="127.0.0.1" autocomplete="off">
       </label>
       <label class="field">
         <span>Port</span>
         <input id="port" name="port" type="number" min="1" max="65535" placeholder="4141" autocomplete="off">
+      </label>
+      <label class="field secret-field">
+        <span>Secret (optional)</span>
+        <input id="secret" name="secret" type="text" placeholder="Auth secret from CLI" autocomplete="off">
       </label>
       <button id="connect" type="button">Connect</button>
     </form>
@@ -179,29 +204,42 @@
   <div id="log" class="log" style="display: none;"></div>
 
   <script>
-    const DEFAULT_HOST = 'localhost';
-    const DEFAULT_PORT = 4141;
-    const HOST_KEY = 'figdeck-ws-host';
-    const PORT_KEY = 'figdeck-ws-port';
-    const TAB_KEY = 'figdeck-active-tab';
-    const statusEl = document.getElementById('status');
-    const importStatusEl = document.getElementById('import-status');
-    const logEl = document.getElementById('log');
-    const hostInput = document.getElementById('host');
-    const portInput = document.getElementById('port');
-    const form = document.getElementById('connection-form');
-    const connectButton = document.getElementById('connect');
-    const jsonInput = document.getElementById('json-input');
-    const importButton = document.getElementById('import-json');
-    const loadFileButton = document.getElementById('load-file');
-    const fileInput = document.getElementById('file-input');
-    const tabs = document.querySelectorAll('.tab');
-    const tabContents = document.querySelectorAll('.tab-content');
-    let ws = null;
-    let currentHost = DEFAULT_HOST;
-    let currentPort = DEFAULT_PORT;
-    let activeTab = 'websocket';
-    let autoConnect = true;
+    var DEFAULT_HOST = '127.0.0.1';
+    var DEFAULT_PORT = 4141;
+    var HOST_KEY = 'figdeck-ws-host';
+    var PORT_KEY = 'figdeck-ws-port';
+    var SECRET_KEY = 'figdeck-ws-secret';
+    var TAB_KEY = 'figdeck-active-tab';
+
+    // Security limits
+    var MAX_SLIDES = 100;
+    var MAX_BLOCKS_PER_SLIDE = 50;
+    var MAX_STRING_LENGTH = 100000;
+    var MAX_LOG_ENTRIES = 100;
+
+    var statusEl = document.getElementById('status');
+    var importStatusEl = document.getElementById('import-status');
+    var logEl = document.getElementById('log');
+    var hostInput = document.getElementById('host');
+    var portInput = document.getElementById('port');
+    var secretInput = document.getElementById('secret');
+    var remoteWarning = document.getElementById('remote-warning');
+    var form = document.getElementById('connection-form');
+    var connectButton = document.getElementById('connect');
+    var jsonInput = document.getElementById('json-input');
+    var importButton = document.getElementById('import-json');
+    var loadFileButton = document.getElementById('load-file');
+    var fileInput = document.getElementById('file-input');
+    var tabs = document.querySelectorAll('.tab');
+    var tabContents = document.querySelectorAll('.tab-content');
+    var ws = null;
+    var currentHost = DEFAULT_HOST;
+    var currentPort = DEFAULT_PORT;
+    var currentSecret = '';
+    var activeTab = 'websocket';
+    var autoConnect = true;
+    var authenticated = false;
+    var logEntryCount = 0;
 
     function safeGet(key) {
       try {
@@ -219,12 +257,33 @@
       }
     }
 
+    function isLoopbackHost(host) {
+      return host === '127.0.0.1' || host === '::1' || host === 'localhost';
+    }
+
+    function updateRemoteWarning() {
+      if (isLoopbackHost(currentHost)) {
+        remoteWarning.classList.remove('visible');
+      } else {
+        remoteWarning.classList.add('visible');
+      }
+    }
+
     function log(message) {
-      const entry = document.createElement('div');
+      // Limit log entries to prevent memory growth
+      if (logEntryCount >= MAX_LOG_ENTRIES) {
+        var firstEntry = logEl.querySelector('.log-entry');
+        if (firstEntry) {
+          logEl.removeChild(firstEntry);
+          logEntryCount--;
+        }
+      }
+      var entry = document.createElement('div');
       entry.className = 'log-entry';
-      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + message;
       logEl.appendChild(entry);
       logEl.scrollTop = logEl.scrollHeight;
+      logEntryCount++;
     }
 
     function setStatus(text, className) {
@@ -269,25 +328,38 @@
         ws = null;
       } else if (tabName === 'websocket') {
         autoConnect = true;
-        connect(currentHost, currentPort);
+        connect(currentHost, currentPort, currentSecret);
       }
     }
 
     function loadStoredConnection() {
-      const storedHost = safeGet(HOST_KEY);
-      const storedPort = parseInt(safeGet(PORT_KEY) || '', 10);
-      const storedTab = safeGet(TAB_KEY);
+      var storedHost = safeGet(HOST_KEY);
+      var storedPort = parseInt(safeGet(PORT_KEY) || '', 10);
+      var storedSecret = safeGet(SECRET_KEY);
+      var storedTab = safeGet(TAB_KEY);
 
       currentHost = storedHost && storedHost.trim() ? storedHost.trim() : DEFAULT_HOST;
       currentPort = Number.isFinite(storedPort) ? storedPort : DEFAULT_PORT;
+      currentSecret = storedSecret || '';
 
       hostInput.value = currentHost;
       portInput.value = String(currentPort);
+      secretInput.value = currentSecret;
+
+      updateRemoteWarning();
 
       if (storedTab === 'import') {
         autoConnect = false;
         switchTab('import');
       }
+    }
+
+    function truncateString(str, maxLen) {
+      if (typeof str !== 'string') return str;
+      if (str.length > maxLen) {
+        return str.slice(0, maxLen) + '... (truncated)';
+      }
+      return str;
     }
 
     function validateSlides(slides) {
@@ -297,6 +369,9 @@
       if (slides.length === 0) {
         return { valid: false, error: 'Slides array is empty' };
       }
+      if (slides.length > MAX_SLIDES) {
+        return { valid: false, error: 'Too many slides (max: ' + MAX_SLIDES + ')' };
+      }
       for (var i = 0; i < slides.length; i++) {
         var slide = slides[i];
         if (!slide || typeof slide !== 'object') {
@@ -304,6 +379,19 @@
         }
         if (!slide.type || (slide.type !== 'title' && slide.type !== 'content')) {
           return { valid: false, error: 'Slide ' + (i + 1) + ' has invalid type (must be "title" or "content")' };
+        }
+        // Check blocks limit
+        if (slide.blocks && Array.isArray(slide.blocks) && slide.blocks.length > MAX_BLOCKS_PER_SLIDE) {
+          return { valid: false, error: 'Slide ' + (i + 1) + ' has too many blocks (max: ' + MAX_BLOCKS_PER_SLIDE + ')' };
+        }
+        // Truncate oversized strings
+        if (slide.title && typeof slide.title === 'string') {
+          slide.title = truncateString(slide.title, MAX_STRING_LENGTH);
+        }
+        if (slide.body && Array.isArray(slide.body)) {
+          for (var j = 0; j < slide.body.length; j++) {
+            slide.body[j] = truncateString(slide.body[j], MAX_STRING_LENGTH);
+          }
         }
       }
       return { valid: true };
@@ -337,16 +425,22 @@
       }, '*');
     }
 
-    function connect(host, port) {
+    function connect(host, port, secret) {
       if (host === undefined) host = currentHost;
       if (port === undefined) port = currentPort;
+      if (secret === undefined) secret = currentSecret;
 
       var parsedPort = parseInt(port, 10);
       currentHost = host && String(host).trim() ? String(host).trim() : DEFAULT_HOST;
       currentPort = Number.isFinite(parsedPort) ? parsedPort : DEFAULT_PORT;
+      currentSecret = secret || '';
+      authenticated = false;
 
       safeSet(HOST_KEY, currentHost);
       safeSet(PORT_KEY, String(currentPort));
+      safeSet(SECRET_KEY, currentSecret);
+
+      updateRemoteWarning();
 
       if (ws) {
         ws.onclose = null;
@@ -363,15 +457,52 @@
         ws = new WebSocket('ws://' + currentHost + ':' + currentPort);
 
         ws.onopen = function() {
-          setStatus('Connected to ws://' + currentHost + ':' + currentPort + ' - Waiting for slides...', 'connected');
           log('Connected to CLI');
+          // Send auth message if secret is provided
+          if (currentSecret) {
+            log('Sending authentication...');
+            setStatus('Authenticating...', 'waiting');
+            ws.send(JSON.stringify({ type: 'auth', secret: currentSecret }));
+          } else {
+            // No secret - server may or may not require auth
+            // Try to auth anyway (server will respond with auth-ok even without secret if no auth required)
+            ws.send(JSON.stringify({ type: 'auth', secret: '' }));
+            setStatus('Connected to ws://' + currentHost + ':' + currentPort + ' - Waiting for slides...', 'connected');
+            authenticated = true;
+          }
         };
 
         ws.onmessage = function(event) {
           try {
             var msg = JSON.parse(event.data);
             log('Received: ' + msg.type);
+
+            // Handle auth responses
+            if (msg.type === 'auth-ok') {
+              authenticated = true;
+              setStatus('Connected to ws://' + currentHost + ':' + currentPort + ' - Waiting for slides...', 'connected');
+              log('Authentication successful');
+              return;
+            }
+            if (msg.type === 'auth-error') {
+              authenticated = false;
+              setStatus('Authentication failed: ' + (msg.message || 'Invalid secret'), 'error');
+              log('Authentication failed: ' + (msg.message || 'Invalid secret'));
+              return;
+            }
+
+            // Only process slides if authenticated
             if (msg.type === 'generate-slides') {
+              if (!Array.isArray(msg.slides)) {
+                log('Invalid message: slides is not an array');
+                return;
+              }
+              // Validate incoming slides
+              var validation = validateSlides(msg.slides);
+              if (!validation.valid) {
+                log('Rejected payload: ' + validation.error);
+                return;
+              }
               log('Generating ' + msg.slides.length + ' slides...');
               parent.postMessage({ pluginMessage: msg }, '*');
             }
@@ -380,11 +511,22 @@
           }
         };
 
-        ws.onclose = function() {
+        ws.onclose = function(event) {
+          authenticated = false;
+          if (event.code === 4001) {
+            setStatus('Authentication timeout', 'error');
+            log('Authentication timeout - provide the secret from CLI');
+            return;
+          }
+          if (event.code === 4002) {
+            setStatus('Invalid secret', 'error');
+            log('Invalid secret - check the secret displayed in CLI');
+            return;
+          }
           if (autoConnect && activeTab === 'websocket') {
             setStatus('Disconnected - Reconnecting to ws://' + currentHost + ':' + currentPort + '...', 'disconnected');
             log('Disconnected, retrying in 3s...');
-            setTimeout(function() { connect(currentHost, currentPort); }, 3000);
+            setTimeout(function() { connect(currentHost, currentPort, currentSecret); }, 3000);
           } else {
             setStatus('Disconnected', 'disconnected');
           }
@@ -396,7 +538,7 @@
       } catch (e) {
         log('Connection failed: ' + e);
         if (autoConnect && activeTab === 'websocket') {
-          setTimeout(function() { connect(currentHost, currentPort); }, 3000);
+          setTimeout(function() { connect(currentHost, currentPort, currentSecret); }, 3000);
         }
       }
     }
@@ -464,16 +606,26 @@
 
     form.addEventListener('submit', function(event) {
       event.preventDefault();
-      connect(hostInput.value, portInput.value);
+      connect(hostInput.value, portInput.value, secretInput.value);
     });
 
     connectButton.addEventListener('click', function() {
-      connect(hostInput.value, portInput.value);
+      connect(hostInput.value, portInput.value, secretInput.value);
+    });
+
+    // Update warning when host input changes
+    hostInput.addEventListener('input', function() {
+      var host = hostInput.value.trim() || DEFAULT_HOST;
+      if (isLoopbackHost(host)) {
+        remoteWarning.classList.remove('visible');
+      } else {
+        remoteWarning.classList.add('visible');
+      }
     });
 
     // Only auto-connect if on websocket tab
     if (activeTab === 'websocket') {
-      connect(currentHost, currentPort);
+      connect(currentHost, currentPort, currentSecret);
     }
   </script>
 </body>

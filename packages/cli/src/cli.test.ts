@@ -88,7 +88,9 @@ describe("CLI", () => {
       expect(result).toContain("serve");
       expect(result).toContain("--host");
       expect(result).toContain("--port");
-      expect(result).toContain("--watch");
+      expect(result).toContain("--no-watch");
+      expect(result).toContain("--allow-remote");
+      expect(result).toContain("--secret");
     });
   });
 

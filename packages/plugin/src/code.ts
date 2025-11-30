@@ -17,6 +17,11 @@ import {
 import { LAYOUT, resolveSlideStyles } from "./styles";
 import type { SlideBlock, SlideContent } from "./types";
 
+// Security limits
+const MAX_SLIDES = 100;
+const MAX_BLOCKS_PER_SLIDE = 50;
+const MAX_STRING_LENGTH = 100000;
+
 figma.showUI(__html__, { visible: true, width: 360, height: 420 });
 
 async function loadFont() {
@@ -295,12 +300,99 @@ async function generateSlides(slides: SlideContent[]) {
   figma.notify(`Updated ${slides.length} slides`);
 }
 
-figma.ui.onmessage = async (msg: { type: string; slides?: SlideContent[] }) => {
+function truncateString(str: string, maxLen: number): string {
+  if (str.length > maxLen) {
+    return str.slice(0, maxLen) + "... (truncated)";
+  }
+  return str;
+}
+
+function validateAndSanitizeSlides(
+  slides: unknown,
+): { valid: true; slides: SlideContent[] } | { valid: false; error: string } {
+  if (!Array.isArray(slides)) {
+    return { valid: false, error: "Slides must be an array" };
+  }
+
+  if (slides.length === 0) {
+    return { valid: false, error: "Slides array is empty" };
+  }
+
+  if (slides.length > MAX_SLIDES) {
+    return { valid: false, error: `Too many slides (max: ${MAX_SLIDES})` };
+  }
+
+  const sanitized: SlideContent[] = [];
+
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i] as Record<string, unknown>;
+
+    if (!slide || typeof slide !== "object") {
+      return { valid: false, error: `Slide ${i + 1} is not an object` };
+    }
+
+    if (slide.type !== "title" && slide.type !== "content") {
+      return {
+        valid: false,
+        error: `Slide ${i + 1} has invalid type (must be "title" or "content")`,
+      };
+    }
+
+    // Check blocks limit
+    if (
+      slide.blocks &&
+      Array.isArray(slide.blocks) &&
+      slide.blocks.length > MAX_BLOCKS_PER_SLIDE
+    ) {
+      return {
+        valid: false,
+        error: `Slide ${i + 1} has too many blocks (max: ${MAX_BLOCKS_PER_SLIDE})`,
+      };
+    }
+
+    // Sanitize strings (use Object.assign for Figma sandbox compatibility)
+    const sanitizedSlide = Object.assign({}, slide) as SlideContent;
+
+    if (typeof sanitizedSlide.title === "string") {
+      sanitizedSlide.title = truncateString(
+        sanitizedSlide.title,
+        MAX_STRING_LENGTH,
+      );
+    }
+
+    if (Array.isArray(sanitizedSlide.body)) {
+      sanitizedSlide.body = sanitizedSlide.body.map((item) =>
+        typeof item === "string" ? truncateString(item, MAX_STRING_LENGTH) : "",
+      );
+    }
+
+    if (Array.isArray(sanitizedSlide.bullets)) {
+      sanitizedSlide.bullets = sanitizedSlide.bullets.map((item) =>
+        typeof item === "string" ? truncateString(item, MAX_STRING_LENGTH) : "",
+      );
+    }
+
+    sanitized.push(sanitizedSlide);
+  }
+
+  return { valid: true, slides: sanitized };
+}
+
+figma.ui.onmessage = async (msg: { type: string; slides?: unknown }) => {
   if (msg.type === "generate-slides" && msg.slides) {
+    const validation = validateAndSanitizeSlides(msg.slides);
+
+    if (!validation.valid) {
+      console.error(`[figdeck] Validation error: ${validation.error}`);
+      figma.ui.postMessage({ type: "error", message: validation.error });
+      return;
+    }
+
     try {
-      await generateSlides(msg.slides);
-      figma.ui.postMessage({ type: "success", count: msg.slides.length });
+      await generateSlides(validation.slides);
+      figma.ui.postMessage({ type: "success", count: validation.slides.length });
     } catch (error) {
+      console.error("[figdeck] Error generating slides:", error);
       figma.ui.postMessage({ type: "error", message: String(error) });
     }
   }

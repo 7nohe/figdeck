@@ -94,6 +94,31 @@ Figma 内で動作し、スライドデータを受信して `figma.createSlide(
 
 ## WebSocket プロトコル
 
+### 認証ハンドシェイク（リモート接続時）
+
+Plugin → CLI（接続直後）:
+```json
+{
+  "type": "auth",
+  "secret": "シークレット文字列"
+}
+```
+
+CLI → Plugin（認証成功）:
+```json
+{
+  "type": "auth-ok"
+}
+```
+
+CLI → Plugin（認証失敗）:
+```json
+{
+  "type": "auth-error",
+  "message": "Invalid secret"
+}
+```
+
 ### CLI → Plugin
 
 ```json
@@ -135,3 +160,26 @@ Figma 内で動作し、スライドデータを受信して `figma.createSlide(
 ### UI 経由の通信
 
 Figma Plugin の `code.ts` は直接ネットワークアクセスできないため、`ui.html` が WebSocket クライアントとして動作し、`postMessage` で `code.ts` にデータを転送します。
+
+## セキュリティ
+
+### ネットワーク露出の保護
+
+CLI と Plugin は、WebSocket 接続のセキュリティを強化しています：
+
+**CLI 側:**
+- デフォルトホストは `127.0.0.1`（ローカルのみ）
+- 非ループバックホストには `--allow-remote` フラグが必須
+- リモート接続時は認証シークレットを自動生成
+- `maxPayload: 10MB` でメモリ枯渇を防止
+
+**Plugin 側:**
+- デフォルトホストは `127.0.0.1`
+- 非ループバック接続時に警告バナーを表示
+- ペイロード検証: 最大100スライド、1スライドあたり最大50ブロック
+- ログエントリを100件に制限
+
+### 入力検証
+
+- Figma URL: 厳格なホスト名チェック（`figma.com` または `*.figma.com` のみ許可）
+- スライドデータ: 型チェックと文字列長制限（100,000文字）

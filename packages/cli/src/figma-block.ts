@@ -8,13 +8,17 @@ import type { FigmaSelectionLink } from "./types.js";
  * - https://www.figma.com/slides/<fileKey>/<name>?node-id=<nodeId>
  * - https://figma.com/file/<fileKey>?node-id=<nodeId>
  */
+export function isValidFigmaHostname(hostname: string): boolean {
+  return hostname === "figma.com" || hostname.endsWith(".figma.com");
+}
+
 export function parseFigmaUrl(url: string): {
   fileKey?: string;
   nodeId?: string;
 } {
   try {
     const parsed = new URL(url);
-    if (!parsed.hostname.endsWith("figma.com")) {
+    if (!isValidFigmaHostname(parsed.hostname)) {
       return {};
     }
 
@@ -103,9 +107,25 @@ export function extractFigmaBlocks(markdown: string): {
         return "";
       }
 
+      // Validate hostname before processing
+      let hostname: string | null = null;
+      try {
+        hostname = new URL(props.link).hostname;
+      } catch {
+        console.warn(`[figdeck] Invalid URL format: ${props.link}`);
+        return "";
+      }
+
+      if (!isValidFigmaHostname(hostname)) {
+        console.warn(
+          `[figdeck] Rejected Figma URL with invalid hostname "${hostname}": ${props.link}`,
+        );
+        return "";
+      }
+
       const { fileKey, nodeId } = parseFigmaUrl(props.link);
       if (!fileKey) {
-        console.warn(`[figdeck] Invalid Figma URL: ${props.link}`);
+        console.warn(`[figdeck] Invalid Figma URL (missing fileKey): ${props.link}`);
       }
 
       const link: FigmaSelectionLink = {

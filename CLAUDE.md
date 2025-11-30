@@ -32,11 +32,17 @@ cd packages/cli && bun run dev
 # Watch mode is enabled by default - auto-reloads on file changes
 bun run packages/cli/dist/index.js serve examples/sample.md
 
-# WebSocket options
-bun run packages/cli/dist/index.js serve slides.md --host localhost --port 4141
+# WebSocket options (default host is 127.0.0.1 for security)
+bun run packages/cli/dist/index.js serve slides.md --host 127.0.0.1 --port 4141
 
 # Disable watch mode
 bun run packages/cli/dist/index.js serve slides.md --no-watch
+
+# Remote access (requires explicit flag for non-loopback hosts)
+bun run packages/cli/dist/index.js serve slides.md --host 0.0.0.0 --allow-remote
+
+# Authentication (auto-generated secret shown in CLI output for remote connections)
+bun run packages/cli/dist/index.js serve slides.md --secret my-secret
 
 # JSON output mode: Parse Markdown and output JSON (no server)
 bun run packages/cli/dist/index.js build examples/sample.md              # stdout
@@ -185,3 +191,26 @@ Modern syntax automatically transpiled:
 - `catch {}` (empty catch) → `catch (_e) {}`
 
 Do not change the `--target=es2018` flag in the plugin build script.
+
+## Security
+
+The CLI and Plugin implement security hardening for network exposure:
+
+**CLI (serve command):**
+- Default host is `127.0.0.1` (loopback only)
+- `--allow-remote` flag required for non-loopback hosts (e.g., `0.0.0.0`)
+- `--secret <secret>` enables authentication handshake
+- Auto-generates secret for remote connections (displayed in CLI output)
+- `--no-auth` disables authentication (not recommended for remote)
+- WebSocket `maxPayload` limited to 10MB
+
+**Plugin UI:**
+- Default host is `127.0.0.1`
+- Secret input field for authentication
+- Warning banner displayed for non-loopback connections
+- Payload validation: max 100 slides, max 50 blocks per slide
+- Log entries capped at 100 to prevent memory growth
+
+**Figma URL validation:**
+- Strict hostname check: must be `figma.com` or `*.figma.com`
+- Blocks spoofed hostnames like `evilfigma.com`

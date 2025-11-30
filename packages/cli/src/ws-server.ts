@@ -1,14 +1,28 @@
+import { randomBytes } from "node:crypto";
 import { type WebSocket, WebSocketServer } from "ws";
 import type { GenerateSlidesMessage, SlideContent } from "./types.js";
+
+const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
+const AUTH_TIMEOUT_MS = 5000;
 
 export interface WsServerOptions {
   host: string;
   port: number;
+  secret?: string; // If provided, require auth handshake
 }
 
 export interface WsServerInstance {
   broadcast: (slides: SlideContent[]) => void;
   close: () => void;
+  secret: string | null;
+}
+
+export function generateSecret(): string {
+  return randomBytes(16).toString("hex");
+}
+
+export function isLoopbackHost(host: string): boolean {
+  return host === "127.0.0.1" || host === "::1" || host === "localhost";
 }
 
 export function startServer(
@@ -17,13 +31,27 @@ export function startServer(
 ): Promise<WsServerInstance> {
   return new Promise((resolve, reject) => {
     let latestSlides = initialSlides;
-    const wss = new WebSocketServer({ host: options.host, port: options.port });
+    const secret = options.secret ?? null;
+    const authenticatedClients = new WeakSet<WebSocket>();
+
+    const wss = new WebSocketServer({
+      host: options.host,
+      port: options.port,
+      maxPayload: MAX_PAYLOAD_BYTES,
+    });
     const clients = new Set<WebSocket>();
 
     console.log(
       `WebSocket server started on ws://${options.host}:${options.port}`,
     );
+    if (secret) {
+      console.log(`Authentication secret: ${secret}`);
+    }
     console.log("Waiting for Figma plugin to connect...");
+
+    function isAuthenticated(ws: WebSocket): boolean {
+      return !secret || authenticatedClients.has(ws);
+    }
 
     function broadcast(slides: SlideContent[]) {
       latestSlides = slides;
@@ -34,7 +62,7 @@ export function startServer(
       const data = JSON.stringify(message);
 
       for (const client of clients) {
-        if (client.readyState === client.OPEN) {
+        if (client.readyState === client.OPEN && isAuthenticated(client)) {
           client.send(data);
           console.log(`Sent ${slides.length} slides to plugin`);
         }
@@ -42,20 +70,64 @@ export function startServer(
     }
 
     wss.on("connection", (ws: WebSocket) => {
-      console.log("Figma plugin connected");
+      console.log("Client connected");
       clients.add(ws);
 
-      // Send initial slides on connection
-      const message: GenerateSlidesMessage = {
-        type: "generate-slides",
-        slides: latestSlides,
-      };
-      ws.send(JSON.stringify(message));
-      console.log(`Sent ${latestSlides.length} slides to plugin`);
+      let authTimer: ReturnType<typeof setTimeout> | null = null;
+
+      if (secret) {
+        // Set auth timeout - close if not authenticated in time
+        authTimer = setTimeout(() => {
+          if (!authenticatedClients.has(ws)) {
+            console.log("Client failed to authenticate in time, closing");
+            ws.close(4001, "Authentication timeout");
+          }
+        }, AUTH_TIMEOUT_MS);
+      } else {
+        // No auth required - send initial slides immediately
+        authenticatedClients.add(ws);
+        sendInitialSlides(ws);
+      }
+
+      function sendInitialSlides(client: WebSocket) {
+        const message: GenerateSlidesMessage = {
+          type: "generate-slides",
+          slides: latestSlides,
+        };
+        client.send(JSON.stringify(message));
+        console.log(`Sent ${latestSlides.length} slides to plugin`);
+      }
 
       ws.on("message", (data) => {
         try {
           const response = JSON.parse(data.toString());
+
+          // Handle auth message
+          if (response.type === "auth") {
+            if (!secret) {
+              ws.send(JSON.stringify({ type: "auth-ok" }));
+              return;
+            }
+            if (response.secret === secret) {
+              if (authTimer) clearTimeout(authTimer);
+              authenticatedClients.add(ws);
+              console.log("Client authenticated successfully");
+              ws.send(JSON.stringify({ type: "auth-ok" }));
+              sendInitialSlides(ws);
+            } else {
+              console.log("Client provided invalid secret");
+              ws.send(JSON.stringify({ type: "auth-error", message: "Invalid secret" }));
+              ws.close(4002, "Invalid secret");
+            }
+            return;
+          }
+
+          // Reject non-auth messages from unauthenticated clients
+          if (!isAuthenticated(ws)) {
+            console.log("Rejecting message from unauthenticated client");
+            return;
+          }
+
           if (response.type === "success") {
             console.log(
               `Plugin successfully generated ${response.count} slides`,
@@ -71,6 +143,7 @@ export function startServer(
       ws.on("close", () => {
         console.log("Plugin disconnected");
         clients.delete(ws);
+        if (authTimer) clearTimeout(authTimer);
       });
     });
 
@@ -83,6 +156,7 @@ export function startServer(
       resolve({
         broadcast,
         close: () => wss.close(),
+        secret,
       });
     });
   });

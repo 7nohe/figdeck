@@ -207,6 +207,38 @@ Alignment can also be specified:
 | Text | Text | Number |
 ```
 
+## Footnotes
+
+GFM footnote syntax is supported.
+Footnotes are displayed at the bottom of the slide in a smaller font.
+
+### Basic Syntax
+
+```markdown
+## Research Results
+
+According to recent research[^1], this is an important finding[^2].
+
+[^1]: Smith et al. (2024) Journal of Science
+[^2]: See Appendix A for details
+```
+
+### Named Footnotes
+
+You can also use names instead of numbers:
+
+```markdown
+This feature is useful[^note].
+
+[^note]: Verified through usability testing
+```
+
+### Display Format
+
+- Footnote references in the text are displayed as `[1]` or `[note]` in square brackets (Figma Slides does not support superscript)
+- Footnote definitions are displayed at the bottom of the slide, separated by a horizontal line
+- Inline formatting like **bold** and *italic* can also be used within footnotes
+
 ## Code Blocks
 
 Blocks enclosed in ` ``` ` are displayed as code blocks.
@@ -299,4 +331,4 @@ This example generates the following 5 slides:
 | Images | Supported | Local and remote |
 | Figma links | Supported | `:::figma` blocks |
 | align/valign | Supported | Slide alignment settings |
-| Footnotes | Not supported | |
+| Footnotes | Supported | GFM, displayed at slide bottom |

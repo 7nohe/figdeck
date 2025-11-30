@@ -37,6 +37,7 @@ import {
   spansToText,
 } from "./spans.js";
 import type {
+  FootnoteItem,
   HorizontalAlign,
   SlideBackground,
   SlideBlock,
@@ -44,6 +45,7 @@ import type {
   SlideNumberConfig,
   SlideStyles,
   TableAlignment,
+  TextSpan,
   TitlePrefixConfig,
   VerticalAlign,
 } from "./types.js";
@@ -129,6 +131,7 @@ interface SlideBuilder {
   slide: SlideContent | null;
   blocks: SlideBlock[];
   basePath?: string;
+  footnoteDefinitions: Map<string, FootnoteItem>;
 }
 
 /**
@@ -299,6 +302,47 @@ function processTable(tableNode: Table, builder: SlideBuilder): void {
 }
 
 /**
+ * mdast footnoteDefinition node type
+ */
+interface FootnoteDefinitionNode {
+  type: "footnoteDefinition";
+  identifier: string;
+  label?: string;
+  children: (Paragraph | PhrasingContent)[];
+}
+
+/**
+ * Process a footnote definition node
+ */
+function processFootnoteDefinition(
+  node: FootnoteDefinitionNode,
+  builder: SlideBuilder,
+): void {
+  const id = node.identifier;
+  const allSpans: TextSpan[] = [];
+
+  // Extract text from footnote definition children
+  for (const child of node.children) {
+    if (child.type === "paragraph") {
+      const para = child as Paragraph;
+      allSpans.push(...extractSpans(para.children as PhrasingContent[]));
+    } else if ("children" in child) {
+      // For other content types with children
+      allSpans.push(
+        ...extractSpans((child as { children: PhrasingContent[] }).children),
+      );
+    }
+  }
+
+  const content = spansToText(allSpans);
+  builder.footnoteDefinitions.set(id, {
+    id,
+    content,
+    spans: allSpans.length > 0 ? allSpans : undefined,
+  });
+}
+
+/**
  * Parse a single slide's markdown content (may include frontmatter)
  */
 function parseSlideMarkdown(
@@ -335,7 +379,12 @@ function parseSlideMarkdown(
   }
 
   const tree = processor.parse(slideBody) as Root;
-  const builder: SlideBuilder = { slide: null, blocks: [], basePath };
+  const builder: SlideBuilder = {
+    slide: null,
+    blocks: [],
+    basePath,
+    footnoteDefinitions: new Map(),
+  };
 
   // Process each AST node
   for (const node of tree.children) {
@@ -357,6 +406,9 @@ function parseSlideMarkdown(
         break;
       case "table":
         processTable(node as Table, builder);
+        break;
+      case "footnoteDefinition":
+        processFootnoteDefinition(node as FootnoteDefinitionNode, builder);
         break;
       // Other node types (yaml, thematicBreak, etc.) are ignored
     }
@@ -388,6 +440,13 @@ function parseSlideMarkdown(
 
     if (builder.blocks.length > 0) {
       builder.slide.blocks = builder.blocks;
+    }
+
+    // Add footnotes if any were defined
+    if (builder.footnoteDefinitions.size > 0) {
+      builder.slide.footnotes = Array.from(
+        builder.footnoteDefinitions.values(),
+      );
     }
   }
 

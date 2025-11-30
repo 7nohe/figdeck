@@ -35,6 +35,8 @@ export interface TextSpan {
   strike?: boolean;
   code?: boolean;
   href?: string;
+  /** Display as superscript-style (smaller, raised) */
+  superscript?: boolean;
 }
 
 export interface TextStyle {
@@ -93,6 +95,15 @@ export interface TitlePrefixConfig {
 export type TableAlignment = "left" | "center" | "right" | null;
 
 /**
+ * Footnote item for slide footnotes
+ */
+export interface FootnoteItem {
+  id: string;
+  content: string;
+  spans?: TextSpan[];
+}
+
+/**
  * Horizontal alignment for slide content
  */
 export type HorizontalAlign = "left" | "center" | "right";
@@ -139,7 +150,8 @@ export type SlideBlock =
       rows: TextSpan[][][];
       align?: TableAlignment[];
     }
-  | { kind: "figma"; link: FigmaSelectionLink };
+  | { kind: "figma"; link: FigmaSelectionLink }
+  | { kind: "footnotes"; items: FootnoteItem[] };
 
 export interface SlideContent {
   type: "title" | "content";
@@ -156,6 +168,8 @@ export interface SlideContent {
   align?: HorizontalAlign;
   /** Vertical alignment of slide content */
   valign?: VerticalAlign;
+  /** Footnotes for this slide */
+  footnotes?: FootnoteItem[];
 }
 
 export interface GenerateSlidesMessage {

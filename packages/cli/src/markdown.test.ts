@@ -783,4 +783,129 @@ Text`);
       expect(result[0].valign).toBeUndefined();
     });
   });
+
+  describe("footnotes", () => {
+    it("parses footnote references in text", () => {
+      const result = parseMarkdown(`## Test
+
+Text with a footnote[^1].
+
+[^1]: This is the footnote content.`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].footnotes).toHaveLength(1);
+      expect(result[0].footnotes?.[0].id).toBe("1");
+      expect(result[0].footnotes?.[0].content).toBe(
+        "This is the footnote content.",
+      );
+    });
+
+    it("displays footnote reference as [id] with superscript style", () => {
+      const result = parseMarkdown(`## Test
+
+Text[^1] here.
+
+[^1]: Footnote.`);
+
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      expect(block?.kind).toBe("paragraph");
+      if (block?.kind === "paragraph" && block.spans) {
+        expect(block.spans).toContainEqual({ text: "[1]", superscript: true });
+      }
+    });
+
+    it("handles multiple footnotes", () => {
+      const result = parseMarkdown(`## Test
+
+First[^1] and second[^2].
+
+[^1]: First footnote.
+[^2]: Second footnote.`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].footnotes).toHaveLength(2);
+      expect(result[0].footnotes?.[0].id).toBe("1");
+      expect(result[0].footnotes?.[1].id).toBe("2");
+    });
+
+    it("handles named footnotes", () => {
+      const result = parseMarkdown(`## Test
+
+Text[^note].
+
+[^note]: Named footnote content.`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].footnotes).toHaveLength(1);
+      expect(result[0].footnotes?.[0].id).toBe("note");
+      expect(result[0].footnotes?.[0].content).toBe("Named footnote content.");
+    });
+
+    it("preserves footnote order", () => {
+      const result = parseMarkdown(`## Test
+
+A[^a] B[^b] C[^c].
+
+[^a]: Alpha
+[^b]: Beta
+[^c]: Gamma`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].footnotes).toHaveLength(3);
+      expect(result[0].footnotes?.[0].id).toBe("a");
+      expect(result[0].footnotes?.[1].id).toBe("b");
+      expect(result[0].footnotes?.[2].id).toBe("c");
+    });
+
+    it("extracts spans from footnote content", () => {
+      const result = parseMarkdown(`## Test
+
+Text[^1].
+
+[^1]: Footnote with **bold** text.`);
+
+      expect(result).toHaveLength(1);
+      const footnote = result[0].footnotes?.[0];
+      expect(footnote?.spans).toContainEqual({ text: "bold", bold: true });
+    });
+
+    it("handles footnote without definition gracefully", () => {
+      const result = parseMarkdown(`## Test
+
+Text with undefined reference[^undefined].`);
+
+      expect(result).toHaveLength(1);
+      // Without a matching definition, remark-gfm keeps the raw text as-is
+      const block = result[0].blocks?.[0];
+      if (block?.kind === "paragraph" && block.spans) {
+        // The text contains [^undefined] literally since no definition exists
+        expect(block.spans[0].text).toContain("[^undefined]");
+      }
+      // No footnotes defined
+      expect(result[0].footnotes).toBeUndefined();
+    });
+
+    it("handles footnotes per slide independently", () => {
+      const result = parseMarkdown(`## Slide 1
+
+Text[^1].
+
+[^1]: Slide 1 footnote.
+
+---
+
+## Slide 2
+
+Text[^1].
+
+[^1]: Slide 2 footnote.`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].footnotes).toHaveLength(1);
+      expect(result[0].footnotes?.[0].content).toBe("Slide 1 footnote.");
+      expect(result[1].footnotes).toHaveLength(1);
+      expect(result[1].footnotes?.[0].content).toBe("Slide 2 footnote.");
+    });
+  });
 });

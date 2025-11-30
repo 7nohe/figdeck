@@ -114,6 +114,21 @@ export function extractSpans(
         spans.push(...childSpans);
         break;
       }
+      case "footnoteReference": {
+        // Display footnote reference as superscript-style [id]
+        // Using smaller text to simulate superscript (Figma doesn't support actual superscript)
+        const refNode = node as { identifier: string };
+        const span: TextSpan = {
+          text: `[${refNode.identifier}]`,
+          superscript: true,
+        };
+        if (marks.bold) span.bold = true;
+        if (marks.italic) span.italic = true;
+        if (marks.strike) span.strike = true;
+        if (marks.href) span.href = marks.href;
+        spans.push(span);
+        break;
+      }
       default:
         // For other node types with children (e.g., html), try to extract text
         if ("children" in node) {

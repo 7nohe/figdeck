@@ -79,11 +79,20 @@ beforeEach(() => {
 (globalThis as { figma?: unknown }).figma = {
   createText: mock(() => ({ ...mockTextNode })),
   createFrame: mock(() => {
-    const frame = {
+    const frame: {
+      children: unknown[];
+      width: number;
+      height: number;
+      appendChild: ReturnType<typeof mock>;
+      resize: ReturnType<typeof mock>;
+      [key: string]: unknown;
+    } = {
       ...mockFrameNode,
       children: [] as unknown[],
       width: 100,
       height: 50,
+      appendChild: mock(() => {}),
+      resize: mock(() => {}),
     };
     frame.appendChild = mock((child: unknown) => {
       frame.children.push(child);

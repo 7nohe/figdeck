@@ -3,6 +3,7 @@ import {
   renderBulletList,
   renderCodeBlock,
   renderFigmaLink,
+  renderFootnotes,
   renderHeading,
   renderImage,
   renderParagraph,
@@ -619,7 +620,10 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
   if (slide.blocks && slide.blocks.length > 0) {
     for (const block of slide.blocks) {
       // Handle figma blocks with custom position separately
-      if (block.kind === "figma" && (block.link.x !== undefined || block.link.y !== undefined)) {
+      if (
+        block.kind === "figma" &&
+        (block.link.x !== undefined || block.link.y !== undefined)
+      ) {
         const figmaNode = await renderFigmaLink(
           block.link,
           block.link.x ?? 0,
@@ -670,6 +674,19 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
 
   // Add container to slide
   slideNode.appendChild(container);
+
+  // Render footnotes at the bottom of the slide (outside container)
+  if (slide.footnotes && slide.footnotes.length > 0) {
+    const footnotesNode = await renderFootnotes(
+      slide.footnotes,
+      styles.paragraph.fontSize,
+      styles.paragraph.fills,
+    );
+    // Position at bottom-left with margin
+    footnotesNode.x = LAYOUT.CONTAINER_PADDING;
+    footnotesNode.y = slideNode.height - footnotesNode.height - 40;
+    slideNode.appendChild(footnotesNode);
+  }
 }
 
 function findExistingSlides(): Map<number, SlideNode> {
@@ -793,7 +810,7 @@ function validateAndSanitizeSlides(
     }
 
     // Sanitize strings (use Object.assign for Figma sandbox compatibility)
-    const sanitizedSlide = Object.assign({}, slide) as SlideContent;
+    const sanitizedSlide = Object.assign({}, slide) as unknown as SlideContent;
 
     if (typeof sanitizedSlide.title === "string") {
       sanitizedSlide.title = truncateString(

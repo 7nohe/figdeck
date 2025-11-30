@@ -15,7 +15,12 @@ import {
   renderSpansWithInlineCode,
   safeSetRangeHyperlink,
 } from "./text-renderer";
-import type { FigmaSelectionLink, TableAlignment, TextSpan } from "./types";
+import type {
+  FigmaSelectionLink,
+  FootnoteItem,
+  TableAlignment,
+  TextSpan,
+} from "./types";
 
 /**
  * Result from a block renderer
@@ -113,10 +118,12 @@ export async function renderBulletList(
   y: number,
 ): Promise<BlockRenderResult> {
   if (itemSpans && itemSpans.length > 0) {
-    // Check if any item has inline code - if so, use Frame-based layout
-    const hasInlineCode = itemSpans.some((spans) => spans.some((s) => s.code));
+    // Check if any item has inline code or superscript - if so, use Frame-based layout
+    const hasSpecialFormatting = itemSpans.some((spans) =>
+      spans.some((s) => s.code || s.superscript),
+    );
 
-    if (hasInlineCode) {
+    if (hasSpecialFormatting) {
       // Frame-based layout for inline code support
       const bulletFrame = figma.createFrame();
       bulletFrame.name = ordered ? "Ordered List" : "Bullet List";
@@ -179,9 +186,7 @@ export async function renderBulletList(
       });
     } else {
       // Manual prefix for ordered lists starting from non-1
-      const text = itemTexts
-        .map((t, i) => `${startNum + i}. ${t}`)
-        .join("\n");
+      const text = itemTexts.map((t, i) => `${startNum + i}. ${t}`).join("\n");
       bullets.characters = text;
     }
 
@@ -204,7 +209,10 @@ export async function renderBulletList(
         } else if (span.italic) {
           fontStyle = "Italic";
         }
-        bullets.setRangeFontName(start, end, { family: "Inter", style: fontStyle });
+        bullets.setRangeFontName(start, end, {
+          family: "Inter",
+          style: fontStyle,
+        });
 
         // Fill color
         if (span.href) {
@@ -890,4 +898,85 @@ export function renderCodeBlock(
   codeFrame.y = y;
 
   return { node: codeFrame, height: codeFrame.height };
+}
+
+/**
+ * Render footnotes section at the bottom of a slide
+ * Displays footnotes as a list with a separator line above
+ */
+export async function renderFootnotes(
+  footnotes: FootnoteItem[],
+  baseSize: number,
+  baseFills?: Paint[],
+): Promise<FrameNode> {
+  const frame = figma.createFrame();
+  frame.name = "Footnotes";
+  frame.layoutMode = "VERTICAL";
+  frame.primaryAxisSizingMode = "AUTO";
+  frame.counterAxisSizingMode = "AUTO";
+  frame.itemSpacing = 8;
+  frame.fills = [];
+
+  // Separator line
+  const separator = figma.createRectangle();
+  separator.name = "separator";
+  separator.resize(300, 1);
+  separator.fills = [{ type: "SOLID", color: { r: 0.7, g: 0.7, b: 0.7 } }];
+  frame.appendChild(separator);
+
+  // Small font for footnotes
+  const footnoteSize = Math.round(baseSize * 0.7);
+  const mutedFills: Paint[] = baseFills
+    ? baseFills.map((fill) => {
+        if (fill.type === "SOLID") {
+          // Make the color slightly muted
+          const solidFill = fill as SolidPaint;
+          return {
+            type: "SOLID",
+            color: {
+              r: solidFill.color.r * 0.7 + 0.3,
+              g: solidFill.color.g * 0.7 + 0.3,
+              b: solidFill.color.b * 0.7 + 0.3,
+            },
+            opacity: solidFill.opacity,
+            visible: solidFill.visible,
+            blendMode: solidFill.blendMode,
+          } as SolidPaint;
+        }
+        return fill;
+      })
+    : [{ type: "SOLID", color: { r: 0.5, g: 0.5, b: 0.5 } }];
+
+  // Render each footnote
+  for (const footnote of footnotes) {
+    const footnoteFrame = figma.createFrame();
+    footnoteFrame.name = `footnote-${footnote.id}`;
+    footnoteFrame.layoutMode = "HORIZONTAL";
+    footnoteFrame.primaryAxisSizingMode = "AUTO";
+    footnoteFrame.counterAxisSizingMode = "AUTO";
+    footnoteFrame.itemSpacing = 6;
+    footnoteFrame.fills = [];
+
+    // Footnote marker [id]
+    const markerSpans: TextSpan[] = [{ text: `[${footnote.id}]` }];
+    const markerNode = await renderSpansToText(
+      markerSpans,
+      footnoteSize,
+      mutedFills,
+    );
+    footnoteFrame.appendChild(markerNode);
+
+    // Footnote content
+    const contentSpans = footnote.spans || [{ text: footnote.content }];
+    const contentNode = await renderSpansWithInlineCode(
+      contentSpans,
+      footnoteSize,
+      mutedFills,
+    );
+    footnoteFrame.appendChild(contentNode);
+
+    frame.appendChild(footnoteFrame);
+  }
+
+  return frame;
 }

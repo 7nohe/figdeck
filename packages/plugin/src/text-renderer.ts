@@ -69,13 +69,17 @@ export async function renderSpansToText(
       style: fontStyle,
     });
 
-    // Set font size
-    textNode.setRangeFontSize(start, end, baseSize);
+    // Set font size (smaller for superscript)
+    const fontSize = span.superscript ? Math.round(baseSize * 0.7) : baseSize;
+    textNode.setRangeFontSize(start, end, fontSize);
 
     // Determine fill color
     let fill: Paint[];
     if (span.href) {
       fill = [{ type: "SOLID", color: LINK_COLOR }];
+    } else if (span.superscript) {
+      // Muted gray for footnote references
+      fill = [{ type: "SOLID", color: { r: 0.5, g: 0.5, b: 0.5 } }];
     } else if (baseFills) {
       fill = baseFills;
     } else {

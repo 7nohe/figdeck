@@ -342,7 +342,9 @@ export function parseSlideConfig(
 /**
  * Parse and validate horizontal alignment
  */
-function parseHorizontalAlign(value: string | undefined): HorizontalAlign | undefined {
+function parseHorizontalAlign(
+  value: string | undefined,
+): HorizontalAlign | undefined {
   if (value === "left" || value === "center" || value === "right") {
     return value;
   }
@@ -352,7 +354,9 @@ function parseHorizontalAlign(value: string | undefined): HorizontalAlign | unde
 /**
  * Parse and validate vertical alignment
  */
-function parseVerticalAlign(value: string | undefined): VerticalAlign | undefined {
+function parseVerticalAlign(
+  value: string | undefined,
+): VerticalAlign | undefined {
   if (value === "top" || value === "middle" || value === "bottom") {
     return value;
   }

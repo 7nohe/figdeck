@@ -199,7 +199,9 @@ async function findSlideNumberTemplateNode(
   try {
     const node = await figma.getNodeByIdAsync(nodeId);
     if (!node) {
-      console.warn(`[figdeck] Slide number template node "${nodeId}" not found`);
+      console.warn(
+        `[figdeck] Slide number template node "${nodeId}" not found`,
+      );
       failedSlideNumberNodeIds.add(nodeId);
       return null;
     }
@@ -220,7 +222,10 @@ async function findSlideNumberTemplateNode(
     failedSlideNumberNodeIds.add(nodeId);
     return null;
   } catch (e) {
-    console.warn(`[figdeck] Failed to find slide number template: ${nodeId}`, e);
+    console.warn(
+      `[figdeck] Failed to find slide number template: ${nodeId}`,
+      e,
+    );
     failedSlideNumberNodeIds.add(nodeId);
     return null;
   }

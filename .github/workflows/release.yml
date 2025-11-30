@@ -1,8 +1,12 @@
 name: Release
 
 on:
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Semver version to release (e.g. 1.2.3)"
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -24,9 +28,9 @@ jobs:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
 
-      - name: Extract version from tag
+      - name: Use input version
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+        run: echo "VERSION=${{ inputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Update package.json version
         run: |

@@ -113,58 +113,156 @@ export async function renderBulletList(
   y: number,
 ): Promise<BlockRenderResult> {
   if (itemSpans && itemSpans.length > 0) {
-    // Render each bullet item with rich formatting
-    const bulletFrame = figma.createFrame();
-    bulletFrame.name = ordered ? "Ordered List" : "Bullet List";
-    bulletFrame.layoutMode = "VERTICAL";
-    bulletFrame.primaryAxisSizingMode = "AUTO";
-    bulletFrame.counterAxisSizingMode = "AUTO";
-    bulletFrame.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
-    bulletFrame.fills = [];
-    bulletFrame.x = x;
-    bulletFrame.y = y;
+    // Check if any item has inline code - if so, use Frame-based layout
+    const hasInlineCode = itemSpans.some((spans) => spans.some((s) => s.code));
 
-    for (let i = 0; i < itemSpans.length; i++) {
-      const itemFrame = figma.createFrame();
-      itemFrame.name = `Item ${i}`;
-      itemFrame.layoutMode = "HORIZONTAL";
-      itemFrame.primaryAxisSizingMode = "AUTO";
-      itemFrame.counterAxisSizingMode = "AUTO";
-      itemFrame.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
-      itemFrame.fills = [];
+    if (hasInlineCode) {
+      // Frame-based layout for inline code support
+      const bulletFrame = figma.createFrame();
+      bulletFrame.name = ordered ? "Ordered List" : "Bullet List";
+      bulletFrame.layoutMode = "VERTICAL";
+      bulletFrame.primaryAxisSizingMode = "AUTO";
+      bulletFrame.counterAxisSizingMode = "AUTO";
+      bulletFrame.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+      bulletFrame.fills = [];
+      bulletFrame.x = x;
+      bulletFrame.y = y;
 
-      // Bullet/number prefix
-      const prefix = figma.createText();
-      prefix.fontName = { family: "Inter", style: "Regular" };
-      prefix.fontSize = style.fontSize;
-      prefix.characters = ordered ? `${startNum + i}.` : "•";
-      if (style.fills) {
-        prefix.fills = style.fills;
+      for (let i = 0; i < itemSpans.length; i++) {
+        const itemFrame = figma.createFrame();
+        itemFrame.name = `Item ${i}`;
+        itemFrame.layoutMode = "HORIZONTAL";
+        itemFrame.primaryAxisSizingMode = "AUTO";
+        itemFrame.counterAxisSizingMode = "AUTO";
+        itemFrame.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+        itemFrame.fills = [];
+
+        // Bullet/number prefix
+        const prefix = figma.createText();
+        prefix.fontName = { family: "Inter", style: "Regular" };
+        prefix.fontSize = style.fontSize;
+        prefix.characters = ordered ? `${startNum + i}.` : "•";
+        if (style.fills) {
+          prefix.fills = style.fills;
+        }
+        itemFrame.appendChild(prefix);
+
+        // Item content with spans
+        const itemNode = await renderSpansWithInlineCode(
+          itemSpans[i],
+          style.fontSize,
+          style.fills,
+        );
+        itemFrame.appendChild(itemNode);
+
+        bulletFrame.appendChild(itemFrame);
       }
-      itemFrame.appendChild(prefix);
 
-      // Item content with spans
-      const itemNode = await renderSpansWithInlineCode(
-        itemSpans[i],
-        style.fontSize,
-        style.fills,
-      );
-      itemFrame.appendChild(itemNode);
-
-      bulletFrame.appendChild(itemFrame);
+      return { node: bulletFrame, height: bulletFrame.height };
     }
 
-    return { node: bulletFrame, height: bulletFrame.height };
+    // Native Figma list with rich text formatting (no inline code)
+    const useNativeList = !ordered || startNum === 1;
+    const bullets = figma.createText();
+    bullets.fontName = { family: "Inter", style: style.fontStyle };
+    bullets.fontSize = style.fontSize;
+
+    // Build full text from spans, separated by newlines
+    const itemTexts = itemSpans.map((spans) =>
+      spans.map((s) => s.text).join(""),
+    );
+
+    if (useNativeList) {
+      bullets.characters = itemTexts.join("\n");
+      bullets.setRangeListOptions(0, bullets.characters.length, {
+        type: ordered ? "ORDERED" : "UNORDERED",
+      });
+    } else {
+      // Manual prefix for ordered lists starting from non-1
+      const text = itemTexts
+        .map((t, i) => `${startNum + i}. ${t}`)
+        .join("\n");
+      bullets.characters = text;
+    }
+
+    // Apply formatting to each span
+    let charIndex = 0;
+    for (let itemIdx = 0; itemIdx < itemSpans.length; itemIdx++) {
+      for (const span of itemSpans[itemIdx]) {
+        if (span.text.length === 0) continue;
+
+        const start = charIndex;
+        const end = charIndex + span.text.length;
+
+        // Font style
+        let fontStyle: "Regular" | "Bold" | "Italic" | "Bold Italic" =
+          "Regular";
+        if (span.bold && span.italic) {
+          fontStyle = "Bold Italic";
+        } else if (span.bold) {
+          fontStyle = "Bold";
+        } else if (span.italic) {
+          fontStyle = "Italic";
+        }
+        bullets.setRangeFontName(start, end, { family: "Inter", style: fontStyle });
+
+        // Fill color
+        if (span.href) {
+          bullets.setRangeFills(start, end, [
+            { type: "SOLID", color: { r: 0.1, g: 0.4, b: 0.9 } },
+          ]);
+          bullets.setRangeTextDecoration(start, end, "UNDERLINE");
+          try {
+            bullets.setRangeHyperlink(start, end, {
+              type: "URL",
+              value: span.href,
+            });
+          } catch {
+            // Ignore hyperlink errors
+          }
+        } else if (style.fills) {
+          bullets.setRangeFills(start, end, style.fills);
+        }
+
+        // Strikethrough
+        if (span.strike) {
+          bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+        }
+
+        charIndex = end;
+      }
+      charIndex++; // Account for newline character between items
+    }
+
+    if (style.fills) {
+      // Apply base fill to entire text (will be overridden by span-specific fills)
+      // This ensures any unformatted text has the correct color
+    }
+
+    bullets.x = x;
+    bullets.y = y;
+    return { node: bullets, height: bullets.height };
   }
 
-  // Plain text fallback
+  // Plain text with native Figma list (or manual prefix for ordered lists starting from non-1)
   const bullets = figma.createText();
   bullets.fontName = { family: "Inter", style: style.fontStyle };
   bullets.fontSize = style.fontSize;
-  const prefix = ordered
-    ? items.map((b, i) => `${startNum + i}. ${b}`).join("\n")
-    : items.map((b) => `• ${b}`).join("\n");
-  bullets.characters = prefix;
+
+  // Figma native ordered lists always start from 1, so use manual prefix if startNum != 1
+  const useNativeList = !ordered || startNum === 1;
+
+  if (useNativeList) {
+    bullets.characters = items.join("\n");
+    bullets.setRangeListOptions(0, bullets.characters.length, {
+      type: ordered ? "ORDERED" : "UNORDERED",
+    });
+  } else {
+    // Manual prefix for ordered lists starting from non-1
+    const text = items.map((b, i) => `${startNum + i}. ${b}`).join("\n");
+    bullets.characters = text;
+  }
+
   if (style.fills) {
     bullets.fills = style.fills;
   }
@@ -565,6 +663,40 @@ const TABLE_LAYOUT = {
 } as const;
 
 /**
+ * Normalize column widths across all rows in a table
+ * Finds the maximum width for each column and applies it to all cells
+ */
+function normalizeColumnWidths(tableFrame: FrameNode): void {
+  const rows = tableFrame.children as FrameNode[];
+  if (rows.length === 0) return;
+
+  // Find the number of columns from the first row
+  const numColumns = (rows[0].children as FrameNode[]).length;
+  if (numColumns === 0) return;
+
+  // Find the maximum width for each column
+  const maxWidths: number[] = new Array(numColumns).fill(0);
+
+  for (const row of rows) {
+    const cells = row.children as FrameNode[];
+    for (let i = 0; i < cells.length && i < numColumns; i++) {
+      if (cells[i].width > maxWidths[i]) {
+        maxWidths[i] = cells[i].width;
+      }
+    }
+  }
+
+  // Apply the maximum width to all cells in each column
+  for (const row of rows) {
+    const cells = row.children as FrameNode[];
+    for (let i = 0; i < cells.length && i < numColumns; i++) {
+      cells[i].layoutSizingHorizontal = "FIXED";
+      cells[i].resize(maxWidths[i], cells[i].height);
+    }
+  }
+}
+
+/**
  * Create a table cell frame with consistent styling
  */
 function createTableCell(name: string, showLeftBorder: boolean): FrameNode {
@@ -695,6 +827,9 @@ export async function renderTable(
 
     tableFrame.appendChild(rowFrame);
   }
+
+  // Normalize column widths across all rows
+  normalizeColumnWidths(tableFrame);
 
   return tableFrame;
 }

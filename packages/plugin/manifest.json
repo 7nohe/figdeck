@@ -6,7 +6,7 @@
   "ui": "dist/ui.html",
   "capabilities": [],
   "enableProposedApi": false,
-  "editorType": ["figma", "figjam", "slides"],
+  "editorType": ["slides"],
   "documentAccess": "dynamic-page",
   "networkAccess": {
     "allowedDomains": ["*"],

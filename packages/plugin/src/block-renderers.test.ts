@@ -18,6 +18,7 @@ const mockTextNode = {
   setRangeFills: mock(() => {}),
   setRangeTextDecoration: mock(() => {}),
   setRangeHyperlink: mock(() => {}),
+  setRangeListOptions: mock(() => {}),
 };
 
 const mockFrameNode = {
@@ -78,9 +79,18 @@ beforeEach(() => {
 (globalThis as { figma?: unknown }).figma = {
   createText: mock(() => ({ ...mockTextNode })),
   createFrame: mock(() => {
-    const frame = { ...mockFrameNode, children: [] as unknown[] };
+    const frame = {
+      ...mockFrameNode,
+      children: [] as unknown[],
+      width: 100,
+      height: 50,
+    };
     frame.appendChild = mock((child: unknown) => {
       frame.children.push(child);
+    });
+    frame.resize = mock((w: number, h: number) => {
+      frame.width = w;
+      frame.height = h;
     });
     return frame;
   }),
@@ -289,7 +299,7 @@ describe("renderBulletList", () => {
     expect(result.node).toBeDefined();
   });
 
-  it("should render list with item spans", async () => {
+  it("should render list with item spans (no inline code) as TextNode with native list", async () => {
     const items = ["Bold item", "Normal item"];
     const itemSpans = [
       [{ text: "Bold item", bold: true }],
@@ -307,7 +317,29 @@ describe("renderBulletList", () => {
     );
 
     expect(result.node).toBeDefined();
-    // When itemSpans are provided, a frame is created
+    // Without inline code, uses native Figma list (TextNode)
+    expect(result.node.type).toBe("TEXT");
+  });
+
+  it("should render list with inline code as Frame", async () => {
+    const items = ["Item with code", "Normal item"];
+    const itemSpans = [
+      [{ text: "Item with " }, { text: "code", code: true }],
+      [{ text: "Normal item" }],
+    ];
+
+    const result = await renderBulletList(
+      items,
+      itemSpans,
+      defaultStyle,
+      false,
+      1,
+      100,
+      200,
+    );
+
+    expect(result.node).toBeDefined();
+    // With inline code, uses Frame-based layout
     expect(result.node.type).toBe("FRAME");
   });
 

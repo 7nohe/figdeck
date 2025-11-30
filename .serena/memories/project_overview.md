@@ -1,0 +1,5 @@
+# figdeck overview
+- Purpose: convert Markdown into Figma Slides via CLI + Figma plugin over WebSocket (CLI server on 4141, plugin client).
+- Stack: Bun workspaces; TypeScript; CLI uses commander/remark/unified/ws/yaml; plugin uses Figma plugin API + esbuild + highlight.js; lint/format via Biome; bundling via tsup (CLI) and esbuild (plugin).
+- Architecture: CLI parses Markdown to SlideContent[], starts WS server, sends {type:"generate-slides", slides:[...]} to plugin UI; plugin UI connects over WS, forwards via postMessage to code.ts, which calls figma.createSlide; responses are success/error.
+- Repo layout: README, docs/, examples/ sample Markdown, packages/cli (CLI entry src/index.ts, markdown.ts, ws-server.ts, types.ts), packages/plugin (code.ts, ui.html, manifest.json), root configs (biome.json, bun.lock, package.json, PLAN.md).

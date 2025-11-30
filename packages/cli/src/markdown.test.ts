@@ -361,4 +361,264 @@ Text`);
       expect(slide.styles?.headings?.h2?.color).toBe("#111111");
     });
   });
+
+  describe("slide builder pattern", () => {
+    it("should handle slide with only heading (no content blocks)", () => {
+      const result = parseMarkdown("# Title Only");
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe("title");
+      expect(result[0].title).toBe("Title Only");
+      expect(result[0].blocks).toBeUndefined();
+    });
+
+    it("should build slide with multiple block types", () => {
+      const result = parseMarkdown(`## Mixed Content
+
+Paragraph text.
+
+- Bullet 1
+- Bullet 2
+
+\`\`\`js
+code();
+\`\`\`
+
+> A quote`);
+
+      expect(result).toHaveLength(1);
+      const blocks = result[0].blocks;
+      expect(blocks).toHaveLength(4);
+      expect(blocks?.[0]?.kind).toBe("paragraph");
+      expect(blocks?.[1]?.kind).toBe("bullets");
+      expect(blocks?.[2]?.kind).toBe("code");
+      expect(blocks?.[3]?.kind).toBe("blockquote");
+    });
+
+    it("should process h3 and h4 as content blocks", () => {
+      const result = parseMarkdown(`## Main Title
+
+### Sub Heading
+
+#### Sub-sub Heading`);
+
+      expect(result).toHaveLength(1);
+      const blocks = result[0].blocks;
+      expect(blocks).toHaveLength(2);
+
+      if (blocks?.[0]?.kind === "heading") {
+        expect(blocks[0].level).toBe(3);
+        expect(blocks[0].text).toBe("Sub Heading");
+      }
+      if (blocks?.[1]?.kind === "heading") {
+        expect(blocks[1].level).toBe(4);
+        expect(blocks[1].text).toBe("Sub-sub Heading");
+      }
+    });
+
+    it("should create content slide from paragraph without heading", () => {
+      const result = parseMarkdown("Just a paragraph without heading.");
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe("content");
+      expect(result[0].title).toBeUndefined();
+      expect(result[0].blocks?.[0]?.kind).toBe("paragraph");
+    });
+
+    it("should process images within paragraphs", () => {
+      const result = parseMarkdown(`## Images
+
+![Screenshot](https://example.com/img.png)
+
+![Another](https://example.com/other.jpg)`);
+
+      expect(result).toHaveLength(1);
+      const blocks = result[0].blocks;
+      expect(blocks).toHaveLength(2);
+      expect(blocks?.[0]?.kind).toBe("image");
+      expect(blocks?.[1]?.kind).toBe("image");
+
+      if (blocks?.[0]?.kind === "image") {
+        expect(blocks[0].url).toBe("https://example.com/img.png");
+        expect(blocks[0].alt).toBe("Screenshot");
+      }
+    });
+
+    it("should handle complex nested list formatting", () => {
+      const result = parseMarkdown(`## List Test
+
+- **Bold** item
+- *Italic* item
+- \`code\` item
+- [Link](https://example.com) item`);
+
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      expect(block?.kind).toBe("bullets");
+
+      if (block?.kind === "bullets") {
+        expect(block.items).toHaveLength(4);
+        expect(block.itemSpans).toHaveLength(4);
+        // Check that spans contain formatting
+        expect(block.itemSpans[0]).toContainEqual({ text: "Bold", bold: true });
+        expect(block.itemSpans[1]).toContainEqual({
+          text: "Italic",
+          italic: true,
+        });
+        expect(block.itemSpans[2]).toContainEqual({ text: "code", code: true });
+        expect(block.itemSpans[3]).toContainEqual({
+          text: "Link",
+          href: "https://example.com",
+        });
+      }
+    });
+
+    it("should process multiple slides with different types", () => {
+      const result = parseMarkdown(`# Title Slide
+
+---
+
+## Content Slide
+
+Body text
+
+---
+
+## Another Content
+
+- Bullet`);
+
+      expect(result).toHaveLength(3);
+      expect(result[0].type).toBe("title");
+      expect(result[1].type).toBe("content");
+      expect(result[2].type).toBe("content");
+    });
+  });
+
+  describe("code block processing", () => {
+    it("should populate codeBlocks array for legacy compatibility", () => {
+      const result = parseMarkdown(`## Test
+
+\`\`\`python
+print("hello")
+\`\`\``);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].codeBlocks).toHaveLength(1);
+      expect(result[0].codeBlocks?.[0].language).toBe("python");
+      expect(result[0].codeBlocks?.[0].code).toBe('print("hello")');
+    });
+
+    it("should handle multiple code blocks", () => {
+      const result = parseMarkdown(`## Test
+
+\`\`\`js
+const a = 1;
+\`\`\`
+
+\`\`\`ts
+const b: number = 2;
+\`\`\``);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].codeBlocks).toHaveLength(2);
+      expect(result[0].blocks).toHaveLength(2);
+    });
+
+    it("should handle code block without language", () => {
+      const result = parseMarkdown(`## Test
+
+\`\`\`
+no language
+\`\`\``);
+
+      expect(result).toHaveLength(1);
+      const codeBlock = result[0].codeBlocks?.[0];
+      expect(codeBlock?.language).toBeUndefined();
+      expect(codeBlock?.code).toBe("no language");
+    });
+  });
+
+  describe("table processing", () => {
+    it("should handle table without alignment", () => {
+      const result = parseMarkdown(`## Test
+
+| A | B |
+|---|---|
+| 1 | 2 |`);
+
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      if (block?.kind === "table") {
+        // No alignment specified, should default to nulls
+        expect(block.align).toEqual([null, null]);
+      }
+    });
+
+    it("should process table headers with formatting", () => {
+      const result = parseMarkdown(`## Test
+
+| **Bold Header** |
+|-----------------|
+| data |`);
+
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      if (block?.kind === "table") {
+        expect(block.headers[0]).toContainEqual({ text: "Bold Header", bold: true });
+      }
+    });
+  });
+
+  describe("blockquote processing", () => {
+    it("should handle multi-line blockquote", () => {
+      const result = parseMarkdown(`## Test
+
+> Line 1
+> Line 2`);
+
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      if (block?.kind === "blockquote") {
+        expect(block.text).toContain("Line 1");
+        expect(block.text).toContain("Line 2");
+      }
+    });
+
+    it("should extract spans from blockquote", () => {
+      const result = parseMarkdown(`## Test
+
+> This has **bold** and *italic*.`);
+
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      if (block?.kind === "blockquote") {
+        expect(block.spans).toContainEqual({ text: "bold", bold: true });
+        expect(block.spans).toContainEqual({ text: "italic", italic: true });
+      }
+    });
+  });
+
+  describe("bare URL figma blocks", () => {
+    it("should parse :::figma block with bare URL (no link= prefix)", () => {
+      const result = parseMarkdown(`## Test
+
+:::figma
+https://www.figma.com/file/abc123/Name?node-id=1-2
+x=100
+y=200
+:::`);
+
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      expect(block?.kind).toBe("figma");
+      if (block?.kind === "figma") {
+        expect(block.link.url).toBe(
+          "https://www.figma.com/file/abc123/Name?node-id=1-2",
+        );
+        expect(block.link.fileKey).toBe("abc123");
+        expect(block.link.nodeId).toBe("1:2");
+        expect(block.link.x).toBe(100);
+        expect(block.link.y).toBe(200);
+      }
+    });
+  });
 });

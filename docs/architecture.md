@@ -3,11 +3,21 @@
 ## 全体構成
 
 ```
+                     WebSocket 連携
 ┌─────────────────────┐         ┌─────────────────────┐
 │    CLI (Node.js)    │  WS     │   Figma Plugin      │
 │                     │ ◄─────► │                     │
 │  - Markdown Parser  │ :4141   │  - WebSocket Client │
-│  - WebSocket Server │         │  - Slide Generator  │
+│  - WebSocket Server │         │  - JSON Import      │
+│  - JSON Output      │         │  - Slide Generator  │
+└─────────────────────┘         └─────────────────────┘
+
+                     JSON インポート
+┌─────────────────────┐         ┌─────────────────────┐
+│    CLI (Node.js)    │  JSON   │   Figma Plugin      │
+│                     │ ──────► │                     │
+│  - Markdown Parser  │  file   │  - JSON Import      │
+│  - JSON Output      │         │  - Slide Generator  │
 └─────────────────────┘         └─────────────────────┘
 ```
 
@@ -15,7 +25,10 @@
 
 ### CLI (`packages/cli`)
 
-Markdown ファイルを読み込み、パースして SlideContent 配列に変換し、WebSocket サーバーを起動して Plugin からの接続を待機します。
+Markdown ファイルを読み込み、パースして SlideContent 配列に変換します。2つのモードがあります：
+
+- **`serve`**: WebSocket サーバーを起動して Plugin からの接続を待機（ライブリロード対応）
+- **`build`**: JSON を stdout またはファイルに出力（ワンショット）
 
 **主要ファイル:**
 
@@ -26,15 +39,20 @@ Markdown ファイルを読み込み、パースして SlideContent 配列に変
 
 ### Plugin (`packages/plugin`)
 
-Figma 内で動作し、CLI からスライドデータを受信して `figma.createSlide()` API でスライドを生成します。
+Figma 内で動作し、スライドデータを受信して `figma.createSlide()` API でスライドを生成します。2つの入力方法があります：
+
+- **WebSocket**: CLI の `serve` コマンドに接続してリアルタイム受信
+- **JSON Import**: JSON ファイルをペーストまたはファイル選択で読み込み
 
 **主要ファイル:**
 
 - `src/code.ts` - Plugin メインロジック
-- `ui.html` - WebSocket クライアント UI
+- `ui.html` - WebSocket クライアント + JSON Import UI
 - `manifest.json` - Plugin 設定
 
 ## データフロー
+
+### WebSocket 連携（`serve` コマンド）
 
 ```
 1. CLI: Markdown ファイル読み込み
@@ -48,6 +66,26 @@ Figma 内で動作し、CLI からスライドデータを受信して `figma.cr
 5. Plugin: UI が WebSocket で CLI に接続
    ↓
 6. CLI: { type: "generate-slides", slides: [...] } を送信
+   ↓
+7. Plugin: UI が postMessage で code.ts に転送
+   ↓
+8. Plugin: figma.createSlide() でスライド生成
+```
+
+### JSON Import（`build` コマンド + Plugin Import）
+
+```
+1. CLI: Markdown ファイル読み込み
+   ↓
+2. CLI: remark で AST にパース
+   ↓
+3. CLI: AST → SlideContent[] に変換
+   ↓
+4. CLI: JSON を stdout またはファイルに出力
+   ↓
+5. Plugin: UI の "Import JSON" タブで JSON をペースト/ファイル選択
+   ↓
+6. Plugin: JSON をパースしてスキーマ検証
    ↓
 7. Plugin: UI が postMessage で code.ts に転送
    ↓

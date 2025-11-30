@@ -4,40 +4,69 @@
 
 ### コマンド
 
+#### `build` - JSON 出力
+
+Markdown をパースして JSON を出力します（ワンショット）。
+
 ```bash
 figdeck build <file> [options]
 ```
-
-### 引数
 
 | 引数 | 説明 | 必須 |
 |------|------|------|
 | `<file>` | Markdown ファイルパス | Yes |
 
-### オプション
+| オプション | 説明 | デフォルト |
+|------------|------|-----------|
+| `-o, --out <path>` | 出力ファイルパス | stdout |
+| `-h, --help` | ヘルプ表示 | - |
+
+**例:**
+
+```bash
+# stdout に出力
+figdeck build slides.md
+
+# ファイルに出力
+figdeck build slides.md -o slides.json
+
+# パイプで他のコマンドに渡す
+figdeck build slides.md | jq '.[] | .title'
+```
+
+#### `serve` - WebSocket サーバー
+
+WebSocket サーバーを起動して Plugin からの接続を待機します。
+
+```bash
+figdeck serve <file> [options]
+```
+
+| 引数 | 説明 | 必須 |
+|------|------|------|
+| `<file>` | Markdown ファイルパス | Yes |
 
 | オプション | 説明 | デフォルト |
 |------------|------|-----------|
 | `--host <host>` | WebSocket ホスト | `localhost` |
 | `-p, --port <port>` | WebSocket ポート | `4141` |
 | `-w, --watch` | ファイル変更を監視して自動更新 | `false` |
-| `-V, --version` | バージョン表示 | - |
 | `-h, --help` | ヘルプ表示 | - |
 
-### 例
+**例:**
 
 ```bash
 # 基本的な使用
-figdeck build slides.md
+figdeck serve slides.md
 
 # ポート指定
-figdeck build slides.md --port 8080
+figdeck serve slides.md --port 8080
 
-# ホスト指定
-figdeck build slides.md --host 0.0.0.0
+# ホスト指定（外部からの接続を許可）
+figdeck serve slides.md --host 0.0.0.0
 
 # ファイル監視モード（変更時に自動再送信）
-figdeck build slides.md -w
+figdeck serve slides.md -w
 ```
 
 ## 型定義

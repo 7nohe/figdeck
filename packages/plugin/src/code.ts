@@ -17,7 +17,7 @@ import {
 import { LAYOUT, resolveSlideStyles } from "./styles";
 import type { SlideBlock, SlideContent } from "./types";
 
-figma.showUI(__html__, { visible: true, width: 320, height: 420 });
+figma.showUI(__html__, { visible: true, width: 360, height: 420 });
 
 async function loadFont() {
   await figma.loadFontAsync({ family: "Inter", style: "Regular" });
@@ -79,12 +79,7 @@ async function renderBlock(
     }
 
     case "code": {
-      const result = renderCodeBlock(
-        block,
-        styles.code.fontSize,
-        x,
-        yOffset,
-      );
+      const result = renderCodeBlock(block, styles.code.fontSize, x, yOffset);
       slideNode.appendChild(result.node);
       return yOffset + result.height + spacing;
     }

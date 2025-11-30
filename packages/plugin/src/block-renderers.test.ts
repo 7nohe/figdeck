@@ -29,10 +29,10 @@ const mockFrameNode = {
   fills: [] as Paint[],
   type: "FRAME",
   children: [] as unknown[],
-  layoutMode: "NONE" as const,
+  layoutMode: "NONE" as "NONE" | "HORIZONTAL" | "VERTICAL",
   layoutWrap: "NO_WRAP" as const,
-  primaryAxisSizingMode: "FIXED" as const,
-  counterAxisSizingMode: "FIXED" as const,
+  primaryAxisSizingMode: "FIXED" as "FIXED" | "AUTO",
+  counterAxisSizingMode: "FIXED" as "FIXED" | "AUTO",
   itemSpacing: 0,
   paddingLeft: 0,
   paddingRight: 0,
@@ -330,9 +330,7 @@ describe("renderBulletList", () => {
 });
 
 describe("renderTable", () => {
-  const baseFills: Paint[] = [
-    { type: "SOLID", color: { r: 0, g: 0, b: 0 } },
-  ];
+  const baseFills: Paint[] = [{ type: "SOLID", color: { r: 0, g: 0, b: 0 } }];
 
   it("should render table with headers and rows", async () => {
     const headers = [[{ text: "Name" }], [{ text: "Value" }]];
@@ -341,7 +339,15 @@ describe("renderTable", () => {
       [[{ text: "bar" }], [{ text: "2" }]],
     ];
 
-    const result = await renderTable(headers, rows, [], 16, baseFills, 100, 200);
+    const result = await renderTable(
+      headers,
+      rows,
+      [],
+      16,
+      baseFills,
+      100,
+      200,
+    );
 
     expect(result).toBeDefined();
     expect(result.name).toBe("Table");
@@ -372,7 +378,11 @@ describe("renderTable", () => {
   });
 
   it("should handle alignment correctly", async () => {
-    const headers = [[{ text: "Left" }], [{ text: "Center" }], [{ text: "Right" }]];
+    const headers = [
+      [{ text: "Left" }],
+      [{ text: "Center" }],
+      [{ text: "Right" }],
+    ];
     const rows = [[[{ text: "a" }], [{ text: "b" }], [{ text: "c" }]]];
     const align = ["left", "center", "right"] as const;
 
@@ -427,36 +437,21 @@ describe("renderCodeBlock", () => {
   });
 
   it("should render code block without language", () => {
-    const result = renderCodeBlock(
-      { code: "plain code" },
-      14,
-      100,
-      200,
-    );
+    const result = renderCodeBlock({ code: "plain code" }, 14, 100, 200);
 
     expect(result.node).toBeDefined();
     expect(result.node.name).toBe("Code");
   });
 
   it("should position code block at specified coordinates", () => {
-    const result = renderCodeBlock(
-      { language: "js", code: "x" },
-      14,
-      150,
-      300,
-    );
+    const result = renderCodeBlock({ language: "js", code: "x" }, 14, 150, 300);
 
     expect(result.node.x).toBe(150);
     expect(result.node.y).toBe(300);
   });
 
   it("should apply code block styling", () => {
-    const result = renderCodeBlock(
-      { code: "test" },
-      16,
-      0,
-      0,
-    );
+    const result = renderCodeBlock({ code: "test" }, 16, 0, 0);
 
     const frame = result.node as unknown as typeof mockFrameNode;
     expect(frame.cornerRadius).toBe(8);
@@ -468,12 +463,7 @@ describe("renderCodeBlock", () => {
   });
 
   it("should return BlockRenderResult with node and height", () => {
-    const result = renderCodeBlock(
-      { code: "code" },
-      14,
-      0,
-      0,
-    );
+    const result = renderCodeBlock({ code: "code" }, 14, 0, 0);
 
     expect(result).toHaveProperty("node");
     expect(result).toHaveProperty("height");

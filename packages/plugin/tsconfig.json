@@ -7,7 +7,7 @@
     "strict": true,
     "skipLibCheck": true,
     "lib": ["ES2020", "DOM"],
-    "types": ["@figma/plugin-typings"]
+    "types": ["@figma/plugin-typings", "bun-types"]
   },
   "include": ["src/**/*"]
 }

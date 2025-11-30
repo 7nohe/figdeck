@@ -223,7 +223,10 @@ function processCode(codeNode: Code, builder: SlideBuilder): void {
 /**
  * Process a blockquote node
  */
-function processBlockquote(blockquote: Blockquote, builder: SlideBuilder): void {
+function processBlockquote(
+  blockquote: Blockquote,
+  builder: SlideBuilder,
+): void {
   builder.slide = ensureSlide(builder.slide);
   const { text, spans } = extractBlockquoteContent(blockquote);
   builder.blocks.push({ kind: "blockquote", text, spans });

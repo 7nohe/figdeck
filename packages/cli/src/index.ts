@@ -1,4 +1,4 @@
-import { readFileSync, watchFile } from "node:fs";
+import { readFileSync, watchFile, writeFileSync } from "node:fs";
 import { Command } from "commander";
 import { parseMarkdown } from "./markdown.js";
 import { startServer } from "./ws-server.js";
@@ -10,13 +10,38 @@ program
   .description("Convert Markdown to Figma Slides")
   .version("0.1.0");
 
+// build: one-shot parse and output JSON
 program
   .command("build")
-  .description("Build slides from Markdown file")
+  .description("Parse Markdown and output slides JSON")
+  .argument("<file>", "Markdown file path")
+  .option("-o, --out <path>", "Output file path (default: stdout)")
+  .action((file: string, options: { out?: string }) => {
+    try {
+      const markdown = readFileSync(file, "utf-8");
+      const slides = parseMarkdown(markdown);
+      const json = JSON.stringify(slides, null, 2);
+
+      if (options.out) {
+        writeFileSync(options.out, json, "utf-8");
+        console.log(`Wrote ${slides.length} slides to ${options.out}`);
+      } else {
+        console.log(json);
+      }
+    } catch (error) {
+      console.error("Error:", (error as Error).message);
+      process.exit(1);
+    }
+  });
+
+// serve: start WebSocket server, optionally watch for changes
+program
+  .command("serve")
+  .description("Start WebSocket server for Figma plugin connection")
   .argument("<file>", "Markdown file path")
   .option("--host <host>", "WebSocket host", "localhost")
   .option("-p, --port <port>", "WebSocket port", "4141")
-  .option("-w, --watch", "Watch for file changes", false)
+  .option("--no-watch", "Disable watching for file changes")
   .action(
     async (
       file: string,
@@ -48,21 +73,14 @@ program
               console.error("Error reading file:", (error as Error).message);
             }
           });
-
-          // Keep the process running
-          process.on("SIGINT", () => {
-            console.log("\nShutting down...");
-            server.close();
-            process.exit(0);
-          });
-        } else {
-          console.log("Done! Press Ctrl+C to exit.");
-          process.on("SIGINT", () => {
-            console.log("\nShutting down...");
-            server.close();
-            process.exit(0);
-          });
         }
+
+        console.log("Press Ctrl+C to stop the server.");
+        process.on("SIGINT", () => {
+          console.log("\nShutting down...");
+          server.close();
+          process.exit(0);
+        });
       } catch (error) {
         console.error("Error:", (error as Error).message);
         process.exit(1);

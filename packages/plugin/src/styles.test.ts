@@ -1,6 +1,9 @@
 import { describe, expect, it } from "bun:test";
 import { createFill, LAYOUT, resolveSlideStyles } from "./styles";
 
+type SolidPaint = { type: "SOLID"; color: RGB; opacity?: number };
+type RGB = { r: number; g: number; b: number };
+
 describe("createFill", () => {
   it("should return undefined when style is undefined", () => {
     expect(createFill(undefined)).toBeUndefined();
@@ -14,19 +17,19 @@ describe("createFill", () => {
     const fill = createFill({ color: "#ff0000" });
     expect(fill).toHaveLength(1);
     expect(fill?.[0].type).toBe("SOLID");
-    expect(fill?.[0].color).toEqual({ r: 1, g: 0, b: 0 });
+    expect((fill?.[0] as SolidPaint).color).toEqual({ r: 1, g: 0, b: 0 });
   });
 
   it("should create fill from 3-digit hex color", () => {
     const fill = createFill({ color: "#f00" });
     expect(fill).toHaveLength(1);
-    expect(fill?.[0].color).toEqual({ r: 1, g: 0, b: 0 });
+    expect((fill?.[0] as SolidPaint).color).toEqual({ r: 1, g: 0, b: 0 });
   });
 
   it("should create fill from rgba color with opacity", () => {
     const fill = createFill({ color: "rgba(255, 0, 0, 0.5)" });
     expect(fill).toHaveLength(1);
-    expect(fill?.[0].color).toEqual({ r: 1, g: 0, b: 0 });
+    expect((fill?.[0] as SolidPaint).color).toEqual({ r: 1, g: 0, b: 0 });
     expect(fill?.[0].opacity).toBe(0.5);
   });
 
@@ -84,7 +87,11 @@ describe("resolveSlideStyles", () => {
     });
 
     expect(styles.h1.fills).toHaveLength(1);
-    expect(styles.h1.fills?.[0].color).toEqual({ r: 1, g: 1, b: 1 });
+    expect((styles.h1.fills?.[0] as SolidPaint).color).toEqual({
+      r: 1,
+      g: 1,
+      b: 1,
+    });
   });
 
   it("should override paragraph styles", () => {
@@ -110,7 +117,11 @@ describe("resolveSlideStyles", () => {
     });
 
     expect(styles.code.fontSize).toBe(14);
-    expect(styles.code.fills?.[0].color).toEqual({ r: 0, g: 1, b: 0 });
+    expect((styles.code.fills?.[0] as SolidPaint).color).toEqual({
+      r: 0,
+      g: 1,
+      b: 0,
+    });
   });
 
   it("should handle empty styles object", () => {

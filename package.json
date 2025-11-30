@@ -7,6 +7,7 @@
   "scripts": {
     "build": "bun run --filter '*' build",
     "dev": "bun run --filter '@figdeck/cli' dev",
+    "serve": "bun run packages/cli/dist/index.js serve",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check --write .",

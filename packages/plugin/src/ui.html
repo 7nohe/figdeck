@@ -10,6 +10,32 @@
     form {
       margin: 0;
     }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 12px;
+      border-bottom: 1px solid #ddd;
+    }
+    .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      border: none;
+      background: none;
+      color: #666;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab.active {
+      color: #1a73e8;
+      border-bottom-color: #1a73e8;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
     .connection {
       display: flex;
       flex-wrap: wrap;
@@ -42,6 +68,44 @@
     .connection button:active {
       transform: translateY(1px);
     }
+    .import-section {
+      margin-bottom: 12px;
+    }
+    .import-section textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: monospace;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+    .import-section .buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .import-section button {
+      padding: 8px 12px;
+      font-size: 13px;
+      border: 1px solid #1a73e8;
+      background: #1a73e8;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .import-section button.secondary {
+      background: #fff;
+      color: #1a73e8;
+    }
+    .import-section button:active {
+      transform: translateY(1px);
+    }
+    .import-section input[type="file"] {
+      display: none;
+    }
     .status {
       padding: 8px 12px;
       border-radius: 6px;
@@ -60,6 +124,10 @@
       background: #fff3cd;
       color: #856404;
     }
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+    }
     .log {
       font-size: 12px;
       color: #666;
@@ -76,34 +144,64 @@
   </style>
 </head>
 <body>
-  <form id="connection-form" class="connection">
-    <label class="field">
-      <span>Host</span>
-      <input id="host" name="host" type="text" placeholder="localhost" autocomplete="off">
-    </label>
-    <label class="field">
-      <span>Port</span>
-      <input id="port" name="port" type="number" min="1" max="65535" placeholder="4141" autocomplete="off">
-    </label>
-    <button id="connect" type="button">Connect</button>
-  </form>
-  <div id="status" class="status waiting">Connecting to WebSocket server...</div>
-  <div id="log" class="log"></div>
+  <div class="tabs">
+    <button class="tab active" data-tab="websocket">WebSocket</button>
+    <button class="tab" data-tab="import">Import JSON</button>
+  </div>
+
+  <div id="tab-websocket" class="tab-content active">
+    <form id="connection-form" class="connection">
+      <label class="field">
+        <span>Host</span>
+        <input id="host" name="host" type="text" placeholder="localhost" autocomplete="off">
+      </label>
+      <label class="field">
+        <span>Port</span>
+        <input id="port" name="port" type="number" min="1" max="65535" placeholder="4141" autocomplete="off">
+      </label>
+      <button id="connect" type="button">Connect</button>
+    </form>
+    <div id="status" class="status waiting">Connecting to WebSocket server...</div>
+  </div>
+
+  <div id="tab-import" class="tab-content">
+    <div class="import-section">
+      <textarea id="json-input" placeholder="Paste JSON slides array here..."></textarea>
+      <div class="buttons">
+        <button id="import-json" type="button">Generate Slides</button>
+        <button id="load-file" type="button" class="secondary">Load File</button>
+        <input type="file" id="file-input" accept=".json">
+      </div>
+    </div>
+    <div id="import-status" class="status" style="display: none;"></div>
+  </div>
+
+  <div id="log" class="log" style="display: none;"></div>
 
   <script>
     const DEFAULT_HOST = 'localhost';
     const DEFAULT_PORT = 4141;
     const HOST_KEY = 'figdeck-ws-host';
     const PORT_KEY = 'figdeck-ws-port';
+    const TAB_KEY = 'figdeck-active-tab';
     const statusEl = document.getElementById('status');
+    const importStatusEl = document.getElementById('import-status');
     const logEl = document.getElementById('log');
     const hostInput = document.getElementById('host');
     const portInput = document.getElementById('port');
     const form = document.getElementById('connection-form');
     const connectButton = document.getElementById('connect');
+    const jsonInput = document.getElementById('json-input');
+    const importButton = document.getElementById('import-json');
+    const loadFileButton = document.getElementById('load-file');
+    const fileInput = document.getElementById('file-input');
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
     let ws = null;
     let currentHost = DEFAULT_HOST;
     let currentPort = DEFAULT_PORT;
+    let activeTab = 'websocket';
+    let autoConnect = true;
 
     function safeGet(key) {
       try {
@@ -134,19 +232,116 @@
       statusEl.className = 'status ' + className;
     }
 
+    function setImportStatus(text, className) {
+      importStatusEl.textContent = text;
+      importStatusEl.className = 'status ' + className;
+      importStatusEl.style.display = text ? 'block' : 'none';
+    }
+
+    function switchTab(tabName) {
+      activeTab = tabName;
+      safeSet(TAB_KEY, tabName);
+
+      tabs.forEach(function(tab) {
+        if (tab.getAttribute('data-tab') === tabName) {
+          tab.classList.add('active');
+        } else {
+          tab.classList.remove('active');
+        }
+      });
+
+      tabContents.forEach(function(content) {
+        if (content.id === 'tab-' + tabName) {
+          content.classList.add('active');
+        } else {
+          content.classList.remove('active');
+        }
+      });
+
+      // Show/hide log based on tab
+      logEl.style.display = tabName === 'websocket' ? 'block' : 'none';
+
+      // Stop auto-reconnect when on import tab
+      if (tabName === 'import' && ws) {
+        autoConnect = false;
+        ws.onclose = null;
+        ws.close();
+        ws = null;
+      } else if (tabName === 'websocket') {
+        autoConnect = true;
+        connect(currentHost, currentPort);
+      }
+    }
+
     function loadStoredConnection() {
       const storedHost = safeGet(HOST_KEY);
       const storedPort = parseInt(safeGet(PORT_KEY) || '', 10);
+      const storedTab = safeGet(TAB_KEY);
 
       currentHost = storedHost && storedHost.trim() ? storedHost.trim() : DEFAULT_HOST;
       currentPort = Number.isFinite(storedPort) ? storedPort : DEFAULT_PORT;
 
       hostInput.value = currentHost;
       portInput.value = String(currentPort);
+
+      if (storedTab === 'import') {
+        autoConnect = false;
+        switchTab('import');
+      }
     }
 
-    function connect(host = currentHost, port = currentPort) {
-      const parsedPort = parseInt(port, 10);
+    function validateSlides(slides) {
+      if (!Array.isArray(slides)) {
+        return { valid: false, error: 'JSON must be an array of slides' };
+      }
+      if (slides.length === 0) {
+        return { valid: false, error: 'Slides array is empty' };
+      }
+      for (var i = 0; i < slides.length; i++) {
+        var slide = slides[i];
+        if (!slide || typeof slide !== 'object') {
+          return { valid: false, error: 'Slide ' + (i + 1) + ' is not an object' };
+        }
+        if (!slide.type || (slide.type !== 'title' && slide.type !== 'content')) {
+          return { valid: false, error: 'Slide ' + (i + 1) + ' has invalid type (must be "title" or "content")' };
+        }
+      }
+      return { valid: true };
+    }
+
+    function importJson(jsonStr) {
+      var slides;
+      try {
+        slides = JSON.parse(jsonStr);
+      } catch (e) {
+        setImportStatus('Invalid JSON: ' + e.message, 'error');
+        log('JSON parse error: ' + e.message);
+        return;
+      }
+
+      var validation = validateSlides(slides);
+      if (!validation.valid) {
+        setImportStatus(validation.error, 'error');
+        log('Validation error: ' + validation.error);
+        return;
+      }
+
+      setImportStatus('Generating ' + slides.length + ' slides...', 'waiting');
+      log('Importing ' + slides.length + ' slides from JSON');
+
+      parent.postMessage({
+        pluginMessage: {
+          type: 'generate-slides',
+          slides: slides
+        }
+      }, '*');
+    }
+
+    function connect(host, port) {
+      if (host === undefined) host = currentHost;
+      if (port === undefined) port = currentPort;
+
+      var parsedPort = parseInt(port, 10);
       currentHost = host && String(host).trim() ? String(host).trim() : DEFAULT_HOST;
       currentPort = Number.isFinite(parsedPort) ? parsedPort : DEFAULT_PORT;
 
@@ -161,23 +356,23 @@
         ws.close();
       }
 
-      setStatus(`Connecting to ws://${currentHost}:${currentPort}...`, 'waiting');
-      log(`Connecting to ws://${currentHost}:${currentPort}`);
+      setStatus('Connecting to ws://' + currentHost + ':' + currentPort + '...', 'waiting');
+      log('Connecting to ws://' + currentHost + ':' + currentPort);
 
       try {
-        ws = new WebSocket(`ws://${currentHost}:${currentPort}`);
+        ws = new WebSocket('ws://' + currentHost + ':' + currentPort);
 
-        ws.onopen = () => {
-          setStatus(`Connected to ws://${currentHost}:${currentPort} - Waiting for slides...`, 'connected');
+        ws.onopen = function() {
+          setStatus('Connected to ws://' + currentHost + ':' + currentPort + ' - Waiting for slides...', 'connected');
           log('Connected to CLI');
         };
 
-        ws.onmessage = (event) => {
+        ws.onmessage = function(event) {
           try {
-            const msg = JSON.parse(event.data);
-            log(`Received: ${msg.type}`);
+            var msg = JSON.parse(event.data);
+            log('Received: ' + msg.type);
             if (msg.type === 'generate-slides') {
-              log(`Generating ${msg.slides.length} slides...`);
+              log('Generating ' + msg.slides.length + ' slides...');
               parent.postMessage({ pluginMessage: msg }, '*');
             }
           } catch (e) {
@@ -185,44 +380,101 @@
           }
         };
 
-        ws.onclose = () => {
-          setStatus(`Disconnected - Reconnecting to ws://${currentHost}:${currentPort}...`, 'disconnected');
-          log('Disconnected, retrying in 3s...');
-          setTimeout(() => connect(currentHost, currentPort), 3000);
+        ws.onclose = function() {
+          if (autoConnect && activeTab === 'websocket') {
+            setStatus('Disconnected - Reconnecting to ws://' + currentHost + ':' + currentPort + '...', 'disconnected');
+            log('Disconnected, retrying in 3s...');
+            setTimeout(function() { connect(currentHost, currentPort); }, 3000);
+          } else {
+            setStatus('Disconnected', 'disconnected');
+          }
         };
 
-        ws.onerror = () => {
+        ws.onerror = function() {
           log('WebSocket error');
         };
       } catch (e) {
         log('Connection failed: ' + e);
-        setTimeout(() => connect(currentHost, currentPort), 3000);
+        if (autoConnect && activeTab === 'websocket') {
+          setTimeout(function() { connect(currentHost, currentPort); }, 3000);
+        }
       }
     }
 
-    window.onmessage = (event) => {
-      const msg = event.data.pluginMessage;
+    window.onmessage = function(event) {
+      var msg = event.data.pluginMessage;
       if (msg) {
         if (msg.type === 'success') {
-          log(`Success! Generated ${msg.count} slides`);
+          log('Success! Generated ' + msg.count + ' slides');
+          if (activeTab === 'import') {
+            setImportStatus('Success! Generated ' + msg.count + ' slides', 'connected');
+          }
         } else if (msg.type === 'error') {
-          log(`Error: ${msg.message}`);
+          log('Error: ' + msg.message);
+          if (activeTab === 'import') {
+            setImportStatus('Error: ' + msg.message, 'error');
+          }
         }
       }
     };
 
+    // Tab switching
+    tabs.forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        switchTab(tab.getAttribute('data-tab'));
+      });
+    });
+
+    // Import JSON button
+    importButton.addEventListener('click', function() {
+      var jsonStr = jsonInput.value.trim();
+      if (!jsonStr) {
+        setImportStatus('Please enter or paste JSON', 'error');
+        return;
+      }
+      importJson(jsonStr);
+    });
+
+    // Load file button
+    loadFileButton.addEventListener('click', function() {
+      fileInput.click();
+    });
+
+    // File input handler
+    fileInput.addEventListener('change', function(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        var content = e.target.result;
+        jsonInput.value = content;
+        log('Loaded file: ' + file.name);
+        importJson(content);
+      };
+      reader.onerror = function() {
+        setImportStatus('Failed to read file', 'error');
+        log('File read error');
+      };
+      reader.readAsText(file);
+      fileInput.value = '';
+    });
+
     loadStoredConnection();
 
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', function(event) {
       event.preventDefault();
       connect(hostInput.value, portInput.value);
     });
 
-    connectButton.addEventListener('click', () => {
+    connectButton.addEventListener('click', function() {
       connect(hostInput.value, portInput.value);
     });
 
-    connect(currentHost, currentPort);
+    // Only auto-connect if on websocket tab
+    if (activeTab === 'websocket') {
+      connect(currentHost, currentPort);
+    }
   </script>
 </body>
 </html>

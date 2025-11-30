@@ -464,10 +464,7 @@ const TABLE_LAYOUT = {
 /**
  * Create a table cell frame with consistent styling
  */
-function createTableCell(
-  name: string,
-  showLeftBorder: boolean,
-): FrameNode {
+function createTableCell(name: string, showLeftBorder: boolean): FrameNode {
   const cell = figma.createFrame();
   cell.name = name;
   cell.layoutMode = "HORIZONTAL";
@@ -562,7 +559,11 @@ export async function renderTable(
 
   // Render header row
   if (headers.length > 0) {
-    const headerRow = createTableRow("Header Row", false, TABLE_LAYOUT.HEADER_BG);
+    const headerRow = createTableRow(
+      "Header Row",
+      false,
+      TABLE_LAYOUT.HEADER_BG,
+    );
 
     for (let i = 0; i < headers.length; i++) {
       const cell = createTableCell(`Header ${i}`, i > 0);

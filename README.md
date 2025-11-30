@@ -22,19 +22,31 @@ bun run build
 
 ## 使い方
 
-### 1. CLI でスライドデータを送信
+### 方法 1: WebSocket 連携（ライブリロード対応）
 
 ```bash
-bun run packages/cli/dist/index.js build your-slides.md
+# CLI で WebSocket サーバーを起動（ウォッチモードがデフォルトで有効）
+bun run packages/cli/dist/index.js serve your-slides.md
+
+# ウォッチモードを無効にする場合
+bun run packages/cli/dist/index.js serve your-slides.md --no-watch
 ```
 
-CLI は WebSocket サーバー（port: 4141）を起動し、Plugin からの接続を待機します。
+1. Figma でプラグインを開発モードで読み込み
+2. Plugin の「WebSocket」タブで CLI に接続
+3. スライドが自動生成される
 
-### 2. Figma Plugin を起動
+### 方法 2: JSON インポート（CLI 不要）
+
+```bash
+# Markdown から JSON を出力
+bun run packages/cli/dist/index.js build your-slides.md -o slides.json
+```
 
 1. Figma でプラグインを開発モードで読み込み
-2. Plugin が自動的に CLI に接続
-3. スライドが自動生成される
+2. Plugin の「Import JSON」タブを選択
+3. JSON をペーストするか、ファイルを選択して読み込み
+4. 「Generate Slides」でスライドを生成
 
 ## Markdown 記法
 
@@ -126,16 +138,28 @@ color: "#ffffff"
 
 個別スライドのフロントマター > グローバルフロントマター
 
-## CLI オプション
+## CLI コマンド
+
+### `build` - JSON 出力
 
 ```bash
 figdeck build <file> [options]
 
 Options:
-  --host <host>  WebSocket ホスト (default: "localhost")
+  -o, --out <path>  出力ファイルパス（省略時は stdout）
+  -h, --help        ヘルプ表示
+```
+
+### `serve` - WebSocket サーバー
+
+```bash
+figdeck serve <file> [options]
+
+Options:
+  --host <host>      WebSocket ホスト (default: "localhost")
   -p, --port <port>  WebSocket ポート (default: "4141")
-  -V, --version  バージョン表示
-  -h, --help     ヘルプ表示
+  --no-watch         ファイル変更の監視を無効化（デフォルトは有効）
+  -h, --help         ヘルプ表示
 ```
 
 ## プロジェクト構成

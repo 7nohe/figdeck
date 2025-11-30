@@ -28,14 +28,19 @@ cd packages/cli && bun run dev
 ## Running
 
 ```bash
-# Start CLI server with a Markdown file (waits for Plugin connection on port 4141)
-bun run packages/cli/dist/index.js build examples/sample.md
+# WebSocket mode: Start CLI server (waits for Plugin connection on port 4141)
+# Watch mode is enabled by default - auto-reloads on file changes
+bun run packages/cli/dist/index.js serve examples/sample.md
 
-# Options
-bun run packages/cli/dist/index.js build slides.md --host localhost --port 4141
+# WebSocket options
+bun run packages/cli/dist/index.js serve slides.md --host localhost --port 4141
 
-# Watch mode - auto-reload on file changes
-bun run packages/cli/dist/index.js build slides.md -w
+# Disable watch mode
+bun run packages/cli/dist/index.js serve slides.md --no-watch
+
+# JSON output mode: Parse Markdown and output JSON (no server)
+bun run packages/cli/dist/index.js build examples/sample.md              # stdout
+bun run packages/cli/dist/index.js build examples/sample.md -o out.json  # file
 ```
 
 ## Architecture
@@ -45,7 +50,7 @@ CLI (WebSocket Server)  <--->  Figma Plugin (WebSocket Client)
       port 4141                      ui.html connects
 ```
 
-**Data Flow:**
+**WebSocket Data Flow:**
 1. CLI reads Markdown file
 2. remark parses to AST, converts to `SlideContent[]`
 3. CLI starts WebSocket server on port 4141
@@ -53,7 +58,13 @@ CLI (WebSocket Server)  <--->  Figma Plugin (WebSocket Client)
 5. CLI sends `{ type: "generate-slides", slides: [...] }`
 6. Plugin creates slides via `figma.createSlide()`
 
-**Deviation from PLAN.md:** The original plan had Plugin as WebSocket server, but Figma Plugin sandbox constraints required inverting this - CLI is server, Plugin is client.
+**JSON Import Flow (CLI-free):**
+1. CLI `build` command outputs JSON to file or stdout
+2. User loads JSON in Plugin via "Import JSON" tab (paste or file picker)
+3. Plugin validates JSON schema and sends to code.ts
+4. Plugin creates slides via `figma.createSlide()`
+
+**Note:** The original plan had Plugin as WebSocket server, but Figma Plugin sandbox constraints required inverting this - CLI is server, Plugin is client.
 
 ## Key Types
 

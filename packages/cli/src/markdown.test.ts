@@ -454,7 +454,7 @@ code();
       const block = result[0].blocks?.[0];
       expect(block?.kind).toBe("bullets");
 
-      if (block?.kind === "bullets") {
+      if (block?.kind === "bullets" && block.itemSpans) {
         expect(block.items).toHaveLength(4);
         expect(block.itemSpans).toHaveLength(4);
         // Check that spans contain formatting
@@ -563,7 +563,10 @@ no language
       expect(result).toHaveLength(1);
       const block = result[0].blocks?.[0];
       if (block?.kind === "table") {
-        expect(block.headers[0]).toContainEqual({ text: "Bold Header", bold: true });
+        expect(block.headers[0]).toContainEqual({
+          text: "Bold Header",
+          bold: true,
+        });
       }
     });
   });

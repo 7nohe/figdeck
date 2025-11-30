@@ -99,4 +99,6 @@ export const LAYOUT = {
   BLOCK_SPACING: 30,
   /** Spacing between bullet items */
   BULLET_ITEM_SPACING: 8,
+  /** Padding inside content container */
+  CONTAINER_PADDING: 100,
 } as const;

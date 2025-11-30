@@ -231,6 +231,8 @@ interface SlideContent {
   title?: string;      // 見出しテキスト
   body?: string[];     // 本文テキスト配列
   bullets?: string[];  // 箇条書き配列
+  align?: HorizontalAlign;   // 水平方向配置: "left" | "center" | "right"
+  valign?: VerticalAlign;    // 垂直方向配置: "top" | "middle" | "bottom"
 }
 ```
 
@@ -296,5 +298,5 @@ CLI と Figma Plugin が連携して動作します。
 | テーブル | ✅ | GFM、アラインメント対応 |
 | 画像 | ✅ | ローカル・リモート対応 |
 | Figma リンク | ✅ | `:::figma` ブロック |
+| align/valign | ✅ | スライド配置設定 |
 | 脚注 | ❌ | 未対応 |
-| 定義リスト | ❌ | 未対応 |

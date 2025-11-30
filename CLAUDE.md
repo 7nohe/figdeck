@@ -87,6 +87,8 @@ interface SlideContent {
   background?: SlideBackground;   // Solid, gradient, or template style
   styles?: SlideStyles;           // Font sizes and colors
   slideNumber?: SlideNumberConfig;
+  align?: HorizontalAlign;        // "left" | "center" | "right"
+  valign?: VerticalAlign;         // "top" | "middle" | "bottom"
 }
 
 type SlideBlock =
@@ -163,6 +165,8 @@ titlePrefix:
   link: "https://www.figma.com/design/xxx?node-id=123-456"  # Figma component link
   spacing: 16                   # Gap between prefix and title (default: 16)
 titlePrefix: false              # Disable inherited prefix for this slide
+align: center                   # Horizontal: left, center, right (default: left)
+valign: middle                  # Vertical: top, middle, bottom (default: top)
 ---
 ```
 

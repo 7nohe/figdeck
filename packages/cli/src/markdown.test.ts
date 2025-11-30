@@ -694,4 +694,93 @@ y=200
       }
     });
   });
+
+  describe("align/valign frontmatter", () => {
+    it("should apply global align/valign to all slides", () => {
+      const result = parseMarkdown(`---
+align: center
+valign: middle
+---
+
+# Title Slide
+
+---
+
+## Content Slide
+
+Body text.`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].align).toBe("center");
+      expect(result[0].valign).toBe("middle");
+      expect(result[1].align).toBe("center");
+      expect(result[1].valign).toBe("middle");
+    });
+
+    it("should allow per-slide align/valign override", () => {
+      const result = parseMarkdown(`---
+align: center
+valign: middle
+---
+
+# Centered Title
+
+---
+align: left
+valign: top
+---
+## Left-aligned Content
+
+Body text.`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].align).toBe("center");
+      expect(result[0].valign).toBe("middle");
+      expect(result[1].align).toBe("left");
+      expect(result[1].valign).toBe("top");
+    });
+
+    it("should handle align without valign", () => {
+      const result = parseMarkdown(`---
+align: right
+---
+
+## Right-aligned
+
+Text`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].align).toBe("right");
+      expect(result[0].valign).toBeUndefined();
+    });
+
+    it("should handle valign without align", () => {
+      const result = parseMarkdown(`---
+valign: bottom
+---
+
+## Bottom-aligned
+
+Text`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].align).toBeUndefined();
+      expect(result[0].valign).toBe("bottom");
+    });
+
+    it("should ignore invalid align/valign values", () => {
+      const result = parseMarkdown(`---
+align: invalid
+valign: wrong
+---
+
+## Slide
+
+Text`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].align).toBeUndefined();
+      expect(result[0].valign).toBeUndefined();
+    });
+  });
 });

@@ -86,7 +86,12 @@ interface SlideContent {
   background?: SlideBackground;
   styles?: SlideStyles;
   slideNumber?: SlideNumberConfig;
+  align?: HorizontalAlign;
+  valign?: VerticalAlign;
 }
+
+type HorizontalAlign = "left" | "center" | "right";
+type VerticalAlign = "top" | "middle" | "bottom";
 ```
 
 | プロパティ | 型 | 説明 |
@@ -100,6 +105,8 @@ interface SlideContent {
 | `background` | `SlideBackground?` | 背景設定 |
 | `styles` | `SlideStyles?` | フォントサイズ・色設定 |
 | `slideNumber` | `SlideNumberConfig?` | スライド番号設定 |
+| `align` | `HorizontalAlign?` | 水平方向配置（デフォルト: left） |
+| `valign` | `VerticalAlign?` | 垂直方向配置（デフォルト: top） |
 
 ### SlideBlock
 
@@ -317,6 +324,8 @@ color: "#58a6ff"
 | `code` | `object` | コードブロックスタイル |
 | `slideNumber` | `object \| boolean` | スライド番号設定 |
 | `titlePrefix` | `object \| false` | タイトルプレフィックス設定 |
+| `align` | `string` | 水平方向配置（`left`, `center`, `right`） |
+| `valign` | `string` | 垂直方向配置（`top`, `middle`, `bottom`） |
 
 ## WebSocket API
 

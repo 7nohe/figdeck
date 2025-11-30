@@ -93,6 +93,16 @@ export interface TitlePrefixConfig {
 export type TableAlignment = "left" | "center" | "right" | null;
 
 /**
+ * Horizontal alignment for slide content
+ */
+export type HorizontalAlign = "left" | "center" | "right";
+
+/**
+ * Vertical alignment for slide content
+ */
+export type VerticalAlign = "top" | "middle" | "bottom";
+
+/**
  * Figma selection link extracted from :::figma block
  */
 export interface FigmaSelectionLink {
@@ -142,6 +152,10 @@ export interface SlideContent {
   styles?: SlideStyles;
   slideNumber?: SlideNumberConfig;
   titlePrefix?: TitlePrefixConfig | null;
+  /** Horizontal alignment of slide content */
+  align?: HorizontalAlign;
+  /** Vertical alignment of slide content */
+  valign?: VerticalAlign;
 }
 
 export interface GenerateSlidesMessage {

@@ -8,12 +8,14 @@ import {
 import { getTemplateDefaults } from "./templates.js";
 import type {
   BackgroundImage,
+  HorizontalAlign,
   TextStyle as ParsedTextStyle,
   SlideBackground,
   SlideNumberConfig,
   SlideNumberPosition,
   SlideStyles,
   TitlePrefixConfig,
+  VerticalAlign,
 } from "./types.js";
 
 /**
@@ -76,6 +78,8 @@ export interface SlideConfig {
   code?: TextStyle;
   slideNumber?: SlideNumberYamlConfig | boolean;
   titlePrefix?: TitlePrefixYamlConfig | false;
+  align?: string;
+  valign?: string;
 }
 
 /**
@@ -86,6 +90,8 @@ export interface ParsedConfigResult {
   styles: SlideStyles;
   slideNumber: SlideNumberConfig | undefined;
   titlePrefix: TitlePrefixConfig | null | undefined;
+  align: HorizontalAlign | undefined;
+  valign: VerticalAlign | undefined;
 }
 
 /**
@@ -326,7 +332,31 @@ export function parseSlideConfig(
     }
   }
 
-  return { background, styles, slideNumber, titlePrefix };
+  // Parse align/valign config
+  const align = parseHorizontalAlign(config.align);
+  const valign = parseVerticalAlign(config.valign);
+
+  return { background, styles, slideNumber, titlePrefix, align, valign };
+}
+
+/**
+ * Parse and validate horizontal alignment
+ */
+function parseHorizontalAlign(value: string | undefined): HorizontalAlign | undefined {
+  if (value === "left" || value === "center" || value === "right") {
+    return value;
+  }
+  return undefined;
+}
+
+/**
+ * Parse and validate vertical alignment
+ */
+function parseVerticalAlign(value: string | undefined): VerticalAlign | undefined {
+  if (value === "top" || value === "middle" || value === "bottom") {
+    return value;
+  }
+  return undefined;
 }
 
 /**

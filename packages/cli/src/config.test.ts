@@ -373,3 +373,44 @@ describe("mergeSlideNumberConfig", () => {
     expect(result?.color).toBe("#fff");
   });
 });
+
+describe("align/valign parsing", () => {
+  it("should parse horizontal align", () => {
+    expect(parseSlideConfig({ align: "left" }).align).toBe("left");
+    expect(parseSlideConfig({ align: "center" }).align).toBe("center");
+    expect(parseSlideConfig({ align: "right" }).align).toBe("right");
+  });
+
+  it("should parse vertical align", () => {
+    expect(parseSlideConfig({ valign: "top" }).valign).toBe("top");
+    expect(parseSlideConfig({ valign: "middle" }).valign).toBe("middle");
+    expect(parseSlideConfig({ valign: "bottom" }).valign).toBe("bottom");
+  });
+
+  it("should return undefined for invalid align values", () => {
+    expect(parseSlideConfig({ align: "invalid" }).align).toBeUndefined();
+    expect(parseSlideConfig({ align: "CENTER" }).align).toBeUndefined();
+    expect(parseSlideConfig({ align: "" }).align).toBeUndefined();
+  });
+
+  it("should return undefined for invalid valign values", () => {
+    expect(parseSlideConfig({ valign: "invalid" }).valign).toBeUndefined();
+    expect(parseSlideConfig({ valign: "MIDDLE" }).valign).toBeUndefined();
+    expect(parseSlideConfig({ valign: "" }).valign).toBeUndefined();
+  });
+
+  it("should return undefined when not specified", () => {
+    const result = parseSlideConfig({ background: "#fff" });
+    expect(result.align).toBeUndefined();
+    expect(result.valign).toBeUndefined();
+  });
+
+  it("should parse both align and valign together", () => {
+    const result = parseSlideConfig({
+      align: "center",
+      valign: "middle",
+    });
+    expect(result.align).toBe("center");
+    expect(result.valign).toBe("middle");
+  });
+});

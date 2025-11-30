@@ -37,6 +37,7 @@ import {
   spansToText,
 } from "./spans.js";
 import type {
+  HorizontalAlign,
   SlideBackground,
   SlideBlock,
   SlideContent,
@@ -44,6 +45,7 @@ import type {
   SlideStyles,
   TableAlignment,
   TitlePrefixConfig,
+  VerticalAlign,
 } from "./types.js";
 
 // Processor instance for parsing markdown with frontmatter and GFM support
@@ -305,6 +307,8 @@ function parseSlideMarkdown(
   defaultStyles: SlideStyles,
   defaultSlideNumber: SlideNumberConfig | undefined,
   defaultTitlePrefix: TitlePrefixConfig | null | undefined,
+  defaultAlign: HorizontalAlign | undefined,
+  defaultValign: VerticalAlign | undefined,
   figmaBlocks: FigmaBlockPlaceholder[],
   basePath?: string,
 ): SlideContent | null {
@@ -312,6 +316,8 @@ function parseSlideMarkdown(
   let slideStyles: SlideStyles = {};
   let slideSlideNumber: SlideNumberConfig | undefined;
   let slideTitlePrefix: TitlePrefixConfig | null | undefined;
+  let slideAlign: HorizontalAlign | undefined;
+  let slideValign: VerticalAlign | undefined;
 
   const { body: slideBody, config: frontmatterConfig } = extractFrontmatter(
     slideMarkdown,
@@ -324,6 +330,8 @@ function parseSlideMarkdown(
     slideStyles = frontmatterConfig.styles;
     slideSlideNumber = frontmatterConfig.slideNumber;
     slideTitlePrefix = frontmatterConfig.titlePrefix;
+    slideAlign = frontmatterConfig.align;
+    slideValign = frontmatterConfig.valign;
   }
 
   const tree = processor.parse(slideBody) as Root;
@@ -374,6 +382,10 @@ function parseSlideMarkdown(
     } else if (defaultTitlePrefix !== undefined) {
       builder.slide.titlePrefix = defaultTitlePrefix;
     }
+    // Merge align/valign (slide-specific overrides global defaults)
+    builder.slide.align = slideAlign ?? defaultAlign;
+    builder.slide.valign = slideValign ?? defaultValign;
+
     if (builder.blocks.length > 0) {
       builder.slide.blocks = builder.blocks;
     }
@@ -497,6 +509,8 @@ export function parseMarkdown(
   let globalDefaultStyles: SlideStyles = {};
   let globalDefaultSlideNumber: SlideNumberConfig | undefined;
   let globalDefaultTitlePrefix: TitlePrefixConfig | null | undefined;
+  let globalDefaultAlign: HorizontalAlign | undefined;
+  let globalDefaultValign: VerticalAlign | undefined;
   let contentWithoutGlobalFrontmatter = processedMarkdown;
   const slides: SlideContent[] = [];
 
@@ -505,16 +519,16 @@ export function parseMarkdown(
   if (frontmatterMatch) {
     try {
       const config = parseYaml(frontmatterMatch[1]) as SlideConfig;
-      const { background, styles, slideNumber, titlePrefix } = parseSlideConfig(
-        config,
-        {
+      const { background, styles, slideNumber, titlePrefix, align, valign } =
+        parseSlideConfig(config, {
           basePath,
-        },
-      );
+        });
       if (background) globalDefaultBackground = background;
       globalDefaultStyles = styles;
       globalDefaultSlideNumber = slideNumber;
       globalDefaultTitlePrefix = titlePrefix;
+      globalDefaultAlign = align;
+      globalDefaultValign = valign;
     } catch {
       // Invalid YAML, ignore
     }
@@ -533,6 +547,8 @@ export function parseMarkdown(
       globalDefaultStyles,
       globalDefaultSlideNumber,
       globalDefaultTitlePrefix,
+      globalDefaultAlign,
+      globalDefaultValign,
       figmaBlocks,
       basePath,
     );

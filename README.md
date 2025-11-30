@@ -1,95 +1,95 @@
 # figdeck
 
-Markdown を Figma Slides に変換する CLI + Plugin システム
+Convert Markdown to Figma Slides with CLI + Plugin
 
-## 概要
+## Overview
 
-figdeck は Markdown ファイルから Figma Slides を自動生成するツールです。CLI で Markdown をパースし、Figma Plugin と WebSocket で連携してスライドを作成します。
+figdeck is a tool that automatically generates Figma Slides from Markdown files. The CLI parses Markdown and communicates with the Figma Plugin via WebSocket to create slides.
 
-## インストール
+## Installation
 
 ```bash
-# リポジトリをクローン
-git clone https://github.com/your-username/figdeck.git
+# Clone the repository
+git clone https://github.com/7nohe/figdeck.git
 cd figdeck
 
-# 依存関係をインストール
+# Install dependencies
 bun install
 
-# ビルド
+# Build
 bun run build
 ```
 
-## 使い方
+## Usage
 
-### 方法 1: WebSocket 連携（ライブリロード対応）
+### Method 1: WebSocket Connection (Live Reload Support)
 
 ```bash
-# CLI で WebSocket サーバーを起動（ウォッチモードがデフォルトで有効）
+# Start WebSocket server with CLI (watch mode enabled by default)
 bun run packages/cli/dist/index.js serve your-slides.md
 
-# ウォッチモードを無効にする場合
+# Disable watch mode
 bun run packages/cli/dist/index.js serve your-slides.md --no-watch
 ```
 
-1. Figma でプラグインを開発モードで読み込み
-2. Plugin の「WebSocket」タブで CLI に接続
-3. スライドが自動生成される
+1. Load the plugin in development mode in Figma
+2. Connect to CLI from the "WebSocket" tab in the Plugin
+3. Slides are automatically generated
 
-### 方法 2: JSON インポート（CLI 不要）
+### Method 2: JSON Import (No CLI Required)
 
 ```bash
-# Markdown から JSON を出力
+# Output JSON from Markdown
 bun run packages/cli/dist/index.js build your-slides.md -o slides.json
 ```
 
-1. Figma でプラグインを開発モードで読み込み
-2. Plugin の「Import JSON」タブを選択
-3. JSON をペーストするか、ファイルを選択して読み込み
-4. 「Generate Slides」でスライドを生成
+1. Load the plugin in development mode in Figma
+2. Select the "Import JSON" tab in the Plugin
+3. Paste JSON or select a file to load
+4. Click "Generate Slides" to create slides
 
-## Markdown 記法
+## Markdown Syntax
 
 ```markdown
 ---
-# タイトルスライド
+# Title Slide
 
-サブタイトルやメッセージ
-
----
-## コンテンツスライド
-
-本文テキスト
-
-- 箇条書き1
-- 箇条書き2
-- 箇条書き3
+Subtitle or message
 
 ---
-# まとめ
+## Content Slide
 
-ご清聴ありがとうございました
+Body text
+
+- Bullet point 1
+- Bullet point 2
+- Bullet point 3
+
+---
+# Summary
+
+Thank you for your attention
 ```
 
-### スライド区切り
+### Slide Separator
 
-- `---`（水平線）でスライドを区切る
+- `---` (horizontal rule) separates slides
 
-### 見出し
+### Headings
 
-- `# H1` → タイトルスライド（大きいフォント）
-- `## H2` → コンテンツスライド
+- `# H1` → Title slide (large font)
+- `## H2` → Content slide
 
-### 本文
+### Body
 
-- 段落 → 本文テキストとして追加
-- リスト → 箇条書きとして追加
+- Paragraphs → Added as body text
+- Lists → Added as bullet points
 
-### スライドのスタイル設定
+### Slide Style Settings
 
-YAML フロントマターで背景色とテキスト色を設定できます。
+You can set background color and text color using YAML frontmatter.
 
-#### グローバル設定（ファイル先頭）
+#### Global Settings (File Header)
 
 ```markdown
 ---
@@ -97,12 +97,12 @@ background: "#1a1a2e"
 color: "#ffffff"
 ---
 
-# 全スライドにダーク背景＆白テキスト
+# Dark background & white text for all slides
 ```
 
-#### 個別スライドの設定
+#### Per-Slide Settings
 
-各スライドの先頭にフロントマターを追加して上書き：
+Add frontmatter at the beginning of each slide to override:
 
 ```markdown
 ---
@@ -112,78 +112,85 @@ background: "#3b82f6"
 color: "#ffffff"
 ---
 
-# このスライドだけ青背景
+# Only this slide has blue background
 ```
 
-#### オプション一覧
+#### Options
 
-| オプション | 説明 | 例 |
-|-----------|------|-----|
-| `background` | 背景色 | `"#1a1a2e"` |
-| `gradient` | グラデーション | `"#000:0%,#fff:100%@90"` |
-| `template` | Figma ペイントスタイル | `"Background/Dark"` |
-| `color` | テキスト色 | `"#ffffff"` |
+| Option | Description | Example |
+|--------|-------------|---------|
+| `background` | Background color | `"#1a1a2e"` |
+| `gradient` | Gradient | `"#000:0%,#fff:100%@90"` |
+| `template` | Figma paint style | `"Background/Dark"` |
+| `color` | Text color | `"#ffffff"` |
 
-#### グラデーション構文
+#### Gradient Syntax
 
 ```
 #color1:position1%,#color2:position2%,...@angle
 ```
 
-- `color`: 色（hex または rgb/rgba）
-- `position`: 位置（0-100%）
-- `angle`: 角度（度）、省略時は 0
+- `color`: Color (hex or rgb/rgba)
+- `position`: Position (0-100%)
+- `angle`: Angle (degrees), defaults to 0 if omitted
 
-#### 優先順位
+#### Priority
 
-個別スライドのフロントマター > グローバルフロントマター
+Per-slide frontmatter > Global frontmatter
 
-## CLI コマンド
+## CLI Commands
 
-### `build` - JSON 出力
+### `build` - JSON Output
 
 ```bash
 figdeck build <file> [options]
 
 Options:
-  -o, --out <path>  出力ファイルパス（省略時は stdout）
-  -h, --help        ヘルプ表示
+  -o, --out <path>  Output file path (stdout if omitted)
+  -h, --help        Show help
 ```
 
-### `serve` - WebSocket サーバー
+### `serve` - WebSocket Server
 
 ```bash
 figdeck serve <file> [options]
 
 Options:
-  --host <host>      WebSocket ホスト (default: "localhost")
-  -p, --port <port>  WebSocket ポート (default: "4141")
-  --no-watch         ファイル変更の監視を無効化（デフォルトは有効）
-  -h, --help         ヘルプ表示
+  --host <host>      WebSocket host (default: "localhost")
+  -p, --port <port>  WebSocket port (default: "4141")
+  --no-watch         Disable file watching (enabled by default)
+  -h, --help         Show help
 ```
 
-## プロジェクト構成
+## Project Structure
 
 ```
 figdeck/
 ├── packages/
-│   ├── cli/          # CLI パッケージ
+│   ├── cli/          # CLI package
 │   └── plugin/       # Figma Plugin
-├── examples/         # サンプル Markdown
-├── docs/             # ドキュメント
+├── examples/         # Sample Markdown files
+├── docs/             # Documentation
 └── README.md
 ```
 
-## 開発
+## Documentation
+
+- [Markdown Specification](docs/en/markdown-spec.md) - Supported Markdown syntax
+- [API Reference](docs/en/api-reference.md) - CLI commands and type definitions
+- [Architecture](docs/en/architecture.md) - System architecture and data flow
+- [Plugin Setup](docs/en/plugin-setup.md) - Figma Plugin installation guide
+
+## Development
 
 ```bash
-# CLI のウォッチモード
+# CLI watch mode
 cd packages/cli && bun run dev
 
-# Plugin のウォッチモード
+# Plugin watch mode
 cd packages/plugin && bun run watch
 ```
 
-## ライセンス
+## License
 
 MIT

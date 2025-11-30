@@ -15,7 +15,13 @@ import {
   renderSlideNumber,
 } from "./slide-utils";
 import { LAYOUT, resolveSlideStyles } from "./styles";
-import type { SlideBlock, SlideContent, TitlePrefixConfig } from "./types";
+import type {
+  HorizontalAlign,
+  SlideBlock,
+  SlideContent,
+  TitlePrefixConfig,
+  VerticalAlign,
+} from "./types";
 
 // Security limits
 const MAX_SLIDES = 100;
@@ -379,34 +385,291 @@ async function renderLegacyContent(
 }
 
 /**
- * Fill a slide with content
+ * Create content container frame with alignment settings
+ */
+function createContentContainer(
+  width: number,
+  height: number,
+  align: HorizontalAlign | undefined,
+  valign: VerticalAlign | undefined,
+): FrameNode {
+  const container = figma.createFrame();
+  container.name = "Slide Content";
+  container.layoutMode = "VERTICAL";
+  container.resize(width, height);
+  container.fills = [];
+  container.paddingLeft = LAYOUT.CONTAINER_PADDING;
+  container.paddingRight = LAYOUT.CONTAINER_PADDING;
+  container.paddingTop = LAYOUT.CONTAINER_PADDING;
+  container.paddingBottom = LAYOUT.CONTAINER_PADDING;
+  container.itemSpacing = LAYOUT.BLOCK_SPACING;
+
+  // Horizontal alignment (counter axis for vertical layout)
+  switch (align ?? "left") {
+    case "left":
+      container.counterAxisAlignItems = "MIN";
+      break;
+    case "center":
+      container.counterAxisAlignItems = "CENTER";
+      break;
+    case "right":
+      container.counterAxisAlignItems = "MAX";
+      break;
+  }
+
+  // Vertical alignment (primary axis for vertical layout)
+  switch (valign ?? "top") {
+    case "top":
+      container.primaryAxisAlignItems = "MIN";
+      break;
+    case "middle":
+      container.primaryAxisAlignItems = "CENTER";
+      break;
+    case "bottom":
+      container.primaryAxisAlignItems = "MAX";
+      break;
+  }
+
+  return container;
+}
+
+/**
+ * Render a single block and return the node (for container-based layout)
+ */
+async function renderBlockToNode(
+  block: SlideBlock,
+  styles: ReturnType<typeof resolveSlideStyles>,
+): Promise<SceneNode | null> {
+  switch (block.kind) {
+    case "paragraph": {
+      const result = await renderParagraph(
+        block.text,
+        block.spans,
+        styles.paragraph,
+        0,
+        0,
+      );
+      return result.node;
+    }
+
+    case "heading": {
+      const style = block.level === 3 ? styles.h3 : styles.h4;
+      const result = await renderHeading(block.text, block.spans, style, 0, 0);
+      return result.node;
+    }
+
+    case "bullets": {
+      const result = await renderBulletList(
+        block.items,
+        block.itemSpans,
+        styles.bullet,
+        block.ordered ?? false,
+        block.start ?? 1,
+        0,
+        0,
+      );
+      return result.node;
+    }
+
+    case "code": {
+      const result = renderCodeBlock(block, styles.code.fontSize, 0, 0);
+      return result.node;
+    }
+
+    case "blockquote": {
+      const node = await renderBlockquote(
+        block.spans || [{ text: block.text }],
+        styles.paragraph.fontSize,
+        styles.paragraph.fills,
+        0,
+        0,
+      );
+      return node;
+    }
+
+    case "image": {
+      const node = await renderImage(
+        {
+          url: block.url,
+          alt: block.alt,
+          mimeType: block.mimeType,
+          dataBase64: block.dataBase64,
+          source: block.source,
+        },
+        0,
+        0,
+      );
+      return node;
+    }
+
+    case "table": {
+      const node = await renderTable(
+        block.headers,
+        block.rows,
+        block.align || [],
+        styles.paragraph.fontSize * 0.85,
+        styles.paragraph.fills,
+        0,
+        0,
+      );
+      return node;
+    }
+
+    case "figma": {
+      // Figma blocks with custom position are handled separately
+      const node = await renderFigmaLink(block.link, 0, 0);
+      return node;
+    }
+
+    default: {
+      const unknownBlock = block as { kind: string };
+      console.warn(`[figdeck] Unknown block kind: ${unknownBlock.kind}`);
+      return null;
+    }
+  }
+}
+
+/**
+ * Render title (with optional prefix) for container-based layout
+ */
+async function renderTitleToNode(
+  title: string,
+  titleStyle: ReturnType<typeof resolveSlideStyles>["h1"],
+  titlePrefix: TitlePrefixConfig | null | undefined,
+): Promise<SceneNode> {
+  // If no prefix config, render simple title
+  if (!titlePrefix?.nodeId) {
+    const titleText = figma.createText();
+    titleText.fontName = { family: "Inter", style: titleStyle.fontStyle };
+    titleText.fontSize = titleStyle.fontSize;
+    titleText.characters = title;
+    if (titleStyle.fills) {
+      titleText.fills = titleStyle.fills;
+    }
+    return titleText;
+  }
+
+  // Find and clone prefix node
+  const prefixNode = await findCloneableNode(titlePrefix.nodeId);
+  if (!prefixNode) {
+    // Fallback to simple title if prefix not found
+    const titleText = figma.createText();
+    titleText.fontName = { family: "Inter", style: titleStyle.fontStyle };
+    titleText.fontSize = titleStyle.fontSize;
+    titleText.characters = title;
+    if (titleStyle.fills) {
+      titleText.fills = titleStyle.fills;
+    }
+    return titleText;
+  }
+
+  const prefixClone = prefixNode.clone();
+
+  // Create title text node
+  const titleText = figma.createText();
+  titleText.fontName = { family: "Inter", style: titleStyle.fontStyle };
+  titleText.fontSize = titleStyle.fontSize;
+  titleText.characters = title;
+  if (titleStyle.fills) {
+    titleText.fills = titleStyle.fills;
+  }
+
+  // Create horizontal auto-layout frame
+  const container = figma.createFrame();
+  container.name = "Title with Prefix";
+  container.layoutMode = "HORIZONTAL";
+  container.primaryAxisSizingMode = "AUTO";
+  container.counterAxisSizingMode = "AUTO";
+  container.itemSpacing = titlePrefix.spacing ?? DEFAULT_PREFIX_SPACING;
+  container.fills = [];
+  container.counterAxisAlignItems = "CENTER";
+
+  container.appendChild(prefixClone);
+  container.appendChild(titleText);
+
+  return container;
+}
+
+/**
+ * Fill a slide with content using container-based layout
  */
 async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
-  let yOffset: number = LAYOUT.INITIAL_Y_OFFSET;
   const styles = resolveSlideStyles(slide.styles);
 
-  // Render title if present (with optional prefix component)
+  // Create content container with alignment
+  const container = createContentContainer(
+    slideNode.width,
+    slideNode.height,
+    slide.align,
+    slide.valign,
+  );
+
+  // Render title if present
   if (slide.title) {
     const titleStyle = slide.type === "title" ? styles.h1 : styles.h2;
-    const result = await renderTitleWithPrefix(
+    const titleNode = await renderTitleToNode(
       slide.title,
       titleStyle,
       slide.titlePrefix,
-      LAYOUT.LEFT_MARGIN,
-      yOffset,
     );
-    slideNode.appendChild(result.node);
-    yOffset = yOffset + result.height + LAYOUT.TITLE_SPACING;
+    container.appendChild(titleNode);
   }
 
-  // Render blocks or legacy content
+  // Render blocks
   if (slide.blocks && slide.blocks.length > 0) {
     for (const block of slide.blocks) {
-      yOffset = await renderBlock(slideNode, block, styles, yOffset);
+      // Handle figma blocks with custom position separately
+      if (block.kind === "figma" && (block.link.x !== undefined || block.link.y !== undefined)) {
+        const figmaNode = await renderFigmaLink(
+          block.link,
+          block.link.x ?? 0,
+          block.link.y ?? 0,
+        );
+        slideNode.appendChild(figmaNode);
+        continue;
+      }
+
+      const blockNode = await renderBlockToNode(block, styles);
+      if (blockNode) {
+        container.appendChild(blockNode);
+      }
     }
   } else {
-    yOffset = await renderLegacyContent(slideNode, slide, styles, yOffset);
+    // Render legacy content
+    if (slide.body && slide.body.length > 0) {
+      const result = await renderParagraph(
+        slide.body.join("\n"),
+        undefined,
+        styles.paragraph,
+        0,
+        0,
+      );
+      container.appendChild(result.node);
+    }
+
+    if (slide.bullets && slide.bullets.length > 0) {
+      const result = await renderBulletList(
+        slide.bullets,
+        undefined,
+        styles.bullet,
+        false,
+        1,
+        0,
+        0,
+      );
+      container.appendChild(result.node);
+    }
+
+    if (slide.codeBlocks && slide.codeBlocks.length > 0) {
+      for (const codeBlock of slide.codeBlocks) {
+        const result = renderCodeBlock(codeBlock, styles.code.fontSize, 0, 0);
+        container.appendChild(result.node);
+      }
+    }
   }
+
+  // Add container to slide
+  slideNode.appendChild(container);
 }
 
 function findExistingSlides(): Map<number, SlideNode> {

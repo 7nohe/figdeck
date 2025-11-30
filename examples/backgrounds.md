@@ -54,6 +54,30 @@ color: "#020202"
 This slide uses light background with dark text.
 
 ---
+backgroundImage: "https://images.unsplash.com/photo-1557683316-973673baf926?w=1920&h=1080&fit=crop"
+color: "#ffffff"
+---
+
+## Remote Background Image
+
+This slide uses a remote image URL as background.
+
+The image is fetched by the Figma plugin.
+
+---
+
+---
+backgroundImage: "./local-bg.png"
+color: "#ffffff"
+---
+
+## Local Background Image
+
+This slide uses a local image file.
+
+The CLI reads and embeds the image as base64.
+
+---
 
 ## Summary
 
@@ -61,9 +85,14 @@ YAML frontmatter format:
 
 ```yaml
 ---
-background: "#1a1a2e"
-color: "#ffffff"
+background: "#1a1a2e"           # Solid color
+gradient: "#0d1117:0%,#58a6ff:100%@45"  # Gradient
+backgroundImage: "./bg.png"     # Local image
+backgroundImage: "https://..."  # Remote image URL
+color: "#ffffff"                # Text color
 ---
 ```
 
 Global (file start) sets defaults, per-slide overrides.
+
+Priority: template > gradient > solid > image

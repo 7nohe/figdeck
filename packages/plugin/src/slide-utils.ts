@@ -1,3 +1,4 @@
+import { base64ToUint8Array } from "./base64";
 import { createGradientTransform, parseColor } from "./colors";
 import {
   DEFAULT_SLIDE_NUMBER_FORMAT,
@@ -7,7 +8,70 @@ import {
   DEFAULT_SLIDE_NUMBER_SIZE,
   SLIDE_NUMBER_NODE_NAME,
 } from "./constants";
-import type { SlideBackground, SlideNumberConfig } from "./types";
+import type {
+  BackgroundImage,
+  SlideBackground,
+  SlideNumberConfig,
+} from "./types";
+
+/**
+ * Fetch remote image data as bytes for figma.createImage
+ */
+async function fetchRemoteImageBytes(url: string): Promise<Uint8Array | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(
+        `[figdeck] Remote background image request failed (${response.status}): ${url}`,
+      );
+      return null;
+    }
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  } catch (e) {
+    console.warn(`[figdeck] Error fetching remote background image: ${url}`, e);
+    return null;
+  }
+}
+
+/**
+ * Apply image background to a slide node
+ */
+async function applyImageBackground(
+  slideNode: SlideNode,
+  image: BackgroundImage,
+): Promise<boolean> {
+  try {
+    let imageData: Image | null = null;
+
+    if (image.dataBase64) {
+      // Local image with base64 data
+      const bytes = base64ToUint8Array(image.dataBase64);
+      imageData = figma.createImage(bytes);
+    } else if (image.source === "remote" && image.url) {
+      // Remote image - fetch bytes then use createImage
+      const remoteBytes = await fetchRemoteImageBytes(image.url);
+      if (remoteBytes) {
+        imageData = figma.createImage(remoteBytes);
+      }
+    }
+
+    if (imageData) {
+      const imageFill: ImagePaint = {
+        type: "IMAGE",
+        imageHash: imageData.hash,
+        scaleMode: "FILL",
+      };
+      slideNode.fills = [imageFill];
+      return true;
+    }
+
+    return false;
+  } catch (e) {
+    console.warn(`[figdeck] Error applying background image: ${image.url}`, e);
+    return false;
+  }
+}
 
 /**
  * Apply background fill to a slide node
@@ -16,7 +80,7 @@ export async function applyBackground(
   slideNode: SlideNode,
   background: SlideBackground,
 ): Promise<void> {
-  // Priority: templateStyle > gradient > solid
+  // Priority: templateStyle > gradient > solid > image
   if (background.templateStyle) {
     // Try to find local paint style first
     const localStyles = await figma.getLocalPaintStylesAsync();
@@ -84,6 +148,19 @@ export async function applyBackground(
       slideNode.fills = [solidFill];
     } else {
       figma.notify(`Invalid color "${background.solid}"`, { error: true });
+    }
+    return;
+  }
+
+  if (background.image) {
+    const success = await applyImageBackground(slideNode, background.image);
+    if (!success) {
+      figma.notify(
+        `Failed to load background image "${background.image.url}"`,
+        {
+          error: true,
+        },
+      );
     }
   }
 }

@@ -400,7 +400,10 @@ figma.ui.onmessage = async (msg: { type: string; slides?: unknown }) => {
 
     try {
       await generateSlides(validation.slides);
-      figma.ui.postMessage({ type: "success", count: validation.slides.length });
+      figma.ui.postMessage({
+        type: "success",
+        count: validation.slides.length,
+      });
     } catch (error) {
       console.error("[figdeck] Error generating slides:", error);
       figma.ui.postMessage({ type: "error", message: String(error) });

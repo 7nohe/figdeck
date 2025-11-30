@@ -141,6 +141,8 @@ Global settings at file start, or per-slide after `---`:
 background: "#1a1a2e"           # Solid color
 gradient: "#0d1117:0%,#1f2937:50%,#58a6ff:100%@45"  # Gradient with angle
 template: "Style Name"          # Figma paint style name
+backgroundImage: "./bg.png"     # Local image (PNG, JPEG, GIF)
+backgroundImage: "https://..."  # Remote image URL
 color: "#ffffff"                # Base text color for all elements
 headings:
   h1: { size: 72, color: "#fff" }
@@ -156,6 +158,8 @@ slideNumber:
   format: "{{current}} / {{total}}"
 ---
 ```
+
+**Background Priority:** templateStyle > gradient > solid > image
 
 ### Figma Link Block
 

@@ -3,6 +3,13 @@ export interface GradientStop {
   position: number;
 }
 
+export interface BackgroundImage {
+  url: string;
+  mimeType?: string;
+  dataBase64?: string;
+  source?: "local" | "remote";
+}
+
 export interface SlideBackground {
   solid?: string;
   gradient?: {
@@ -10,6 +17,7 @@ export interface SlideBackground {
     angle?: number;
   };
   templateStyle?: string;
+  image?: BackgroundImage;
 }
 
 export interface CodeBlock {

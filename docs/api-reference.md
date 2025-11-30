@@ -144,13 +144,23 @@ interface SlideBackground {
     angle?: number;            // 角度（度）
   };
   templateStyle?: string;      // Figma Paint Style 名
+  image?: BackgroundImage;     // 背景画像
 }
 
 interface GradientStop {
   color: string;
   position: number;            // 0-1
 }
+
+interface BackgroundImage {
+  url: string;                 // 画像パスまたは URL
+  mimeType?: string;           // MIME タイプ
+  dataBase64?: string;         // Base64 エンコードされた画像データ
+  source?: "local" | "remote"; // ソース種別
+}
 ```
+
+**優先順位:** templateStyle > gradient > solid > image
 
 ### SlideStyles
 
@@ -242,6 +252,7 @@ color: "#58a6ff"
 | `background` | `string` | 背景色（hex） |
 | `gradient` | `string` | グラデーション（`color:pos%,...@angle` 形式） |
 | `template` | `string` | Figma Paint Style 名 |
+| `backgroundImage` | `string` | 背景画像（ローカルパスまたは URL） |
 | `color` | `string` | 基本テキスト色（全要素に適用） |
 | `headings` | `object` | 見出しスタイル（h1〜h4） |
 | `paragraphs` | `object` | 段落スタイル |

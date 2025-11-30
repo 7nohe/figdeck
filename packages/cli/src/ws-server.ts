@@ -116,7 +116,12 @@ export function startServer(
               sendInitialSlides(ws);
             } else {
               console.log("Client provided invalid secret");
-              ws.send(JSON.stringify({ type: "auth-error", message: "Invalid secret" }));
+              ws.send(
+                JSON.stringify({
+                  type: "auth-error",
+                  message: "Invalid secret",
+                }),
+              );
               ws.close(4002, "Invalid secret");
             }
             return;

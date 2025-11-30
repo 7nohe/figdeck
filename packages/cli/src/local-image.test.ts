@@ -1,4 +1,12 @@
-import { describe, expect, it, mock, spyOn, beforeEach, afterEach } from "bun:test";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  mock,
+  spyOn,
+} from "bun:test";
 import * as fs from "node:fs";
 import {
   getMimeType,
@@ -114,7 +122,9 @@ describe("readLocalImage", () => {
   it("returns null for unsupported format", () => {
     // Create a mock that simulates the file exists but has unsupported format
     const existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
-    const statSpy = spyOn(fs, "statSync").mockReturnValue({ size: 1000 } as fs.Stats);
+    const statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+    } as fs.Stats);
 
     const result = readLocalImage("image.bmp", testBasePath);
 
@@ -130,7 +140,9 @@ describe("readLocalImage", () => {
   it("returns null for oversized file", () => {
     const existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
     // Mock a file larger than 5MB
-    const statSpy = spyOn(fs, "statSync").mockReturnValue({ size: 10 * 1024 * 1024 } as fs.Stats);
+    const statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 10 * 1024 * 1024,
+    } as fs.Stats);
 
     const result = readLocalImage("large.png", testBasePath);
 
@@ -146,10 +158,14 @@ describe("readLocalImage", () => {
   it("respects custom maxSize option", () => {
     const existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
     // Mock a 2MB file
-    const statSpy = spyOn(fs, "statSync").mockReturnValue({ size: 2 * 1024 * 1024 } as fs.Stats);
+    const statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 2 * 1024 * 1024,
+    } as fs.Stats);
 
     // Should fail with 1MB limit
-    const result = readLocalImage("image.png", testBasePath, { maxSize: 1024 * 1024 });
+    const result = readLocalImage("image.png", testBasePath, {
+      maxSize: 1024 * 1024,
+    });
 
     expect(result).toBe(null);
     expect(warnSpy).toHaveBeenCalledWith(
@@ -164,7 +180,9 @@ describe("readLocalImage", () => {
     const testImageData = Buffer.from("fake image data");
 
     const existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
-    const statSpy = spyOn(fs, "statSync").mockReturnValue({ size: 1000 } as fs.Stats);
+    const statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+    } as fs.Stats);
     const readSpy = spyOn(fs, "readFileSync").mockReturnValue(testImageData);
 
     const result = readLocalImage("photo.png", testBasePath);
@@ -182,7 +200,9 @@ describe("readLocalImage", () => {
     const testImageData = Buffer.from("fake image data");
 
     const existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
-    const statSpy = spyOn(fs, "statSync").mockReturnValue({ size: 1000 } as fs.Stats);
+    const statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+    } as fs.Stats);
     const readSpy = spyOn(fs, "readFileSync").mockReturnValue(testImageData);
 
     // Test JPG
@@ -204,7 +224,9 @@ describe("readLocalImage", () => {
 
   it("returns null for unsupported formats (WebP, SVG)", () => {
     const existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
-    const statSpy = spyOn(fs, "statSync").mockReturnValue({ size: 1000 } as fs.Stats);
+    const statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+    } as fs.Stats);
 
     // WebP is not supported by Figma Slides
     let result = readLocalImage("modern.webp", testBasePath);

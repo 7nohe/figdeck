@@ -58,7 +58,10 @@ const processor = unified()
  * 2) A block of key/value pairs terminated by `---` without an opening fence
  *    (common mistake when writing per-slide overrides after a separator).
  */
-function extractFrontmatter(markdown: string): {
+function extractFrontmatter(
+  markdown: string,
+  basePath?: string,
+): {
   body: string;
   config: ParsedConfigResult | null;
 } {
@@ -71,7 +74,9 @@ function extractFrontmatter(markdown: string): {
       const yamlBlock = trimmedStart.slice(4, endIndex);
       const rest = trimmedStart.slice(endIndex + 4);
       try {
-        const config = parseSlideConfig(parseYaml(yamlBlock) as SlideConfig);
+        const config = parseSlideConfig(parseYaml(yamlBlock) as SlideConfig, {
+          basePath,
+        });
         return { body: rest, config };
       } catch {
         return { body: markdown, config: null };
@@ -93,6 +98,7 @@ function extractFrontmatter(markdown: string): {
       try {
         const config = parseSlideConfig(
           parseYaml(potentialYaml) as SlideConfig,
+          { basePath },
         );
         // Check that the line after separator is blank or real content
         const rest = trimmedStart.slice(separatorIndex + 4).trimStart();
@@ -304,8 +310,10 @@ function parseSlideMarkdown(
   let slideStyles: SlideStyles = {};
   let slideSlideNumber: SlideNumberConfig | undefined;
 
-  const { body: slideBody, config: frontmatterConfig } =
-    extractFrontmatter(slideMarkdown);
+  const { body: slideBody, config: frontmatterConfig } = extractFrontmatter(
+    slideMarkdown,
+    basePath,
+  );
 
   if (frontmatterConfig) {
     if (frontmatterConfig.background)
@@ -483,7 +491,9 @@ export function parseMarkdown(
   if (frontmatterMatch) {
     try {
       const config = parseYaml(frontmatterMatch[1]) as SlideConfig;
-      const { background, styles, slideNumber } = parseSlideConfig(config);
+      const { background, styles, slideNumber } = parseSlideConfig(config, {
+        basePath,
+      });
       if (background) globalDefaultBackground = background;
       globalDefaultStyles = styles;
       globalDefaultSlideNumber = slideNumber;

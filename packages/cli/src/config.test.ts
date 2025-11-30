@@ -61,6 +61,43 @@ describe("parseSlideConfig", () => {
       });
       expect(result.background).toEqual({ templateStyle: "Custom" });
     });
+
+    it("should parse remote background image URL", () => {
+      const result = parseSlideConfig({
+        backgroundImage: "https://example.com/bg.png",
+      });
+      expect(result.background).toEqual({
+        image: {
+          url: "https://example.com/bg.png",
+          source: "remote",
+        },
+      });
+    });
+
+    it("should prioritize solid over image", () => {
+      const result = parseSlideConfig({
+        background: "#fff",
+        backgroundImage: "https://example.com/bg.png",
+      });
+      expect(result.background).toEqual({ solid: "#ffffff" });
+    });
+
+    it("should prioritize gradient over image", () => {
+      const result = parseSlideConfig({
+        gradient: "#000:0%,#fff:100%",
+        backgroundImage: "https://example.com/bg.png",
+      });
+      expect(result.background?.gradient).toBeDefined();
+      expect(result.background?.image).toBeUndefined();
+    });
+
+    it("should return null for unsupported local image format without basePath", () => {
+      const result = parseSlideConfig({
+        backgroundImage: "./bg.svg",
+      });
+      // SVG is not supported, and no basePath provided
+      expect(result.background).toBeNull();
+    });
   });
 
   describe("text styles parsing", () => {

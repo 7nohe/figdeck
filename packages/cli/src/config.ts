@@ -1,5 +1,11 @@
 import { normalizeColor, parseGradient } from "./colors.js";
+import {
+  isRemoteUrl,
+  isSupportedImageFormat,
+  readLocalImage,
+} from "./local-image.js";
 import type {
+  BackgroundImage,
   TextStyle as ParsedTextStyle,
   SlideBackground,
   SlideNumberConfig,
@@ -45,6 +51,7 @@ export interface SlideConfig {
   background?: string;
   gradient?: string;
   template?: string;
+  backgroundImage?: string;
   color?: string;
   headings?: HeadingsConfig;
   paragraphs?: TextStyle;
@@ -142,10 +149,56 @@ function parseSlideNumberConfig(
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+export interface ParseSlideConfigOptions {
+  basePath?: string;
+}
+
+/**
+ * Parse backgroundImage into BackgroundImage
+ */
+function parseBackgroundImage(
+  url: string,
+  basePath?: string,
+): BackgroundImage | null {
+  if (!url) return null;
+
+  // Remote image (http:// or https://)
+  if (isRemoteUrl(url)) {
+    return {
+      url,
+      source: "remote",
+    };
+  }
+
+  // Local image - read and encode
+  if (basePath) {
+    if (!isSupportedImageFormat(url)) {
+      console.warn(`[figdeck] Unsupported background image format: ${url}`);
+      return null;
+    }
+    const result = readLocalImage(url, basePath);
+    if (result) {
+      return {
+        url,
+        mimeType: result.mimeType,
+        dataBase64: result.dataBase64,
+        source: "local",
+      };
+    }
+  }
+
+  // Could not process
+  console.warn(`[figdeck] Could not load background image: ${url}`);
+  return null;
+}
+
 /**
  * Parse slide config from YAML frontmatter
  */
-export function parseSlideConfig(config: SlideConfig): ParsedConfigResult {
+export function parseSlideConfig(
+  config: SlideConfig,
+  options: ParseSlideConfigOptions = {},
+): ParsedConfigResult {
   let background: SlideBackground | null = null;
   const styles: SlideStyles = {};
 
@@ -160,6 +213,7 @@ export function parseSlideConfig(config: SlideConfig): ParsedConfigResult {
     return { color: baseColor };
   };
 
+  // Priority: templateStyle > gradient > solid > image
   if (config.template) {
     background = { templateStyle: config.template };
   } else if (config.gradient) {
@@ -169,6 +223,14 @@ export function parseSlideConfig(config: SlideConfig): ParsedConfigResult {
     }
   } else if (config.background) {
     background = { solid: normalizeColor(config.background) };
+  } else if (config.backgroundImage) {
+    const image = parseBackgroundImage(
+      config.backgroundImage,
+      options.basePath,
+    );
+    if (image) {
+      background = { image };
+    }
   }
 
   // Parse headings

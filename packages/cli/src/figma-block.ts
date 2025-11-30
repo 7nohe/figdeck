@@ -125,7 +125,9 @@ export function extractFigmaBlocks(markdown: string): {
 
       const { fileKey, nodeId } = parseFigmaUrl(props.link);
       if (!fileKey) {
-        console.warn(`[figdeck] Invalid Figma URL (missing fileKey): ${props.link}`);
+        console.warn(
+          `[figdeck] Invalid Figma URL (missing fileKey): ${props.link}`,
+        );
       }
 
       const link: FigmaSelectionLink = {

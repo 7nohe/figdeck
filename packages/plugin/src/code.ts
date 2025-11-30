@@ -4,7 +4,7 @@ import {
   renderCodeBlock,
   renderFigmaLink,
   renderHeading,
-  renderImagePlaceholder,
+  renderImage,
   renderParagraph,
   renderTable,
 } from "./block-renderers";
@@ -102,7 +102,17 @@ async function renderBlock(
     }
 
     case "image": {
-      const imgNode = renderImagePlaceholder(block.url, block.alt, x, yOffset);
+      const imgNode = await renderImage(
+        {
+          url: block.url,
+          alt: block.alt,
+          mimeType: block.mimeType,
+          dataBase64: block.dataBase64,
+          source: block.source,
+        },
+        x,
+        yOffset,
+      );
       slideNode.appendChild(imgNode);
       return yOffset + imgNode.height + spacing;
     }

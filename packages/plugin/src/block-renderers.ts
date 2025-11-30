@@ -1,3 +1,4 @@
+import { base64ToUint8Array } from "./base64";
 import {
   FIGMA_BRAND_COLOR,
   FIGMA_CARD_BG,
@@ -218,7 +219,109 @@ export async function renderBlockquote(
 }
 
 /**
- * Render an image block (placeholder with alt text since Figma plugin can't load remote images directly)
+ * Fetch remote image data as bytes for figma.createImage
+ */
+async function fetchRemoteImageBytes(url: string): Promise<Uint8Array | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn(
+        `[figdeck] Remote image request failed (${response.status}): ${url}`,
+      );
+      return null;
+    }
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  } catch (e) {
+    console.warn(`[figdeck] Error fetching remote image: ${url}`, e);
+    return null;
+  }
+}
+
+/**
+ * Image block data
+ */
+export interface ImageBlockData {
+  url: string;
+  alt?: string;
+  mimeType?: string;
+  dataBase64?: string;
+  source?: "local" | "remote";
+}
+
+/**
+ * Render an image block
+ * - If dataBase64 is provided (local image), decode and use figma.createImage
+ * - If source is "remote", fetch bytes then try figma.createImage
+ * - Otherwise, fall back to placeholder
+ *
+ * Supported formats: PNG, JPEG, GIF (per Figma's createImage API)
+ */
+export async function renderImage(
+  image: ImageBlockData,
+  x?: number,
+  y?: number,
+): Promise<FrameNode> {
+  try {
+    let imageData: Image | null = null;
+
+    if (image.dataBase64) {
+      // Local image with base64 data
+      const bytes = base64ToUint8Array(image.dataBase64);
+      imageData = figma.createImage(bytes);
+    } else if (image.source === "remote" && image.url) {
+      // Remote image - fetch bytes then use createImage
+      const remoteBytes = await fetchRemoteImageBytes(image.url);
+      if (remoteBytes) {
+        imageData = figma.createImage(remoteBytes);
+      }
+    }
+
+    if (imageData) {
+      // Get image dimensions
+      const size = await imageData.getSizeAsync();
+
+      // Scale down if needed
+      let width = size.width;
+      let height = size.height;
+      const maxWidth = MAX_PREVIEW_WIDTH;
+      const maxHeight = MAX_PREVIEW_HEIGHT;
+
+      if (width > maxWidth || height > maxHeight) {
+        const scaleX = maxWidth / width;
+        const scaleY = maxHeight / height;
+        const scale = Math.min(scaleX, scaleY);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      // Create frame with image fill
+      const frame = figma.createFrame();
+      frame.name = image.alt || "Image";
+      frame.resize(width, height);
+      frame.fills = [
+        {
+          type: "IMAGE",
+          imageHash: imageData.hash,
+          scaleMode: "FILL",
+        },
+      ];
+      frame.cornerRadius = 4;
+      if (x !== undefined) frame.x = x;
+      if (y !== undefined) frame.y = y;
+
+      return frame;
+    }
+  } catch (e) {
+    console.warn(`[figdeck] Failed to render image: ${image.url}`, e);
+  }
+
+  // Fallback to placeholder
+  return renderImagePlaceholder(image.url, image.alt, x, y);
+}
+
+/**
+ * Render a placeholder when image data cannot be loaded
  */
 export function renderImagePlaceholder(
   url: string,

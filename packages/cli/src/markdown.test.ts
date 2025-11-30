@@ -624,4 +624,74 @@ y=200
       }
     });
   });
+
+  describe("image blocks", () => {
+    it("should parse remote image as source=remote", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![Alt text](https://example.com/image.png)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      expect(block?.kind).toBe("image");
+      if (block?.kind === "image") {
+        expect(block.url).toBe("https://example.com/image.png");
+        expect(block.alt).toBe("Alt text");
+        expect(block.source).toBe("remote");
+        expect(block.dataBase64).toBeUndefined();
+      }
+    });
+
+    it("should parse local image path without basePath as no source", () => {
+      // Without basePath option, local paths don't get marked as local
+      const result = parseMarkdown(`## Test\n\n![Logo](./images/logo.png)`);
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      expect(block?.kind).toBe("image");
+      if (block?.kind === "image") {
+        expect(block.url).toBe("./images/logo.png");
+        expect(block.alt).toBe("Logo");
+        // Without basePath, source is undefined (backward compat)
+        expect(block.source).toBeUndefined();
+      }
+    });
+
+    it("should parse local image with basePath as source=local", () => {
+      // With basePath option but file doesn't exist
+      const result = parseMarkdown(`## Test\n\n![Logo](./nonexistent.png)`, {
+        basePath: "/fake/path",
+      });
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      expect(block?.kind).toBe("image");
+      if (block?.kind === "image") {
+        expect(block.url).toBe("./nonexistent.png");
+        expect(block.alt).toBe("Logo");
+        expect(block.source).toBe("local");
+        // File doesn't exist, so no dataBase64
+        expect(block.dataBase64).toBeUndefined();
+      }
+    });
+
+    it("should preserve alt text for images", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![Detailed description of the image](https://example.com/photo.jpg)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      if (block?.kind === "image") {
+        expect(block.alt).toBe("Detailed description of the image");
+      }
+    });
+
+    it("should handle image without alt text", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![](https://example.com/image.png)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks?.[0];
+      if (block?.kind === "image") {
+        expect(block.alt).toBeUndefined();
+      }
+    });
+  });
 });

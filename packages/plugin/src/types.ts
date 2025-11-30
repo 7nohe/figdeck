@@ -88,7 +88,14 @@ export type SlideBlock =
       itemSpans?: TextSpan[][];
     }
   | { kind: "code"; language?: string; code: string }
-  | { kind: "image"; url: string; alt?: string }
+  | {
+      kind: "image";
+      url: string;
+      alt?: string;
+      mimeType?: string;
+      dataBase64?: string;
+      source?: "local" | "remote";
+    }
   | { kind: "blockquote"; text: string; spans?: TextSpan[] }
   | {
       kind: "table";

@@ -28,6 +28,7 @@ import {
   type FigmaBlockPlaceholder,
   matchFigmaPlaceholder,
 } from "./figma-block.js";
+import { isRemoteUrl, readLocalImage } from "./local-image.js";
 import {
   extractBlockquoteContent,
   extractListItemSpans,
@@ -118,6 +119,7 @@ function ensureSlide(slide: SlideContent | null): SlideContent {
 interface SlideBuilder {
   slide: SlideContent | null;
   blocks: SlideBlock[];
+  basePath?: string;
 }
 
 /**
@@ -158,11 +160,45 @@ function processParagraph(
   if (para.children.length === 1 && para.children[0].type === "image") {
     const imgNode = para.children[0] as Image;
     builder.slide = ensureSlide(builder.slide);
-    builder.blocks.push({
-      kind: "image",
-      url: imgNode.url,
-      alt: imgNode.alt || undefined,
-    });
+
+    // Determine if this is a local or remote image
+    if (isRemoteUrl(imgNode.url)) {
+      // Remote image - just pass URL
+      builder.blocks.push({
+        kind: "image",
+        url: imgNode.url,
+        alt: imgNode.alt || undefined,
+        source: "remote",
+      });
+    } else if (builder.basePath) {
+      // Local image - attempt to read and encode
+      const localImage = readLocalImage(imgNode.url, builder.basePath);
+      if (localImage) {
+        builder.blocks.push({
+          kind: "image",
+          url: imgNode.url,
+          alt: imgNode.alt || undefined,
+          source: "local",
+          dataBase64: localImage.dataBase64,
+          mimeType: localImage.mimeType,
+        });
+      } else {
+        // Failed to read - fallback to placeholder behavior
+        builder.blocks.push({
+          kind: "image",
+          url: imgNode.url,
+          alt: imgNode.alt || undefined,
+          source: "local",
+        });
+      }
+    } else {
+      // No basePath - treat as remote (backwards compatibility)
+      builder.blocks.push({
+        kind: "image",
+        url: imgNode.url,
+        alt: imgNode.alt || undefined,
+      });
+    }
     return;
   }
 
@@ -262,6 +298,7 @@ function parseSlideMarkdown(
   defaultStyles: SlideStyles,
   defaultSlideNumber: SlideNumberConfig | undefined,
   figmaBlocks: FigmaBlockPlaceholder[],
+  basePath?: string,
 ): SlideContent | null {
   let slideBackground: SlideBackground | null = null;
   let slideStyles: SlideStyles = {};
@@ -278,7 +315,7 @@ function parseSlideMarkdown(
   }
 
   const tree = processor.parse(slideBody) as Root;
-  const builder: SlideBuilder = { slide: null, blocks: [] };
+  const builder: SlideBuilder = { slide: null, blocks: [], basePath };
 
   // Process each AST node
   for (const node of tree.children) {
@@ -422,7 +459,16 @@ function splitIntoSlides(content: string): string[] {
   return slideTexts;
 }
 
-export function parseMarkdown(markdown: string): SlideContent[] {
+export interface ParseMarkdownOptions {
+  basePath?: string;
+}
+
+export function parseMarkdown(
+  markdown: string,
+  options: ParseMarkdownOptions = {},
+): SlideContent[] {
+  const { basePath } = options;
+
   // First, extract :::figma blocks and replace with placeholders
   const { processedMarkdown, figmaBlocks } = extractFigmaBlocks(markdown);
 
@@ -459,6 +505,7 @@ export function parseMarkdown(markdown: string): SlideContent[] {
       globalDefaultStyles,
       globalDefaultSlideNumber,
       figmaBlocks,
+      basePath,
     );
     if (slide) {
       slides.push(slide);

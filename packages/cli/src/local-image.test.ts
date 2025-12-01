@@ -1,12 +1,4 @@
-import {
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  mock,
-  spyOn,
-} from "bun:test";
+import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import {
   getMimeType,
@@ -188,8 +180,8 @@ describe("readLocalImage", () => {
     const result = readLocalImage("photo.png", testBasePath);
 
     expect(result).not.toBe(null);
-    expect(result!.mimeType).toBe("image/png");
-    expect(result!.dataBase64).toBe(testImageData.toString("base64"));
+    expect(result?.mimeType).toBe("image/png");
+    expect(result?.dataBase64).toBe(testImageData.toString("base64"));
 
     existsSpy.mockRestore();
     statSpy.mockRestore();
@@ -207,15 +199,15 @@ describe("readLocalImage", () => {
 
     // Test JPG
     let result = readLocalImage("photo.jpg", testBasePath);
-    expect(result!.mimeType).toBe("image/jpeg");
+    expect(result?.mimeType).toBe("image/jpeg");
 
     // Test GIF
     result = readLocalImage("animation.gif", testBasePath);
-    expect(result!.mimeType).toBe("image/gif");
+    expect(result?.mimeType).toBe("image/gif");
 
     // Test PNG
     result = readLocalImage("image.png", testBasePath);
-    expect(result!.mimeType).toBe("image/png");
+    expect(result?.mimeType).toBe("image/png");
 
     existsSpy.mockRestore();
     statSpy.mockRestore();

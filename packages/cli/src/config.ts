@@ -364,7 +364,15 @@ export function parseSlideConfig(
   // Parse transition config
   const transition = parseTransitionConfig(config.transition);
 
-  return { background, styles, slideNumber, titlePrefix, align, valign, transition };
+  return {
+    background,
+    styles,
+    slideNumber,
+    titlePrefix,
+    align,
+    valign,
+    transition,
+  };
 }
 
 /**

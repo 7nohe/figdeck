@@ -426,7 +426,9 @@ describe("parseTransitionStyle", () => {
     expect(parseTransitionStyle("smart-animate")).toBe("smart-animate");
     expect(parseTransitionStyle("slide-from-left")).toBe("slide-from-left");
     expect(parseTransitionStyle("push-from-right")).toBe("push-from-right");
-    expect(parseTransitionStyle("move-out-to-bottom")).toBe("move-out-to-bottom");
+    expect(parseTransitionStyle("move-out-to-bottom")).toBe(
+      "move-out-to-bottom",
+    );
   });
 
   it("should normalize underscore to kebab-case", () => {
@@ -524,7 +526,9 @@ describe("parseTransitionConfig", () => {
       duration: 5,
     });
     // Minimum valid duration
-    expect(parseTransitionConfig({ style: "dissolve", duration: 0.01 })).toEqual({
+    expect(
+      parseTransitionConfig({ style: "dissolve", duration: 0.01 }),
+    ).toEqual({
       style: "dissolve",
       duration: 0.01,
     });
@@ -658,7 +662,10 @@ describe("transition in parseSlideConfig", () => {
     expect(result.transition?.style).toBe("slide-from-right");
     expect(result.transition?.duration).toBe(0.5);
     expect(result.transition?.curve).toBe("ease-in-and-out");
-    expect(result.transition?.timing).toEqual({ type: "after-delay", delay: 2 });
+    expect(result.transition?.timing).toEqual({
+      type: "after-delay",
+      delay: 2,
+    });
   });
 
   it("should return undefined transition when not specified", () => {

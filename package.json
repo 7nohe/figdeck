@@ -10,7 +10,8 @@
     "serve": "bun run packages/cli/dist/index.js serve",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
     "typecheck": "bun run --filter '*' typecheck"
   },
   "devDependencies": {

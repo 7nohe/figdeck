@@ -589,10 +589,17 @@ export function parseMarkdown(
   if (frontmatterMatch) {
     try {
       const config = parseYaml(frontmatterMatch[1]) as SlideConfig;
-      const { background, styles, slideNumber, titlePrefix, align, valign, transition } =
-        parseSlideConfig(config, {
-          basePath,
-        });
+      const {
+        background,
+        styles,
+        slideNumber,
+        titlePrefix,
+        align,
+        valign,
+        transition,
+      } = parseSlideConfig(config, {
+        basePath,
+      });
       if (background) globalDefaultBackground = background;
       globalDefaultStyles = styles;
       globalDefaultSlideNumber = slideNumber;

@@ -37,9 +37,9 @@ program
     }
   });
 
-// serve: start WebSocket server, optionally watch for changes
+// serve: start WebSocket server, optionally watch for changes (default command)
 program
-  .command("serve")
+  .command("serve", { isDefault: true })
   .description("Start WebSocket server for Figma plugin connection")
   .argument("<file>", "Markdown file path")
   .option("--host <host>", "WebSocket host", "127.0.0.1")

@@ -6,7 +6,7 @@ Thank you for your interest in contributing to figdeck!
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourname/figdeck.git
+git clone https://github.com/7nohe/figdeck.git
 cd figdeck
 
 # Install dependencies

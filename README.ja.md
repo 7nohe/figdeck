@@ -9,15 +9,11 @@ figdeck は Markdown ファイルから Figma Slides を自動生成するツー
 ## インストール
 
 ```bash
-# リポジトリをクローン
-git clone https://github.com/your-username/figdeck.git
-cd figdeck
+# グローバルインストール
+npm install -g figdeck
 
-# 依存関係をインストール
-bun install
-
-# ビルド
-bun run build
+# または npx で直接実行
+npx figdeck your-slides.md
 ```
 
 ## 使い方
@@ -26,10 +22,13 @@ bun run build
 
 ```bash
 # CLI で WebSocket サーバーを起動（ウォッチモードがデフォルトで有効）
-bun run packages/cli/dist/index.js serve your-slides.md
+npx figdeck your-slides.md
+
+# serve コマンドを明示的に指定することも可能
+npx figdeck serve your-slides.md
 
 # ウォッチモードを無効にする場合
-bun run packages/cli/dist/index.js serve your-slides.md --no-watch
+npx figdeck your-slides.md --no-watch
 ```
 
 1. Figma でプラグインを開発モードで読み込み
@@ -40,7 +39,7 @@ bun run packages/cli/dist/index.js serve your-slides.md --no-watch
 
 ```bash
 # Markdown から JSON を出力
-bun run packages/cli/dist/index.js build your-slides.md -o slides.json
+npx figdeck build your-slides.md -o slides.json
 ```
 
 1. Figma でプラグインを開発モードで読み込み

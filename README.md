@@ -9,15 +9,11 @@ figdeck is a tool that automatically generates Figma Slides from Markdown files.
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/7nohe/figdeck.git
-cd figdeck
+# Install globally
+npm install -g figdeck
 
-# Install dependencies
-bun install
-
-# Build
-bun run build
+# Or use directly with npx
+npx figdeck your-slides.md
 ```
 
 ## Usage
@@ -26,10 +22,13 @@ bun run build
 
 ```bash
 # Start WebSocket server with CLI (watch mode enabled by default)
-bun run packages/cli/dist/index.js serve your-slides.md
+npx figdeck your-slides.md
+
+# Or explicitly use serve command
+npx figdeck serve your-slides.md
 
 # Disable watch mode
-bun run packages/cli/dist/index.js serve your-slides.md --no-watch
+npx figdeck your-slides.md --no-watch
 ```
 
 1. Load the plugin in development mode in Figma
@@ -40,7 +39,7 @@ bun run packages/cli/dist/index.js serve your-slides.md --no-watch
 
 ```bash
 # Output JSON from Markdown
-bun run packages/cli/dist/index.js build your-slides.md -o slides.json
+npx figdeck build your-slides.md -o slides.json
 ```
 
 1. Load the plugin in development mode in Figma

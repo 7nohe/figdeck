@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="https://github.com/7nohe/figdeck/raw/main/images/logo.svg" width="200" alt="figdeck">
+</p>
+
+
 # figdeck
 
 Convert Markdown to Figma Slides with CLI + Plugin

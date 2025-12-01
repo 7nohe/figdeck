@@ -908,4 +908,135 @@ Text[^1].
       expect(result[1].footnotes?.[0].content).toBe("Slide 2 footnote.");
     });
   });
+
+  describe("transitions", () => {
+    it("applies global transition to all slides", () => {
+      const result = parseMarkdown(`---
+transition: dissolve
+---
+
+# Title
+
+---
+
+## Slide 2
+
+Body text.`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].transition?.style).toBe("dissolve");
+      expect(result[1].transition?.style).toBe("dissolve");
+    });
+
+    it("allows per-slide transition override", () => {
+      const result = parseMarkdown(`---
+transition: dissolve
+---
+
+# Title
+
+---
+transition: slide-from-right
+---
+## Slide 2
+
+Body text.`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].transition?.style).toBe("dissolve");
+      expect(result[1].transition?.style).toBe("slide-from-right");
+    });
+
+    it("disables transition with none", () => {
+      const result = parseMarkdown(`---
+transition: dissolve
+---
+
+# Title
+
+---
+transition: none
+---
+## Slide 2
+
+Body text.`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].transition?.style).toBe("dissolve");
+      expect(result[1].transition?.style).toBe("none");
+    });
+
+    it("parses full transition config from global frontmatter", () => {
+      const result = parseMarkdown(`---
+transition:
+  style: slide-from-right
+  duration: 0.5
+  curve: ease-in-and-out
+  timing:
+    type: after-delay
+    delay: 2
+---
+
+# Title`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].transition?.style).toBe("slide-from-right");
+      expect(result[0].transition?.duration).toBe(0.5);
+      expect(result[0].transition?.curve).toBe("ease-in-and-out");
+      expect(result[0].transition?.timing).toEqual({
+        type: "after-delay",
+        delay: 2,
+      });
+    });
+
+    it("merges transition properties from global and per-slide", () => {
+      const result = parseMarkdown(`---
+transition:
+  style: dissolve
+  duration: 0.3
+  curve: ease-out
+---
+
+# Title
+
+---
+---
+transition: slide-from-right
+---
+## Slide 2
+
+Body text.`);
+
+      expect(result).toHaveLength(2);
+      // First slide uses global transition
+      expect(result[0].transition?.style).toBe("dissolve");
+      expect(result[0].transition?.duration).toBe(0.3);
+      expect(result[0].transition?.curve).toBe("ease-out");
+      // Second slide overrides style but inherits other props
+      expect(result[1].transition?.style).toBe("slide-from-right");
+      expect(result[1].transition?.duration).toBe(0.3);
+      expect(result[1].transition?.curve).toBe("ease-out");
+    });
+
+    it("handles transition shorthand with duration", () => {
+      const result = parseMarkdown(`---
+transition: push-from-bottom 0.8
+---
+
+# Title`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].transition?.style).toBe("push-from-bottom");
+      expect(result[0].transition?.duration).toBe(0.8);
+    });
+
+    it("returns undefined transition when not specified", () => {
+      const result = parseMarkdown(`# Title
+
+Some content.`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].transition).toBeUndefined();
+    });
+  });
 });

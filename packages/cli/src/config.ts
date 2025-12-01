@@ -14,6 +14,11 @@ import type {
   SlideNumberConfig,
   SlideNumberPosition,
   SlideStyles,
+  SlideTransitionConfig,
+  SlideTransitionCurve,
+  SlideTransitionStyle,
+  SlideTransitionTiming,
+  SlideTransitionTimingType,
   TitlePrefixConfig,
   VerticalAlign,
 } from "./types.js";
@@ -64,6 +69,24 @@ interface TitlePrefixYamlConfig {
 }
 
 /**
+ * Transition timing configuration from YAML
+ */
+interface TransitionTimingYamlConfig {
+  type?: string;
+  delay?: number;
+}
+
+/**
+ * Transition configuration from YAML
+ */
+interface TransitionYamlConfig {
+  style?: string;
+  duration?: number;
+  curve?: string;
+  timing?: TransitionTimingYamlConfig | string;
+}
+
+/**
  * Full slide configuration from YAML frontmatter
  */
 export interface SlideConfig {
@@ -80,6 +103,7 @@ export interface SlideConfig {
   titlePrefix?: TitlePrefixYamlConfig | false;
   align?: string;
   valign?: string;
+  transition?: TransitionYamlConfig | string;
 }
 
 /**
@@ -92,6 +116,7 @@ export interface ParsedConfigResult {
   titlePrefix: TitlePrefixConfig | null | undefined;
   align: HorizontalAlign | undefined;
   valign: VerticalAlign | undefined;
+  transition: SlideTransitionConfig | undefined;
 }
 
 /**
@@ -336,7 +361,10 @@ export function parseSlideConfig(
   const align = parseHorizontalAlign(config.align);
   const valign = parseVerticalAlign(config.valign);
 
-  return { background, styles, slideNumber, titlePrefix, align, valign };
+  // Parse transition config
+  const transition = parseTransitionConfig(config.transition);
+
+  return { background, styles, slideNumber, titlePrefix, align, valign, transition };
 }
 
 /**
@@ -361,6 +389,159 @@ function parseVerticalAlign(
     return value;
   }
   return undefined;
+}
+
+/**
+ * Valid transition styles
+ */
+const VALID_TRANSITION_STYLES: SlideTransitionStyle[] = [
+  "none",
+  "dissolve",
+  "smart-animate",
+  "slide-from-left",
+  "slide-from-right",
+  "slide-from-top",
+  "slide-from-bottom",
+  "push-from-left",
+  "push-from-right",
+  "push-from-top",
+  "push-from-bottom",
+  "move-from-left",
+  "move-from-right",
+  "move-from-top",
+  "move-from-bottom",
+  "slide-out-to-left",
+  "slide-out-to-right",
+  "slide-out-to-top",
+  "slide-out-to-bottom",
+  "move-out-to-left",
+  "move-out-to-right",
+  "move-out-to-top",
+  "move-out-to-bottom",
+];
+
+/**
+ * Valid transition curves
+ */
+const VALID_TRANSITION_CURVES: SlideTransitionCurve[] = [
+  "ease-in",
+  "ease-out",
+  "ease-in-and-out",
+  "linear",
+  "gentle",
+  "quick",
+  "bouncy",
+  "slow",
+];
+
+/**
+ * Parse and validate transition style (kebab-case, also accepts underscore)
+ */
+export function parseTransitionStyle(
+  value: string | undefined,
+): SlideTransitionStyle | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase().replace(/_/g, "-");
+  return VALID_TRANSITION_STYLES.includes(normalized as SlideTransitionStyle)
+    ? (normalized as SlideTransitionStyle)
+    : undefined;
+}
+
+/**
+ * Parse and validate transition curve
+ */
+export function parseTransitionCurve(
+  value: string | undefined,
+): SlideTransitionCurve | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase().replace(/_/g, "-");
+  return VALID_TRANSITION_CURVES.includes(normalized as SlideTransitionCurve)
+    ? (normalized as SlideTransitionCurve)
+    : undefined;
+}
+
+/**
+ * Parse and validate transition timing type
+ */
+function parseTransitionTimingType(
+  value: string | undefined,
+): SlideTransitionTimingType | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase().replace(/_/g, "-");
+  if (normalized === "on-click" || normalized === "after-delay") {
+    return normalized;
+  }
+  return undefined;
+}
+
+/**
+ * Parse transition config from YAML (supports shorthand and full object)
+ */
+export function parseTransitionConfig(
+  config: TransitionYamlConfig | string | undefined,
+): SlideTransitionConfig | undefined {
+  if (!config) return undefined;
+
+  // Shorthand: "dissolve" or "slide-from-left 0.5"
+  if (typeof config === "string") {
+    const parts = config.trim().split(/\s+/);
+    const style = parseTransitionStyle(parts[0]);
+    if (!style) return undefined;
+
+    const result: SlideTransitionConfig = { style };
+    if (parts[1]) {
+      const duration = Number.parseFloat(parts[1]);
+      if (!Number.isNaN(duration) && duration >= 0.01 && duration <= 10) {
+        result.duration = duration;
+      }
+    }
+    return result;
+  }
+
+  // Full object format
+  const result: SlideTransitionConfig = {};
+
+  if (config.style) {
+    result.style = parseTransitionStyle(config.style);
+  }
+
+  if (config.duration !== undefined) {
+    const d = Number(config.duration);
+    if (!Number.isNaN(d) && d >= 0.01 && d <= 10) {
+      result.duration = d;
+    }
+  }
+
+  if (config.curve) {
+    result.curve = parseTransitionCurve(config.curve);
+  }
+
+  // Parse timing config
+  if (config.timing) {
+    if (typeof config.timing === "string") {
+      // Shorthand: "on-click" or "after-delay"
+      const type = parseTransitionTimingType(config.timing);
+      if (type) {
+        result.timing = type;
+      }
+    } else {
+      const timing: SlideTransitionTiming = {};
+      if (config.timing.type) {
+        timing.type = parseTransitionTimingType(config.timing.type);
+      }
+      if (config.timing.delay !== undefined) {
+        const delay = Number(config.timing.delay);
+        if (!Number.isNaN(delay) && delay >= 0 && delay <= 30) {
+          timing.delay = delay;
+        }
+      }
+      if (Object.keys(timing).length > 0) {
+        result.timing = timing;
+      }
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 /**
@@ -407,4 +588,41 @@ export function mergeSlideNumberConfig(
     startFrom: slideConfig.startFrom ?? defaultConfig.startFrom,
     offset: slideConfig.offset ?? defaultConfig.offset,
   };
+}
+
+/**
+ * Merge SlideTransitionConfig, with slide config overriding defaults
+ */
+export function mergeTransitionConfig(
+  defaultConfig: SlideTransitionConfig | undefined,
+  slideConfig: SlideTransitionConfig | undefined,
+): SlideTransitionConfig | undefined {
+  if (!defaultConfig && !slideConfig) return undefined;
+  if (!defaultConfig) return slideConfig;
+  if (!slideConfig) return defaultConfig;
+
+  const result: SlideTransitionConfig = {
+    style: slideConfig.style ?? defaultConfig.style,
+    duration: slideConfig.duration ?? defaultConfig.duration,
+    curve: slideConfig.curve ?? defaultConfig.curve,
+  };
+
+  // Merge timing config
+  const defaultTiming =
+    typeof defaultConfig.timing === "string"
+      ? { type: defaultConfig.timing as SlideTransitionTimingType }
+      : defaultConfig.timing;
+  const slideTiming =
+    typeof slideConfig.timing === "string"
+      ? { type: slideConfig.timing as SlideTransitionTimingType }
+      : slideConfig.timing;
+
+  if (defaultTiming || slideTiming) {
+    result.timing = {
+      type: slideTiming?.type ?? defaultTiming?.type,
+      delay: slideTiming?.delay ?? defaultTiming?.delay,
+    };
+  }
+
+  return result;
 }

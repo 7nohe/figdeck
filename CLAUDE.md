@@ -89,6 +89,7 @@ interface SlideContent {
   slideNumber?: SlideNumberConfig;
   align?: HorizontalAlign;        // "left" | "center" | "right"
   valign?: VerticalAlign;         // "top" | "middle" | "bottom"
+  transition?: SlideTransitionConfig;  // Slide transition animation
 }
 
 type SlideBlock =
@@ -167,10 +168,23 @@ titlePrefix:
 titlePrefix: false              # Disable inherited prefix for this slide
 align: center                   # Horizontal: left, center, right (default: left)
 valign: middle                  # Vertical: top, middle, bottom (default: top)
+transition: dissolve            # Shorthand: style only
+transition: slide-from-right 0.5  # Shorthand: style and duration
+transition:                     # Full configuration
+  style: slide-from-right       # Animation style (see list below)
+  duration: 0.5                 # Duration in seconds (0.01-10)
+  curve: ease-out               # Easing curve
+  timing:
+    type: after-delay           # on-click (default) or after-delay
+    delay: 3                    # Auto-advance delay in seconds (0-30)
 ---
 ```
 
 **Background Priority:** templateStyle > gradient > solid > image
+
+**Transition Styles:** `none`, `dissolve`, `smart-animate`, `slide-from-*`, `push-from-*`, `move-from-*`, `slide-out-to-*`, `move-out-to-*` (where * = left, right, top, bottom)
+
+**Transition Curves:** `ease-in`, `ease-out`, `ease-in-and-out`, `linear`, `gentle`, `quick`, `bouncy`, `slow`
 
 ### Figma Link Block
 
@@ -195,6 +209,7 @@ y=300
   - `figma-links.md` - Figma node embedding
   - `backgrounds.md` - Background styles
   - `rich-formatting.md` - Inline formatting
+  - `transitions.md` - Slide transition animations
 
 ## Figma Plugin JavaScript Constraints
 

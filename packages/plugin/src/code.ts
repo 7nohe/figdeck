@@ -20,6 +20,9 @@ import type {
   HorizontalAlign,
   SlideBlock,
   SlideContent,
+  SlideTransitionConfig,
+  SlideTransitionCurve,
+  SlideTransitionStyle,
   TitlePrefixConfig,
   VerticalAlign,
 } from "./types";
@@ -205,6 +208,94 @@ async function loadFont() {
   await figma.loadFontAsync({ family: "Inter", style: "Bold" });
   await figma.loadFontAsync({ family: "Inter", style: "Italic" });
   await figma.loadFontAsync({ family: "Inter", style: "Bold Italic" });
+}
+
+/**
+ * Map from kebab-case transition style to Figma API UPPER_SNAKE_CASE
+ */
+const TRANSITION_STYLE_MAP: Record<SlideTransitionStyle, string> = {
+  none: "NONE",
+  dissolve: "DISSOLVE",
+  "smart-animate": "SMART_ANIMATE",
+  "slide-from-left": "SLIDE_FROM_LEFT",
+  "slide-from-right": "SLIDE_FROM_RIGHT",
+  "slide-from-top": "SLIDE_FROM_TOP",
+  "slide-from-bottom": "SLIDE_FROM_BOTTOM",
+  "push-from-left": "PUSH_FROM_LEFT",
+  "push-from-right": "PUSH_FROM_RIGHT",
+  "push-from-top": "PUSH_FROM_TOP",
+  "push-from-bottom": "PUSH_FROM_BOTTOM",
+  "move-from-left": "MOVE_FROM_LEFT",
+  "move-from-right": "MOVE_FROM_RIGHT",
+  "move-from-top": "MOVE_FROM_TOP",
+  "move-from-bottom": "MOVE_FROM_BOTTOM",
+  "slide-out-to-left": "SLIDE_OUT_TO_LEFT",
+  "slide-out-to-right": "SLIDE_OUT_TO_RIGHT",
+  "slide-out-to-top": "SLIDE_OUT_TO_TOP",
+  "slide-out-to-bottom": "SLIDE_OUT_TO_BOTTOM",
+  "move-out-to-left": "MOVE_OUT_TO_LEFT",
+  "move-out-to-right": "MOVE_OUT_TO_RIGHT",
+  "move-out-to-top": "MOVE_OUT_TO_TOP",
+  "move-out-to-bottom": "MOVE_OUT_TO_BOTTOM",
+};
+
+/**
+ * Map from kebab-case easing curve to Figma API UPPER_SNAKE_CASE
+ */
+const CURVE_MAP: Record<SlideTransitionCurve, string> = {
+  "ease-in": "EASE_IN",
+  "ease-out": "EASE_OUT",
+  "ease-in-and-out": "EASE_IN_AND_OUT",
+  linear: "LINEAR",
+  gentle: "GENTLE",
+  quick: "QUICK",
+  bouncy: "BOUNCY",
+  slow: "SLOW",
+};
+
+/**
+ * Apply slide transition configuration to a SlideNode
+ */
+function applySlideTransition(
+  slideNode: SlideNode,
+  config: SlideTransitionConfig | undefined,
+): void {
+  if (!config || !config.style) return;
+
+  const figmaStyle = TRANSITION_STYLE_MAP[config.style];
+  if (!figmaStyle) return;
+
+  // Normalize timing config
+  let timingType: "ON_CLICK" | "AFTER_DELAY" = "ON_CLICK";
+  let timingDelay = 0;
+
+  if (config.timing) {
+    if (typeof config.timing === "string") {
+      timingType = config.timing === "after-delay" ? "AFTER_DELAY" : "ON_CLICK";
+    } else {
+      timingType =
+        config.timing.type === "after-delay" ? "AFTER_DELAY" : "ON_CLICK";
+      if (config.timing.delay !== undefined) {
+        timingDelay = config.timing.delay;
+      }
+    }
+  }
+
+  // Build transition object compatible with Figma API
+  // Use type assertion as Figma's TypeScript types may not include slides-specific types
+  const transition = {
+    style: figmaStyle,
+    duration: config.duration !== undefined ? config.duration : 0.3,
+    curve: config.curve ? CURVE_MAP[config.curve] : "EASE_OUT",
+    timing: {
+      type: timingType,
+      delay: timingDelay,
+    },
+  };
+
+  // setSlideTransition is available on SlideNode
+  // @ts-expect-error - setSlideTransition may not be in types yet
+  slideNode.setSlideTransition(transition);
 }
 
 /**
@@ -748,6 +839,11 @@ async function generateSlides(slides: SlideContent[]) {
     // Render slide number if configured
     if (slide.slideNumber) {
       await renderSlideNumber(node, slide.slideNumber, i + 1, totalSlides);
+    }
+
+    // Apply slide transition if configured
+    if (slide.transition) {
+      applySlideTransition(node, slide.transition);
     }
   }
 

@@ -114,6 +114,70 @@ export type HorizontalAlign = "left" | "center" | "right";
 export type VerticalAlign = "top" | "middle" | "bottom";
 
 /**
+ * Slide transition styles (kebab-case for user-friendly YAML)
+ */
+export type SlideTransitionStyle =
+  | "none"
+  | "dissolve"
+  | "smart-animate"
+  | "slide-from-left"
+  | "slide-from-right"
+  | "slide-from-top"
+  | "slide-from-bottom"
+  | "push-from-left"
+  | "push-from-right"
+  | "push-from-top"
+  | "push-from-bottom"
+  | "move-from-left"
+  | "move-from-right"
+  | "move-from-top"
+  | "move-from-bottom"
+  | "slide-out-to-left"
+  | "slide-out-to-right"
+  | "slide-out-to-top"
+  | "slide-out-to-bottom"
+  | "move-out-to-left"
+  | "move-out-to-right"
+  | "move-out-to-top"
+  | "move-out-to-bottom";
+
+/**
+ * Easing curves for transitions
+ */
+export type SlideTransitionCurve =
+  | "ease-in"
+  | "ease-out"
+  | "ease-in-and-out"
+  | "linear"
+  | "gentle"
+  | "quick"
+  | "bouncy"
+  | "slow";
+
+/**
+ * Timing type for transitions
+ */
+export type SlideTransitionTimingType = "on-click" | "after-delay";
+
+/**
+ * Transition timing configuration
+ */
+export interface SlideTransitionTiming {
+  type?: SlideTransitionTimingType;
+  delay?: number; // 0 - 30 seconds
+}
+
+/**
+ * Slide transition configuration
+ */
+export interface SlideTransitionConfig {
+  style?: SlideTransitionStyle;
+  duration?: number; // 0.01 - 10 seconds
+  curve?: SlideTransitionCurve;
+  timing?: SlideTransitionTiming | SlideTransitionTimingType; // Supports shorthand
+}
+
+/**
  * Figma selection link extracted from :::figma block
  */
 export interface FigmaSelectionLink {
@@ -170,6 +234,8 @@ export interface SlideContent {
   valign?: VerticalAlign;
   /** Footnotes for this slide */
   footnotes?: FootnoteItem[];
+  /** Slide transition configuration */
+  transition?: SlideTransitionConfig;
 }
 
 export interface GenerateSlidesMessage {

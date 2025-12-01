@@ -2,8 +2,12 @@ import { describe, expect, it } from "bun:test";
 import {
   mergeSlideNumberConfig,
   mergeStyles,
+  mergeTransitionConfig,
   parseFontSize,
   parseSlideConfig,
+  parseTransitionConfig,
+  parseTransitionCurve,
+  parseTransitionStyle,
 } from "./config";
 
 describe("parseFontSize", () => {
@@ -412,5 +416,253 @@ describe("align/valign parsing", () => {
     });
     expect(result.align).toBe("center");
     expect(result.valign).toBe("middle");
+  });
+});
+
+describe("parseTransitionStyle", () => {
+  it("should parse valid transition styles", () => {
+    expect(parseTransitionStyle("none")).toBe("none");
+    expect(parseTransitionStyle("dissolve")).toBe("dissolve");
+    expect(parseTransitionStyle("smart-animate")).toBe("smart-animate");
+    expect(parseTransitionStyle("slide-from-left")).toBe("slide-from-left");
+    expect(parseTransitionStyle("push-from-right")).toBe("push-from-right");
+    expect(parseTransitionStyle("move-out-to-bottom")).toBe("move-out-to-bottom");
+  });
+
+  it("should normalize underscore to kebab-case", () => {
+    expect(parseTransitionStyle("slide_from_left")).toBe("slide-from-left");
+    expect(parseTransitionStyle("smart_animate")).toBe("smart-animate");
+    expect(parseTransitionStyle("SLIDE_FROM_RIGHT")).toBe("slide-from-right");
+  });
+
+  it("should return undefined for invalid styles", () => {
+    expect(parseTransitionStyle("invalid")).toBeUndefined();
+    expect(parseTransitionStyle("fade")).toBeUndefined();
+    expect(parseTransitionStyle("")).toBeUndefined();
+    expect(parseTransitionStyle(undefined)).toBeUndefined();
+  });
+});
+
+describe("parseTransitionCurve", () => {
+  it("should parse valid transition curves", () => {
+    expect(parseTransitionCurve("ease-in")).toBe("ease-in");
+    expect(parseTransitionCurve("ease-out")).toBe("ease-out");
+    expect(parseTransitionCurve("ease-in-and-out")).toBe("ease-in-and-out");
+    expect(parseTransitionCurve("linear")).toBe("linear");
+    expect(parseTransitionCurve("gentle")).toBe("gentle");
+    expect(parseTransitionCurve("quick")).toBe("quick");
+    expect(parseTransitionCurve("bouncy")).toBe("bouncy");
+    expect(parseTransitionCurve("slow")).toBe("slow");
+  });
+
+  it("should normalize underscore to kebab-case", () => {
+    expect(parseTransitionCurve("ease_in")).toBe("ease-in");
+    expect(parseTransitionCurve("EASE_IN_AND_OUT")).toBe("ease-in-and-out");
+  });
+
+  it("should return undefined for invalid curves", () => {
+    expect(parseTransitionCurve("invalid")).toBeUndefined();
+    expect(parseTransitionCurve("cubic")).toBeUndefined();
+    expect(parseTransitionCurve(undefined)).toBeUndefined();
+  });
+});
+
+describe("parseTransitionConfig", () => {
+  it("should parse shorthand style only", () => {
+    const result = parseTransitionConfig("dissolve");
+    expect(result).toEqual({ style: "dissolve" });
+  });
+
+  it("should parse shorthand with duration", () => {
+    const result = parseTransitionConfig("slide-from-left 0.5");
+    expect(result).toEqual({ style: "slide-from-left", duration: 0.5 });
+  });
+
+  it("should parse full object config", () => {
+    const result = parseTransitionConfig({
+      style: "push-from-right",
+      duration: 0.8,
+      curve: "ease-in-and-out",
+      timing: { type: "after-delay", delay: 2 },
+    });
+    expect(result).toEqual({
+      style: "push-from-right",
+      duration: 0.8,
+      curve: "ease-in-and-out",
+      timing: { type: "after-delay", delay: 2 },
+    });
+  });
+
+  it("should handle timing shorthand", () => {
+    const result = parseTransitionConfig({
+      style: "dissolve",
+      timing: "on-click",
+    });
+    expect(result?.timing).toBe("on-click");
+  });
+
+  it("should normalize underscore to kebab-case in timing", () => {
+    const result = parseTransitionConfig({
+      style: "dissolve",
+      timing: "after_delay",
+    });
+    expect(result?.timing).toBe("after-delay");
+  });
+
+  it("should validate duration range", () => {
+    // Duration below minimum
+    expect(parseTransitionConfig({ style: "dissolve", duration: 0 })).toEqual({
+      style: "dissolve",
+    });
+    // Duration above maximum
+    expect(parseTransitionConfig({ style: "dissolve", duration: 15 })).toEqual({
+      style: "dissolve",
+    });
+    // Valid duration
+    expect(parseTransitionConfig({ style: "dissolve", duration: 5 })).toEqual({
+      style: "dissolve",
+      duration: 5,
+    });
+    // Minimum valid duration
+    expect(parseTransitionConfig({ style: "dissolve", duration: 0.01 })).toEqual({
+      style: "dissolve",
+      duration: 0.01,
+    });
+  });
+
+  it("should validate delay range", () => {
+    // Valid delay
+    expect(
+      parseTransitionConfig({
+        style: "dissolve",
+        timing: { type: "after-delay", delay: 5 },
+      }),
+    ).toEqual({
+      style: "dissolve",
+      timing: { type: "after-delay", delay: 5 },
+    });
+    // Delay above maximum
+    expect(
+      parseTransitionConfig({
+        style: "dissolve",
+        timing: { type: "after-delay", delay: 35 },
+      }),
+    ).toEqual({
+      style: "dissolve",
+      timing: { type: "after-delay" },
+    });
+    // Zero delay is valid
+    expect(
+      parseTransitionConfig({
+        style: "dissolve",
+        timing: { type: "after-delay", delay: 0 },
+      }),
+    ).toEqual({
+      style: "dissolve",
+      timing: { type: "after-delay", delay: 0 },
+    });
+  });
+
+  it("should return undefined for invalid style", () => {
+    expect(parseTransitionConfig("invalid-style")).toBeUndefined();
+  });
+
+  it("should return undefined for undefined config", () => {
+    expect(parseTransitionConfig(undefined)).toBeUndefined();
+  });
+
+  it("should return undefined for empty object", () => {
+    expect(parseTransitionConfig({})).toBeUndefined();
+  });
+});
+
+describe("mergeTransitionConfig", () => {
+  it("should return undefined when both are undefined", () => {
+    expect(mergeTransitionConfig(undefined, undefined)).toBeUndefined();
+  });
+
+  it("should return slide config when default is undefined", () => {
+    const slideConfig = { style: "dissolve" as const };
+    expect(mergeTransitionConfig(undefined, slideConfig)).toEqual(slideConfig);
+  });
+
+  it("should return default config when slide is undefined", () => {
+    const defaultConfig = { style: "dissolve" as const, duration: 0.5 };
+    expect(mergeTransitionConfig(defaultConfig, undefined)).toEqual(
+      defaultConfig,
+    );
+  });
+
+  it("should merge configs with slide overriding default", () => {
+    const defaultConfig = {
+      style: "dissolve" as const,
+      duration: 0.3,
+      curve: "ease-out" as const,
+    };
+    const slideConfig = {
+      style: "slide-from-right" as const,
+      duration: 0.5,
+    };
+
+    const result = mergeTransitionConfig(defaultConfig, slideConfig);
+
+    expect(result?.style).toBe("slide-from-right");
+    expect(result?.duration).toBe(0.5);
+    expect(result?.curve).toBe("ease-out");
+  });
+
+  it("should merge timing configs", () => {
+    const defaultConfig = {
+      style: "dissolve" as const,
+      timing: { type: "on-click" as const },
+    };
+    const slideConfig = {
+      timing: { delay: 2 },
+    };
+
+    const result = mergeTransitionConfig(defaultConfig, slideConfig);
+
+    expect(result?.timing).toEqual({ type: "on-click", delay: 2 });
+  });
+
+  it("should handle timing shorthand in default", () => {
+    const defaultConfig = {
+      style: "dissolve" as const,
+      timing: "on-click" as const,
+    };
+    const slideConfig = {
+      timing: { delay: 3 },
+    };
+
+    const result = mergeTransitionConfig(defaultConfig, slideConfig);
+
+    expect(result?.timing).toEqual({ type: "on-click", delay: 3 });
+  });
+});
+
+describe("transition in parseSlideConfig", () => {
+  it("should parse transition shorthand", () => {
+    const result = parseSlideConfig({ transition: "dissolve" });
+    expect(result.transition).toEqual({ style: "dissolve" });
+  });
+
+  it("should parse transition full object", () => {
+    const result = parseSlideConfig({
+      transition: {
+        style: "slide-from-right",
+        duration: 0.5,
+        curve: "ease-in-and-out",
+        timing: { type: "after-delay", delay: 2 },
+      },
+    });
+    expect(result.transition?.style).toBe("slide-from-right");
+    expect(result.transition?.duration).toBe(0.5);
+    expect(result.transition?.curve).toBe("ease-in-and-out");
+    expect(result.transition?.timing).toEqual({ type: "after-delay", delay: 2 });
+  });
+
+  it("should return undefined transition when not specified", () => {
+    const result = parseSlideConfig({ background: "#fff" });
+    expect(result.transition).toBeUndefined();
   });
 });

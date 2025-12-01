@@ -239,6 +239,113 @@ GFM の脚注記法をサポートしています。
 - 脚注定義はスライド下部に水平線で区切られて表示されます
 - 脚注内でも **太字** や *イタリック* などのインラインフォーマットが使用できます
 
+## スライドトランジション
+
+スライド間のトランジションアニメーションを設定できます。
+
+### 基本設定（ショートハンド）
+
+```yaml
+---
+transition: dissolve
+---
+```
+
+duration を指定することもできます：
+
+```yaml
+---
+transition: slide-from-right 0.5
+---
+```
+
+### 詳細設定
+
+```yaml
+---
+transition:
+  style: slide-from-right   # アニメーションスタイル
+  duration: 0.5             # 再生時間（秒）0.01〜10
+  curve: ease-out           # イージングカーブ
+  timing:
+    type: after-delay       # on-click または after-delay
+    delay: 2                # 自動再生までの待機時間（秒）0〜30
+---
+```
+
+### グローバル設定
+
+ファイル先頭の frontmatter でグローバルトランジションを設定できます：
+
+```yaml
+---
+transition:
+  style: dissolve
+  duration: 0.5
+  curve: ease-out
+---
+
+# タイトルスライド
+
+---
+
+## コンテンツスライド
+```
+
+この場合、すべてのスライドに dissolve トランジションが適用されます。
+
+### スライド個別の上書き
+
+グローバル設定を個別のスライドで上書きできます：
+
+```yaml
+---
+transition: dissolve
+---
+
+# タイトル
+
+---
+transition: slide-from-right
+---
+## このスライドだけ右からスライドイン
+```
+
+`transition: none` でトランジションを無効化できます。
+
+### 利用可能なスタイル
+
+| カテゴリ | スタイル |
+|---------|---------|
+| 基本 | `none`, `dissolve`, `smart-animate` |
+| スライドイン | `slide-from-left`, `slide-from-right`, `slide-from-top`, `slide-from-bottom` |
+| プッシュ | `push-from-left`, `push-from-right`, `push-from-top`, `push-from-bottom` |
+| ムーブイン | `move-from-left`, `move-from-right`, `move-from-top`, `move-from-bottom` |
+| スライドアウト | `slide-out-to-left`, `slide-out-to-right`, `slide-out-to-top`, `slide-out-to-bottom` |
+| ムーブアウト | `move-out-to-left`, `move-out-to-right`, `move-out-to-top`, `move-out-to-bottom` |
+
+### 利用可能なイージングカーブ
+
+| カーブ | 説明 |
+|--------|------|
+| `ease-in` | ゆっくり始まり加速 |
+| `ease-out` | 減速して終わる |
+| `ease-in-and-out` | ゆっくり始まりゆっくり終わる |
+| `linear` | 一定速度 |
+| `gentle` | なめらか |
+| `quick` | 素早く |
+| `bouncy` | 弾む |
+| `slow` | ゆっくり |
+
+### タイミング
+
+| タイプ | 説明 |
+|--------|------|
+| `on-click` | クリックで次のスライドへ（デフォルト） |
+| `after-delay` | 指定秒数後に自動で次のスライドへ |
+
+**注意**: `after-delay` はプレゼンテーションモードでのみ動作します。
+
 ## コードブロック
 
 ` ``` ` で囲まれたブロックはコードブロックとして表示されます。
@@ -332,3 +439,4 @@ CLI と Figma Plugin が連携して動作します。
 | Figma リンク | ✅ | `:::figma` ブロック |
 | align/valign | ✅ | スライド配置設定 |
 | 脚注 | ✅ | GFM、スライド下部に表示 |
+| トランジション | ✅ | スライド切り替えアニメーション |

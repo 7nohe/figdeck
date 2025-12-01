@@ -239,6 +239,113 @@ This feature is useful[^note].
 - Footnote definitions are displayed at the bottom of the slide, separated by a horizontal line
 - Inline formatting like **bold** and *italic* can also be used within footnotes
 
+## Slide Transitions
+
+You can configure transition animations between slides.
+
+### Basic Configuration (Shorthand)
+
+```yaml
+---
+transition: dissolve
+---
+```
+
+You can also specify duration:
+
+```yaml
+---
+transition: slide-from-right 0.5
+---
+```
+
+### Detailed Configuration
+
+```yaml
+---
+transition:
+  style: slide-from-right   # Animation style
+  duration: 0.5             # Duration (seconds) 0.01-10
+  curve: ease-out           # Easing curve
+  timing:
+    type: after-delay       # on-click or after-delay
+    delay: 2                # Auto-advance delay (seconds) 0-30
+---
+```
+
+### Global Configuration
+
+Set a global transition in the frontmatter at the beginning of the file:
+
+```yaml
+---
+transition:
+  style: dissolve
+  duration: 0.5
+  curve: ease-out
+---
+
+# Title Slide
+
+---
+
+## Content Slide
+```
+
+In this case, the dissolve transition is applied to all slides.
+
+### Per-Slide Override
+
+You can override the global setting for individual slides:
+
+```yaml
+---
+transition: dissolve
+---
+
+# Title
+
+---
+transition: slide-from-right
+---
+## This slide only slides in from the right
+```
+
+Use `transition: none` to disable transitions.
+
+### Available Styles
+
+| Category | Styles |
+|----------|--------|
+| Basic | `none`, `dissolve`, `smart-animate` |
+| Slide In | `slide-from-left`, `slide-from-right`, `slide-from-top`, `slide-from-bottom` |
+| Push | `push-from-left`, `push-from-right`, `push-from-top`, `push-from-bottom` |
+| Move In | `move-from-left`, `move-from-right`, `move-from-top`, `move-from-bottom` |
+| Slide Out | `slide-out-to-left`, `slide-out-to-right`, `slide-out-to-top`, `slide-out-to-bottom` |
+| Move Out | `move-out-to-left`, `move-out-to-right`, `move-out-to-top`, `move-out-to-bottom` |
+
+### Available Easing Curves
+
+| Curve | Description |
+|-------|-------------|
+| `ease-in` | Start slow, accelerate |
+| `ease-out` | Decelerate to end |
+| `ease-in-and-out` | Start slow, end slow |
+| `linear` | Constant speed |
+| `gentle` | Smooth |
+| `quick` | Fast |
+| `bouncy` | Bouncing |
+| `slow` | Slow |
+
+### Timing
+
+| Type | Description |
+|------|-------------|
+| `on-click` | Advance on click (default) |
+| `after-delay` | Auto-advance after specified seconds |
+
+**Note**: `after-delay` only works in presentation mode.
+
 ## Code Blocks
 
 Blocks enclosed in ` ``` ` are displayed as code blocks.
@@ -332,3 +439,4 @@ This example generates the following 5 slides:
 | Figma links | Supported | `:::figma` blocks |
 | align/valign | Supported | Slide alignment settings |
 | Footnotes | Supported | GFM, displayed at slide bottom |
+| Transitions | Supported | Slide transition animations |

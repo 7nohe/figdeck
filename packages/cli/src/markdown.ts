@@ -19,6 +19,7 @@ import { parse as parseYaml } from "yaml";
 import {
   mergeSlideNumberConfig,
   mergeStyles,
+  mergeTransitionConfig,
   type ParsedConfigResult,
   parseSlideConfig,
   type SlideConfig,
@@ -44,6 +45,7 @@ import type {
   SlideContent,
   SlideNumberConfig,
   SlideStyles,
+  SlideTransitionConfig,
   TableAlignment,
   TextSpan,
   TitlePrefixConfig,
@@ -353,6 +355,7 @@ function parseSlideMarkdown(
   defaultTitlePrefix: TitlePrefixConfig | null | undefined,
   defaultAlign: HorizontalAlign | undefined,
   defaultValign: VerticalAlign | undefined,
+  defaultTransition: SlideTransitionConfig | undefined,
   figmaBlocks: FigmaBlockPlaceholder[],
   basePath?: string,
 ): SlideContent | null {
@@ -362,6 +365,7 @@ function parseSlideMarkdown(
   let slideTitlePrefix: TitlePrefixConfig | null | undefined;
   let slideAlign: HorizontalAlign | undefined;
   let slideValign: VerticalAlign | undefined;
+  let slideTransition: SlideTransitionConfig | undefined;
 
   const { body: slideBody, config: frontmatterConfig } = extractFrontmatter(
     slideMarkdown,
@@ -376,6 +380,7 @@ function parseSlideMarkdown(
     slideTitlePrefix = frontmatterConfig.titlePrefix;
     slideAlign = frontmatterConfig.align;
     slideValign = frontmatterConfig.valign;
+    slideTransition = frontmatterConfig.transition;
   }
 
   const tree = processor.parse(slideBody) as Root;
@@ -437,6 +442,11 @@ function parseSlideMarkdown(
     // Merge align/valign (slide-specific overrides global defaults)
     builder.slide.align = slideAlign ?? defaultAlign;
     builder.slide.valign = slideValign ?? defaultValign;
+    // Merge transition config (slide-specific overrides global defaults)
+    builder.slide.transition = mergeTransitionConfig(
+      defaultTransition,
+      slideTransition,
+    );
 
     if (builder.blocks.length > 0) {
       builder.slide.blocks = builder.blocks;
@@ -570,6 +580,7 @@ export function parseMarkdown(
   let globalDefaultTitlePrefix: TitlePrefixConfig | null | undefined;
   let globalDefaultAlign: HorizontalAlign | undefined;
   let globalDefaultValign: VerticalAlign | undefined;
+  let globalDefaultTransition: SlideTransitionConfig | undefined;
   let contentWithoutGlobalFrontmatter = processedMarkdown;
   const slides: SlideContent[] = [];
 
@@ -578,7 +589,7 @@ export function parseMarkdown(
   if (frontmatterMatch) {
     try {
       const config = parseYaml(frontmatterMatch[1]) as SlideConfig;
-      const { background, styles, slideNumber, titlePrefix, align, valign } =
+      const { background, styles, slideNumber, titlePrefix, align, valign, transition } =
         parseSlideConfig(config, {
           basePath,
         });
@@ -588,6 +599,7 @@ export function parseMarkdown(
       globalDefaultTitlePrefix = titlePrefix;
       globalDefaultAlign = align;
       globalDefaultValign = valign;
+      globalDefaultTransition = transition;
     } catch {
       // Invalid YAML, ignore
     }
@@ -608,6 +620,7 @@ export function parseMarkdown(
       globalDefaultTitlePrefix,
       globalDefaultAlign,
       globalDefaultValign,
+      globalDefaultTransition,
       figmaBlocks,
       basePath,
     );

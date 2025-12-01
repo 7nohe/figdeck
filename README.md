@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/7nohe/figdeck/raw/main/images/logo.svg" width="200" alt="figdeck">
+  <img src="https://github.com/7nohe/figdeck/raw/main/images/logo.svg" width="300" alt="figdeck">
 </p>
 
 

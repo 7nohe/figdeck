@@ -1,9 +1,9 @@
 ---
-background: "#1a1a2e"
-color: "#ffffff"
+background: "#ffffff"
+color: "#1a1a2e"
 headings:
   h1:
-    size: 72
+    size: 96
   h2:
     size: 48
   h3:
@@ -21,10 +21,13 @@ slideNumber:
   position: bottom-right
   startFrom: 2
 ---
+align: center
+valign: middle
+---
 
 # figdeck
 
-Markdown to Figma Slides
+### Markdown to Figma Slides
 
 ---
 
@@ -114,7 +117,7 @@ Column alignment: left `:---`, center `:---:`, right `---:`
 
 Images are inserted as placeholders.
 
-![figdeck logo](https://github.com/7nohe/figdeck/raw/main/images/logo.svg)
+![figdeck logo](https://images.unsplash.com/photo-1660806982611-0a41c0527966?w=800&auto=format&fit=crop&q=60)
 
 Syntax: `![alt text](image-url)`
 
@@ -133,8 +136,8 @@ Even smaller headings are available.
 Combine with text for structured content.
 
 ---
----
 background: "#16213e"
+color: "#ffffff"
 ---
 
 ## Background Styles
@@ -151,7 +154,6 @@ backgroundImage: "./bg.png"        # Image
 ---
 ```
 
----
 ---
 headings:
   h2:
@@ -172,7 +174,6 @@ Configurable items:
 - `code`
 
 ---
----
 slideNumber:
   show: true
   format: "{{current}} / {{total}}"
@@ -188,7 +189,6 @@ Customize slide number display.
 - `format`: Display format (`{{current}}`, `{{total}}`)
 - `startFrom`: Starting slide number
 
----
 ---
 transition:
   style: slide-from-right
@@ -226,7 +226,6 @@ y=300
 :::
 ```
 
----
 ---
 align: center
 valign: middle

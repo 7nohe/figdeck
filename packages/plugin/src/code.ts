@@ -15,7 +15,7 @@ import {
   clearSlideContent,
   renderSlideNumber,
 } from "./slide-utils";
-import { LAYOUT, resolveSlideStyles } from "./styles";
+import { LAYOUT, type ResolvedTextStyle, resolveSlideStyles } from "./styles";
 import type {
   HorizontalAlign,
   SlideBlock,
@@ -419,6 +419,29 @@ async function renderTitleToNode(
 }
 
 /**
+ * Get the resolved style for a specific block kind
+ */
+function getStyleForBlock(
+  kind: string,
+  styles: ReturnType<typeof resolveSlideStyles>,
+): ResolvedTextStyle | undefined {
+  switch (kind) {
+    case "paragraph":
+    case "blockquote":
+      return styles.paragraph;
+    case "bullets":
+      return styles.bullet;
+    case "code":
+      return styles.code;
+    case "heading":
+      // Headings use h3/h4, but for positioning we can use h3 as representative
+      return styles.h3;
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Fill a slide with content using container-based layout
  */
 async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
@@ -443,6 +466,9 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
     container.appendChild(titleNode);
   }
 
+  // Collect nodes that need absolute positioning (to be added after container)
+  const absoluteNodes: Array<{ node: SceneNode; x: number; y: number }> = [];
+
   // Render blocks
   if (slide.blocks && slide.blocks.length > 0) {
     for (const block of slide.blocks) {
@@ -452,10 +478,30 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
         (block.link.x !== undefined || block.link.y !== undefined)
       ) {
         const figmaNode = await renderFigmaLink(block.link);
-        slideNode.appendChild(figmaNode);
-        // Set position after appending to ensure correct coordinate system
-        figmaNode.x = block.link.x ?? 0;
-        figmaNode.y = block.link.y ?? 0;
+        absoluteNodes.push({
+          node: figmaNode,
+          x: block.link.x ?? 0,
+          y: block.link.y ?? 0,
+        });
+        continue;
+      }
+
+      // Determine the style for this block kind
+      const blockStyle = getStyleForBlock(block.kind, styles);
+
+      // Check if this block has absolute positioning via style
+      if (
+        blockStyle &&
+        (blockStyle.x !== undefined || blockStyle.y !== undefined)
+      ) {
+        const blockNode = await renderBlockToNode(block, styles);
+        if (blockNode) {
+          absoluteNodes.push({
+            node: blockNode,
+            x: blockStyle.x ?? 0,
+            y: blockStyle.y ?? 0,
+          });
+        }
         continue;
       }
 
@@ -504,6 +550,13 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
   slideNode.appendChild(container);
   container.x = 0;
   container.y = 0;
+
+  // Add absolutely positioned nodes to slide
+  for (const { node, x, y } of absoluteNodes) {
+    slideNode.appendChild(node);
+    node.x = x;
+    node.y = y;
+  }
 
   // Render footnotes at the bottom of the slide (outside container)
   if (slide.footnotes && slide.footnotes.length > 0) {

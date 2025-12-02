@@ -216,6 +216,8 @@ interface SlideStyles {
 interface TextStyle {
   size?: number;               // フォントサイズ (1-200)
   color?: string;              // 色（hex または rgb/rgba）
+  x?: number;                  // X座標（ピクセル、スライドは1920x1080）
+  y?: number;                  // Y座標（ピクセル、スライドは1920x1080）
 }
 ```
 

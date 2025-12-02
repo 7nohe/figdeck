@@ -29,6 +29,8 @@ import type {
 interface TextStyle {
   size?: number;
   color?: string;
+  x?: number;
+  y?: number;
 }
 
 /**
@@ -144,6 +146,12 @@ function parseTextStyle(
   }
   if (style.color) {
     result.color = normalizeColor(style.color);
+  }
+  if (style.x !== undefined) {
+    result.x = style.x;
+  }
+  if (style.y !== undefined) {
+    result.y = style.y;
   }
   return Object.keys(result).length > 0 ? result : undefined;
 }
@@ -555,20 +563,41 @@ export function parseTransitionConfig(
 /**
  * Merge two SlideStyles, with slide styles overriding defaults
  */
+/**
+ * Merge two TextStyle objects, with slide-specific values taking precedence
+ */
+function mergeTextStyle(
+  defaultStyle: ParsedTextStyle | undefined,
+  slideStyle: ParsedTextStyle | undefined,
+): ParsedTextStyle | undefined {
+  if (!defaultStyle && !slideStyle) return undefined;
+  if (!defaultStyle) return slideStyle;
+  if (!slideStyle) return defaultStyle;
+  return {
+    size: slideStyle.size ?? defaultStyle.size,
+    color: slideStyle.color ?? defaultStyle.color,
+    x: slideStyle.x ?? defaultStyle.x,
+    y: slideStyle.y ?? defaultStyle.y,
+  };
+}
+
 export function mergeStyles(
   defaultStyles: SlideStyles,
   slideStyles: SlideStyles,
 ): SlideStyles {
   return {
     headings: {
-      h1: slideStyles.headings?.h1 ?? defaultStyles.headings?.h1,
-      h2: slideStyles.headings?.h2 ?? defaultStyles.headings?.h2,
-      h3: slideStyles.headings?.h3 ?? defaultStyles.headings?.h3,
-      h4: slideStyles.headings?.h4 ?? defaultStyles.headings?.h4,
+      h1: mergeTextStyle(defaultStyles.headings?.h1, slideStyles.headings?.h1),
+      h2: mergeTextStyle(defaultStyles.headings?.h2, slideStyles.headings?.h2),
+      h3: mergeTextStyle(defaultStyles.headings?.h3, slideStyles.headings?.h3),
+      h4: mergeTextStyle(defaultStyles.headings?.h4, slideStyles.headings?.h4),
     },
-    paragraphs: slideStyles.paragraphs ?? defaultStyles.paragraphs,
-    bullets: slideStyles.bullets ?? defaultStyles.bullets,
-    code: slideStyles.code ?? defaultStyles.code,
+    paragraphs: mergeTextStyle(
+      defaultStyles.paragraphs,
+      slideStyles.paragraphs,
+    ),
+    bullets: mergeTextStyle(defaultStyles.bullets, slideStyles.bullets),
+    code: mergeTextStyle(defaultStyles.code, slideStyles.code),
   };
 }
 

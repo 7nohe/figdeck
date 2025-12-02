@@ -155,8 +155,8 @@ color: "#ffffff"                # Base text color for all elements
 headings:
   h1: { size: 72, color: "#fff" }
   h2: { size: 56 }
-paragraphs: { size: 24, color: "#ccc" }
-bullets: { size: 20 }
+paragraphs: { size: 24, color: "#ccc", x: 100, y: 400 }  # Absolute position (slide is 1920x1080)
+bullets: { size: 20, x: 100, y: 600 }
 code: { size: 14 }
 slideNumber:
   show: true

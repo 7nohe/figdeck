@@ -471,15 +471,21 @@ function hasMeaningfulContent(lines: string[]): boolean {
 }
 
 /**
- * Check if lines look like implicit frontmatter (only key: value pairs)
+ * Check if lines look like implicit frontmatter (YAML key/value pairs).
+ * Supports both inline values (key: value) and nested YAML (key:\n  nested: value).
  */
 function looksLikeInlineFrontmatter(lines: string[]): boolean {
   let sawKey = false;
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    if (/^[a-zA-Z][\w-]*:\s*.+$/.test(trimmed)) {
+    // Match key: (with or without inline value)
+    if (/^[a-zA-Z][\w-]*:\s*/.test(trimmed)) {
       sawKey = true;
+      continue;
+    }
+    // Match indented lines (nested YAML values)
+    if (/^\s+/.test(line) && sawKey) {
       continue;
     }
     return false;

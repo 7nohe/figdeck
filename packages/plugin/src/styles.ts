@@ -17,6 +17,10 @@ export interface ResolvedTextStyle {
   fontSize: number;
   fills: Paint[] | undefined;
   fontStyle: "Regular" | "Bold" | "Italic" | "Bold Italic";
+  /** Absolute X position in pixels (if specified) */
+  x?: number;
+  /** Absolute Y position in pixels (if specified) */
+  y?: number;
 }
 
 /**
@@ -62,6 +66,8 @@ function resolveTextStyle(
     fontSize: style?.size ?? defaultSize,
     fills: createFill(style),
     fontStyle: defaultFontStyle,
+    x: style?.x,
+    y: style?.y,
   };
 }
 

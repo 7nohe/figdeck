@@ -42,6 +42,10 @@ export interface TextSpan {
 export interface TextStyle {
   size?: number;
   color?: string;
+  /** Absolute X position in pixels (slide is 1920x1080) */
+  x?: number;
+  /** Absolute Y position in pixels (slide is 1920x1080) */
+  y?: number;
 }
 
 export interface HeadingStyles {

@@ -216,6 +216,8 @@ interface SlideStyles {
 interface TextStyle {
   size?: number;               // Font size (1-200)
   color?: string;              // Color (hex or rgb/rgba)
+  x?: number;                  // Absolute X position in pixels (slide is 1920x1080)
+  y?: number;                  // Absolute Y position in pixels (slide is 1920x1080)
 }
 ```
 

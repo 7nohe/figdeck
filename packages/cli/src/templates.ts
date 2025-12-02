@@ -1,5 +1,5 @@
-import type { TitlePrefixConfig } from "./types.js";
 import initTemplate from "../templates/init.md";
+import type { TitlePrefixConfig } from "./types.js";
 
 /**
  * Template defaults configuration

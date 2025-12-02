@@ -27,8 +27,8 @@
   },
   "license": "MIT",
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --outDir dist",
-    "dev": "tsup src/index.ts --format esm --watch",
+    "build": "tsup src/index.ts --format esm --dts --outDir dist --loader '.md=text'",
+    "dev": "tsup src/index.ts --format esm --watch --loader '.md=text'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

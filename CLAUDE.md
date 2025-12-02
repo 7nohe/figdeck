@@ -28,6 +28,11 @@ cd packages/cli && bun run dev
 ## Running
 
 ```bash
+# Initialize a new slides.md template with all syntax examples
+bun run packages/cli/dist/index.js init
+bun run packages/cli/dist/index.js init -o my-slides.md  # custom filename
+bun run packages/cli/dist/index.js init --force          # overwrite existing
+
 # WebSocket mode: Start CLI server (waits for Plugin connection on port 4141)
 # Watch mode is enabled by default - auto-reloads on file changes
 bun run packages/cli/dist/index.js serve examples/sample.md

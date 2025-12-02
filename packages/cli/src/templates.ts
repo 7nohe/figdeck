@@ -1,4 +1,5 @@
 import type { TitlePrefixConfig } from "./types.js";
+import initTemplate from "../templates/init.md";
 
 /**
  * Template defaults configuration
@@ -45,4 +46,11 @@ export function hasTemplate(templateName: string): boolean {
  */
 export function getRegisteredTemplates(): string[] {
   return Object.keys(templateRegistry);
+}
+
+/**
+ * Get the init template for `figdeck init` command
+ */
+export function getInitTemplate(): string {
+  return initTemplate;
 }

@@ -1,7 +1,8 @@
-import { readFileSync, watchFile, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, watchFile, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { Command } from "commander";
 import { parseMarkdown } from "./markdown.js";
+import { getInitTemplate } from "./templates.js";
 import { generateSecret, isLoopbackHost, startServer } from "./ws-server.js";
 
 const program = new Command();
@@ -10,6 +11,34 @@ program
   .name("figdeck")
   .description("Convert Markdown to Figma Slides")
   .version("0.1.0");
+
+// init: create template slides.md
+program
+  .command("init")
+  .description("Create a template slides.md file")
+  .option("-o, --out <path>", "Output file path", "slides.md")
+  .option("-f, --force", "Overwrite existing file")
+  .action((options: { out: string; force?: boolean }) => {
+    try {
+      const outputPath = resolve(options.out);
+
+      if (!options.force && existsSync(outputPath)) {
+        console.error(`Error: File already exists: ${options.out}`);
+        console.error("Use --force to overwrite.");
+        process.exit(1);
+      }
+
+      const template = getInitTemplate();
+      writeFileSync(outputPath, template, "utf-8");
+      console.log(`Created ${options.out}`);
+      console.log(`\nNext steps:`);
+      console.log(`  1. Run: figdeck serve ${options.out}`);
+      console.log(`  2. Connect the Figma plugin to generate slides`);
+    } catch (error) {
+      console.error("Error:", (error as Error).message);
+      process.exit(1);
+    }
+  });
 
 // build: one-shot parse and output JSON
 program

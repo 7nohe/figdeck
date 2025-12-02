@@ -4,6 +4,33 @@
 
 ### Commands
 
+#### `init` - Create Template
+
+Creates a template `slides.md` with examples of all supported Markdown syntax.
+
+```bash
+figdeck init [options]
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `-o, --out <path>` | Output file path | `slides.md` |
+| `-f, --force` | Overwrite existing file | - |
+| `-h, --help` | Show help | - |
+
+**Examples:**
+
+```bash
+# Create slides.md in current directory
+figdeck init
+
+# Create with custom filename
+figdeck init -o presentation.md
+
+# Overwrite existing file
+figdeck init --force
+```
+
 #### `build` - JSON Output
 
 Parses Markdown and outputs JSON (one-shot).

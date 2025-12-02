@@ -4,6 +4,33 @@
 
 ### コマンド
 
+#### `init` - テンプレート作成
+
+サポートされている全ての Markdown 記法の例を含む `slides.md` テンプレートを作成します。
+
+```bash
+figdeck init [options]
+```
+
+| オプション | 説明 | デフォルト |
+|------------|------|-----------|
+| `-o, --out <path>` | 出力ファイルパス | `slides.md` |
+| `-f, --force` | 既存ファイルを上書き | - |
+| `-h, --help` | ヘルプ表示 | - |
+
+**例:**
+
+```bash
+# カレントディレクトリに slides.md を作成
+figdeck init
+
+# カスタムファイル名で作成
+figdeck init -o presentation.md
+
+# 既存ファイルを上書き
+figdeck init --force
+```
+
 #### `build` - JSON 出力
 
 Markdown をパースして JSON を出力します（ワンショット）。

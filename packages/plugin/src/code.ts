@@ -451,12 +451,11 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
         block.kind === "figma" &&
         (block.link.x !== undefined || block.link.y !== undefined)
       ) {
-        const figmaNode = await renderFigmaLink(
-          block.link,
-          block.link.x ?? 0,
-          block.link.y ?? 0,
-        );
+        const figmaNode = await renderFigmaLink(block.link);
         slideNode.appendChild(figmaNode);
+        // Set position after appending to ensure correct coordinate system
+        figmaNode.x = block.link.x ?? 0;
+        figmaNode.y = block.link.y ?? 0;
         continue;
       }
 
@@ -499,8 +498,12 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
     }
   }
 
-  // Add container to slide
+  // Add container to slide and explicitly set position to origin
+  // This is necessary because grid view can have coordinate system issues
+  // when the container is created before being appended to the slide
   slideNode.appendChild(container);
+  container.x = 0;
+  container.y = 0;
 
   // Render footnotes at the bottom of the slide (outside container)
   if (slide.footnotes && slide.footnotes.length > 0) {

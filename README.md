@@ -23,6 +23,16 @@ npx figdeck your-slides.md
 
 ## Usage
 
+### Quick Start
+
+```bash
+# Create a template slides.md with all syntax examples
+npx figdeck init
+
+# Start the server
+npx figdeck slides.md
+```
+
 ### Method 1: WebSocket Connection (Live Reload Support)
 
 ```bash
@@ -143,6 +153,19 @@ color: "#ffffff"
 Per-slide frontmatter > Global frontmatter
 
 ## CLI Commands
+
+### `init` - Create Template
+
+```bash
+figdeck init [options]
+
+Options:
+  -o, --out <path>  Output file path (default: "slides.md")
+  -f, --force       Overwrite existing file
+  -h, --help        Show help
+```
+
+Creates a template `slides.md` with examples of all supported Markdown syntax.
 
 ### `build` - JSON Output
 

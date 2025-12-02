@@ -15,7 +15,7 @@ describe("CLI", () => {
 
       expect(Array.isArray(slides)).toBe(true);
       expect(slides.length).toBeGreaterThan(0);
-      expect(slides[0]).toHaveProperty("type");
+      expect(slides[0]).toHaveProperty("blocks");
     });
 
     it("should output valid SlideContent[] schema", async () => {
@@ -24,13 +24,8 @@ describe("CLI", () => {
       const slides = JSON.parse(result);
 
       for (const slide of slides) {
-        expect(["title", "content"]).toContain(slide.type);
-        if (slide.title) {
-          expect(typeof slide.title).toBe("string");
-        }
-        if (slide.blocks) {
-          expect(Array.isArray(slide.blocks)).toBe(true);
-        }
+        expect(Array.isArray(slide.blocks)).toBe(true);
+        expect(slide.blocks.length).toBeGreaterThan(0);
       }
     });
 

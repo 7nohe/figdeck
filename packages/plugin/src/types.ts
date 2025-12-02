@@ -194,7 +194,7 @@ export interface FigmaSelectionLink {
 
 export type SlideBlock =
   | { kind: "paragraph"; text: string; spans?: TextSpan[] }
-  | { kind: "heading"; level: 3 | 4; text: string; spans?: TextSpan[] }
+  | { kind: "heading"; level: 1 | 2 | 3 | 4; text: string; spans?: TextSpan[] }
   | {
       kind: "bullets";
       items: string[];
@@ -222,12 +222,7 @@ export type SlideBlock =
   | { kind: "footnotes"; items: FootnoteItem[] };
 
 export interface SlideContent {
-  type: "title" | "content";
-  title?: string;
-  body?: string[];
-  bullets?: string[];
-  codeBlocks?: CodeBlock[];
-  blocks?: SlideBlock[];
+  blocks: SlideBlock[];
   background?: SlideBackground;
   styles?: SlideStyles;
   slideNumber?: SlideNumberConfig;

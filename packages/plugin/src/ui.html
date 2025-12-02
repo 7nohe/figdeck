@@ -377,20 +377,27 @@
         if (!slide || typeof slide !== 'object') {
           return { valid: false, error: 'Slide ' + (i + 1) + ' is not an object' };
         }
-        if (!slide.type || (slide.type !== 'title' && slide.type !== 'content')) {
-          return { valid: false, error: 'Slide ' + (i + 1) + ' has invalid type (must be "title" or "content")' };
+        // Validate blocks array exists
+        if (!Array.isArray(slide.blocks)) {
+          return { valid: false, error: 'Slide ' + (i + 1) + ' is missing blocks array' };
         }
         // Check blocks limit
-        if (slide.blocks && Array.isArray(slide.blocks) && slide.blocks.length > MAX_BLOCKS_PER_SLIDE) {
+        if (slide.blocks.length > MAX_BLOCKS_PER_SLIDE) {
           return { valid: false, error: 'Slide ' + (i + 1) + ' has too many blocks (max: ' + MAX_BLOCKS_PER_SLIDE + ')' };
         }
-        // Truncate oversized strings
-        if (slide.title && typeof slide.title === 'string') {
-          slide.title = truncateString(slide.title, MAX_STRING_LENGTH);
-        }
-        if (slide.body && Array.isArray(slide.body)) {
-          for (var j = 0; j < slide.body.length; j++) {
-            slide.body[j] = truncateString(slide.body[j], MAX_STRING_LENGTH);
+        // Truncate oversized strings in blocks
+        for (var j = 0; j < slide.blocks.length; j++) {
+          var block = slide.blocks[j];
+          if (block.text && typeof block.text === 'string') {
+            block.text = truncateString(block.text, MAX_STRING_LENGTH);
+          }
+          if (block.items && Array.isArray(block.items)) {
+            for (var k = 0; k < block.items.length; k++) {
+              block.items[k] = truncateString(block.items[k], MAX_STRING_LENGTH);
+            }
+          }
+          if (block.code && typeof block.code === 'string') {
+            block.code = truncateString(block.code, MAX_STRING_LENGTH * 10);
           }
         }
       }

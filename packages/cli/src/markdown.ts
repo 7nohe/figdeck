@@ -120,17 +120,9 @@ function extractFrontmatter(
 }
 
 /**
- * Ensure a slide object exists with at least content type
- */
-function ensureSlide(slide: SlideContent | null): SlideContent {
-  return slide ?? { type: "content" };
-}
-
-/**
  * Context for building a slide from AST nodes
  */
 interface SlideBuilder {
-  slide: SlideContent | null;
   blocks: SlideBlock[];
   basePath?: string;
   footnoteDefinitions: Map<string, FootnoteItem>;
@@ -143,19 +135,10 @@ function processHeading(heading: Heading, builder: SlideBuilder): void {
   const spans = extractSpans(heading.children as PhrasingContent[]);
   const text = spansToText(spans);
 
-  if (heading.depth === 1) {
-    if (!builder.slide) {
-      builder.slide = { type: "title", title: text };
-    }
-  } else if (heading.depth === 2) {
-    if (!builder.slide) {
-      builder.slide = { type: "content", title: text };
-    }
-  } else if (heading.depth === 3 || heading.depth === 4) {
-    builder.slide = ensureSlide(builder.slide);
+  if (heading.depth >= 1 && heading.depth <= 4) {
     builder.blocks.push({
       kind: "heading",
-      level: heading.depth as 3 | 4,
+      level: heading.depth as 1 | 2 | 3 | 4,
       text,
       spans,
     });
@@ -173,7 +156,6 @@ function processParagraph(
   // Check if paragraph contains only an image
   if (para.children.length === 1 && para.children[0].type === "image") {
     const imgNode = para.children[0] as Image;
-    builder.slide = ensureSlide(builder.slide);
 
     // Determine if this is a local or remote image
     if (isRemoteUrl(imgNode.url)) {
@@ -223,16 +205,12 @@ function processParagraph(
   if (figmaIndex !== null) {
     const figmaBlock = figmaBlocks[figmaIndex];
     if (figmaBlock) {
-      builder.slide = ensureSlide(builder.slide);
       builder.blocks.push({ kind: "figma", link: figmaBlock.link });
     }
     return;
   }
 
   // Regular paragraph
-  builder.slide = ensureSlide(builder.slide);
-  if (!builder.slide.body) builder.slide.body = [];
-  builder.slide.body.push(text);
   builder.blocks.push({ kind: "paragraph", text, spans });
 }
 
@@ -240,10 +218,7 @@ function processParagraph(
  * Process a list node (ordered or unordered)
  */
 function processList(listNode: List, builder: SlideBuilder): void {
-  builder.slide = ensureSlide(builder.slide);
   const { texts, spans: itemSpans } = extractListItemSpans(listNode);
-  if (!builder.slide.bullets) builder.slide.bullets = [];
-  builder.slide.bullets.push(...texts);
   builder.blocks.push({
     kind: "bullets",
     items: texts,
@@ -257,12 +232,6 @@ function processList(listNode: List, builder: SlideBuilder): void {
  * Process a code block node
  */
 function processCode(codeNode: Code, builder: SlideBuilder): void {
-  builder.slide = ensureSlide(builder.slide);
-  if (!builder.slide.codeBlocks) builder.slide.codeBlocks = [];
-  builder.slide.codeBlocks.push({
-    language: codeNode.lang || undefined,
-    code: codeNode.value,
-  });
   builder.blocks.push({
     kind: "code",
     language: codeNode.lang || undefined,
@@ -277,7 +246,6 @@ function processBlockquote(
   blockquote: Blockquote,
   builder: SlideBuilder,
 ): void {
-  builder.slide = ensureSlide(builder.slide);
   const { text, spans } = extractBlockquoteContent(blockquote);
   builder.blocks.push({ kind: "blockquote", text, spans });
 }
@@ -286,7 +254,6 @@ function processBlockquote(
  * Process a table node
  */
 function processTable(tableNode: Table, builder: SlideBuilder): void {
-  builder.slide = ensureSlide(builder.slide);
   const align: TableAlignment[] = (tableNode.align || []).map(
     (a) => a as TableAlignment,
   );
@@ -385,7 +352,6 @@ function parseSlideMarkdown(
 
   const tree = processor.parse(slideBody) as Root;
   const builder: SlideBuilder = {
-    slide: null,
     blocks: [],
     basePath,
     footnoteDefinitions: new Map(),
@@ -419,48 +385,38 @@ function parseSlideMarkdown(
     }
   }
 
-  if (builder.slide) {
-    // Apply slide-specific or default background
-    builder.slide.background =
-      slideBackground || defaultBackground || undefined;
-    // Merge styles (slide-specific overrides global defaults)
-    builder.slide.styles = mergeStyles(defaultStyles, slideStyles);
-    // Merge slideNumber config (slide-specific overrides global defaults)
-    builder.slide.slideNumber = mergeSlideNumberConfig(
-      defaultSlideNumber,
-      slideSlideNumber,
-    );
-    // Merge titlePrefix config (slide-specific overrides global defaults)
-    // null means explicitly disabled, undefined means use default
-    if (slideTitlePrefix === null) {
-      builder.slide.titlePrefix = null;
-    } else if (slideTitlePrefix !== undefined) {
-      builder.slide.titlePrefix = slideTitlePrefix;
-    } else if (defaultTitlePrefix !== undefined) {
-      builder.slide.titlePrefix = defaultTitlePrefix;
-    }
-    // Merge align/valign (slide-specific overrides global defaults)
-    builder.slide.align = slideAlign ?? defaultAlign;
-    builder.slide.valign = slideValign ?? defaultValign;
-    // Merge transition config (slide-specific overrides global defaults)
-    builder.slide.transition = mergeTransitionConfig(
-      defaultTransition,
-      slideTransition,
-    );
-
-    if (builder.blocks.length > 0) {
-      builder.slide.blocks = builder.blocks;
-    }
-
-    // Add footnotes if any were defined
-    if (builder.footnoteDefinitions.size > 0) {
-      builder.slide.footnotes = Array.from(
-        builder.footnoteDefinitions.values(),
-      );
-    }
+  // Return null if no content was found
+  if (builder.blocks.length === 0 && builder.footnoteDefinitions.size === 0) {
+    return null;
   }
 
-  return builder.slide;
+  // Build the slide content
+  const slide: SlideContent = {
+    blocks: builder.blocks,
+    background: slideBackground || defaultBackground || undefined,
+    styles: mergeStyles(defaultStyles, slideStyles),
+    slideNumber: mergeSlideNumberConfig(defaultSlideNumber, slideSlideNumber),
+    align: slideAlign ?? defaultAlign,
+    valign: slideValign ?? defaultValign,
+    transition: mergeTransitionConfig(defaultTransition, slideTransition),
+  };
+
+  // Merge titlePrefix config (slide-specific overrides global defaults)
+  // null means explicitly disabled, undefined means use default
+  if (slideTitlePrefix === null) {
+    slide.titlePrefix = null;
+  } else if (slideTitlePrefix !== undefined) {
+    slide.titlePrefix = slideTitlePrefix;
+  } else if (defaultTitlePrefix !== undefined) {
+    slide.titlePrefix = defaultTitlePrefix;
+  }
+
+  // Add footnotes if any were defined
+  if (builder.footnoteDefinitions.size > 0) {
+    slide.footnotes = Array.from(builder.footnoteDefinitions.values());
+  }
+
+  return slide;
 }
 
 /**

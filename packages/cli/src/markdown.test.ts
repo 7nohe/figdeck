@@ -6,7 +6,8 @@ describe("parseMarkdown", () => {
     it("should parse bold text", () => {
       const result = parseMarkdown("## Test\n\nThis is **bold** text.");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      // blocks[0] is heading, blocks[1] is paragraph
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("paragraph");
       if (block?.kind === "paragraph" && block.spans) {
         expect(block.spans).toContainEqual({ text: "bold", bold: true });
@@ -16,7 +17,7 @@ describe("parseMarkdown", () => {
     it("should parse italic text", () => {
       const result = parseMarkdown("## Test\n\nThis is *italic* text.");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "paragraph" && block.spans) {
         expect(block.spans).toContainEqual({ text: "italic", italic: true });
       }
@@ -25,7 +26,7 @@ describe("parseMarkdown", () => {
     it("should parse strikethrough text", () => {
       const result = parseMarkdown("## Test\n\nThis is ~~deleted~~ text.");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "paragraph" && block.spans) {
         expect(block.spans).toContainEqual({ text: "deleted", strike: true });
       }
@@ -34,7 +35,7 @@ describe("parseMarkdown", () => {
     it("should parse inline code", () => {
       const result = parseMarkdown("## Test\n\nUse `code` here.");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "paragraph" && block.spans) {
         expect(block.spans).toContainEqual({ text: "code", code: true });
       }
@@ -45,7 +46,7 @@ describe("parseMarkdown", () => {
         "## Test\n\nVisit [Figma](https://figma.com).",
       );
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "paragraph" && block.spans) {
         expect(block.spans).toContainEqual({
           text: "Figma",
@@ -57,7 +58,7 @@ describe("parseMarkdown", () => {
     it("should parse combined formatting", () => {
       const result = parseMarkdown("## Test\n\n***bold italic***");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "paragraph" && block.spans) {
         expect(block.spans).toContainEqual({
           text: "bold italic",
@@ -72,7 +73,7 @@ describe("parseMarkdown", () => {
     it("should parse ordered list with correct start", () => {
       const result = parseMarkdown("## Test\n\n1. First\n2. Second\n3. Third");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("bullets");
       if (block?.kind === "bullets") {
         expect(block.ordered).toBe(true);
@@ -84,7 +85,7 @@ describe("parseMarkdown", () => {
     it("should preserve custom start number", () => {
       const result = parseMarkdown("## Test\n\n5. Fifth\n6. Sixth");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "bullets") {
         expect(block.ordered).toBe(true);
         expect(block.start).toBe(5);
@@ -96,7 +97,7 @@ describe("parseMarkdown", () => {
     it("should parse blockquote", () => {
       const result = parseMarkdown("## Test\n\n> This is a quote.");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("blockquote");
       if (block?.kind === "blockquote") {
         expect(block.text).toBe("This is a quote.");
@@ -106,7 +107,7 @@ describe("parseMarkdown", () => {
     it("should parse blockquote with formatting", () => {
       const result = parseMarkdown("## Test\n\n> Quote with **bold**.");
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "blockquote" && block.spans) {
         expect(block.spans).toContainEqual({ text: "bold", bold: true });
       }
@@ -119,7 +120,7 @@ describe("parseMarkdown", () => {
         "## Test\n\n![Alt text](https://example.com/img.png)",
       );
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("image");
       if (block?.kind === "image") {
         expect(block.url).toBe("https://example.com/img.png");
@@ -137,7 +138,7 @@ describe("parseMarkdown", () => {
 | 1 | 2 |
 | 3 | 4 |`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("table");
       if (block?.kind === "table") {
         expect(block.headers).toHaveLength(2);
@@ -152,7 +153,7 @@ describe("parseMarkdown", () => {
 |:-----|:------:|------:|
 | a | b | c |`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "table") {
         expect(block.align).toEqual(["left", "center", "right"]);
       }
@@ -165,7 +166,7 @@ describe("parseMarkdown", () => {
 |---------|
 | **bold** |`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "table") {
         expect(block.rows[0][0]).toContainEqual({ text: "bold", bold: true });
       }
@@ -180,26 +181,28 @@ describe("parseMarkdown", () => {
 const x = 1;
 \`\`\``);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("code");
       if (block?.kind === "code") {
         expect(block.language).toBe("typescript");
         expect(block.code).toBe("const x = 1;");
       }
     });
-  });
 
-  describe("legacy compatibility", () => {
-    it("should populate body array for paragraphs", () => {
-      const result = parseMarkdown("## Test\n\nParagraph text.");
-      expect(result).toHaveLength(1);
-      expect(result[0].body).toEqual(["Paragraph text."]);
-    });
+    it("should handle code block without language", () => {
+      const result = parseMarkdown(`## Test
 
-    it("should populate bullets array for lists", () => {
-      const result = parseMarkdown("## Test\n\n- Item 1\n- Item 2");
+\`\`\`
+no language
+\`\`\``);
+
       expect(result).toHaveLength(1);
-      expect(result[0].bullets).toEqual(["Item 1", "Item 2"]);
+      const codeBlock = result[0].blocks[1];
+      expect(codeBlock?.kind).toBe("code");
+      if (codeBlock?.kind === "code") {
+        expect(codeBlock.language).toBeUndefined();
+        expect(codeBlock.code).toBe("no language");
+      }
     });
   });
 
@@ -211,7 +214,7 @@ const x = 1;
 link=https://www.figma.com/file/abc123/MyFile?node-id=1234-5678
 :::`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("figma");
       if (block?.kind === "figma") {
         expect(block.link.url).toBe(
@@ -229,7 +232,7 @@ link=https://www.figma.com/file/abc123/MyFile?node-id=1234-5678
 link=https://www.figma.com/design/xyz789/Design?node-id=42-100
 :::`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "figma") {
         expect(block.link.fileKey).toBe("xyz789");
         expect(block.link.nodeId).toBe("42:100");
@@ -243,7 +246,7 @@ link=https://www.figma.com/design/xyz789/Design?node-id=42-100
 link=https://www.figma.com/file/abc/Name?node-id=1%3A2
 :::`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "figma") {
         expect(block.link.nodeId).toBe("1:2");
       }
@@ -258,7 +261,7 @@ x=160
 y=300
 :::`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "figma") {
         expect(block.link.x).toBe(160);
         expect(block.link.y).toBe(300);
@@ -272,7 +275,7 @@ y=300
 link=https://www.figma.com/file/abc/Name
 :::`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "figma") {
         expect(block.link.url).toBe("https://www.figma.com/file/abc/Name");
         expect(block.link.fileKey).toBe("abc");
@@ -287,7 +290,7 @@ link=https://www.figma.com/file/abc/Name
 link=not-a-valid-url
 :::`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "figma") {
         expect(block.link.url).toBe("not-a-valid-url");
         expect(block.link.fileKey).toBeUndefined();
@@ -302,8 +305,9 @@ link=not-a-valid-url
 x=100
 :::`);
       expect(result).toHaveLength(1);
-      // Block should not be added since link is missing
-      expect(result[0].blocks).toBeUndefined();
+      // Only heading block, figma block was skipped
+      expect(result[0].blocks).toHaveLength(1);
+      expect(result[0].blocks[0].kind).toBe("heading");
     });
 
     it("should parse multiple figma blocks", () => {
@@ -320,10 +324,11 @@ link=https://www.figma.com/file/b/Name?node-id=2-2
 :::`);
       expect(result).toHaveLength(1);
       const blocks = result[0].blocks;
-      expect(blocks).toHaveLength(3); // figma, paragraph, figma
-      expect(blocks?.[0]?.kind).toBe("figma");
-      expect(blocks?.[1]?.kind).toBe("paragraph");
-      expect(blocks?.[2]?.kind).toBe("figma");
+      expect(blocks).toHaveLength(4); // heading, figma, paragraph, figma
+      expect(blocks[0].kind).toBe("heading");
+      expect(blocks[1].kind).toBe("figma");
+      expect(blocks[2].kind).toBe("paragraph");
+      expect(blocks[3].kind).toBe("figma");
     });
   });
 
@@ -366,9 +371,13 @@ Text`);
     it("should handle slide with only heading (no content blocks)", () => {
       const result = parseMarkdown("# Title Only");
       expect(result).toHaveLength(1);
-      expect(result[0].type).toBe("title");
-      expect(result[0].title).toBe("Title Only");
-      expect(result[0].blocks).toBeUndefined();
+      expect(result[0].blocks).toHaveLength(1);
+      const heading = result[0].blocks[0];
+      expect(heading.kind).toBe("heading");
+      if (heading.kind === "heading") {
+        expect(heading.level).toBe(1);
+        expect(heading.text).toBe("Title Only");
+      }
     });
 
     it("should build slide with multiple block types", () => {
@@ -387,11 +396,12 @@ code();
 
       expect(result).toHaveLength(1);
       const blocks = result[0].blocks;
-      expect(blocks).toHaveLength(4);
-      expect(blocks?.[0]?.kind).toBe("paragraph");
-      expect(blocks?.[1]?.kind).toBe("bullets");
-      expect(blocks?.[2]?.kind).toBe("code");
-      expect(blocks?.[3]?.kind).toBe("blockquote");
+      expect(blocks).toHaveLength(5); // heading + 4 content blocks
+      expect(blocks[0].kind).toBe("heading");
+      expect(blocks[1].kind).toBe("paragraph");
+      expect(blocks[2].kind).toBe("bullets");
+      expect(blocks[3].kind).toBe("code");
+      expect(blocks[4].kind).toBe("blockquote");
     });
 
     it("should process h3 and h4 as content blocks", () => {
@@ -403,24 +413,26 @@ code();
 
       expect(result).toHaveLength(1);
       const blocks = result[0].blocks;
-      expect(blocks).toHaveLength(2);
+      expect(blocks).toHaveLength(3); // h2 + h3 + h4
 
-      if (blocks?.[0]?.kind === "heading") {
-        expect(blocks[0].level).toBe(3);
-        expect(blocks[0].text).toBe("Sub Heading");
+      if (blocks[0].kind === "heading") {
+        expect(blocks[0].level).toBe(2);
+        expect(blocks[0].text).toBe("Main Title");
       }
-      if (blocks?.[1]?.kind === "heading") {
-        expect(blocks[1].level).toBe(4);
-        expect(blocks[1].text).toBe("Sub-sub Heading");
+      if (blocks[1].kind === "heading") {
+        expect(blocks[1].level).toBe(3);
+        expect(blocks[1].text).toBe("Sub Heading");
+      }
+      if (blocks[2].kind === "heading") {
+        expect(blocks[2].level).toBe(4);
+        expect(blocks[2].text).toBe("Sub-sub Heading");
       }
     });
 
-    it("should create content slide from paragraph without heading", () => {
+    it("should create slide from paragraph without heading", () => {
       const result = parseMarkdown("Just a paragraph without heading.");
       expect(result).toHaveLength(1);
-      expect(result[0].type).toBe("content");
-      expect(result[0].title).toBeUndefined();
-      expect(result[0].blocks?.[0]?.kind).toBe("paragraph");
+      expect(result[0].blocks[0].kind).toBe("paragraph");
     });
 
     it("should process images within paragraphs", () => {
@@ -432,13 +444,13 @@ code();
 
       expect(result).toHaveLength(1);
       const blocks = result[0].blocks;
-      expect(blocks).toHaveLength(2);
-      expect(blocks?.[0]?.kind).toBe("image");
-      expect(blocks?.[1]?.kind).toBe("image");
+      expect(blocks).toHaveLength(3); // heading + 2 images
+      expect(blocks[1].kind).toBe("image");
+      expect(blocks[2].kind).toBe("image");
 
-      if (blocks?.[0]?.kind === "image") {
-        expect(blocks[0].url).toBe("https://example.com/img.png");
-        expect(blocks[0].alt).toBe("Screenshot");
+      if (blocks[1].kind === "image") {
+        expect(blocks[1].url).toBe("https://example.com/img.png");
+        expect(blocks[1].alt).toBe("Screenshot");
       }
     });
 
@@ -451,7 +463,7 @@ code();
 - [Link](https://example.com) item`);
 
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("bullets");
 
       if (block?.kind === "bullets" && block.itemSpans) {
@@ -471,7 +483,7 @@ code();
       }
     });
 
-    it("should process multiple slides with different types", () => {
+    it("should process multiple slides with different heading levels", () => {
       const result = parseMarkdown(`# Title Slide
 
 ---
@@ -487,26 +499,23 @@ Body text
 - Bullet`);
 
       expect(result).toHaveLength(3);
-      expect(result[0].type).toBe("title");
-      expect(result[1].type).toBe("content");
-      expect(result[2].type).toBe("content");
+      // First slide: H1
+      expect(result[0].blocks[0].kind).toBe("heading");
+      if (result[0].blocks[0].kind === "heading") {
+        expect(result[0].blocks[0].level).toBe(1);
+      }
+      // Second slide: H2 + paragraph
+      expect(result[1].blocks[0].kind).toBe("heading");
+      if (result[1].blocks[0].kind === "heading") {
+        expect(result[1].blocks[0].level).toBe(2);
+      }
+      // Third slide: H2 + bullets
+      expect(result[2].blocks[0].kind).toBe("heading");
+      expect(result[2].blocks[1].kind).toBe("bullets");
     });
   });
 
   describe("code block processing", () => {
-    it("should populate codeBlocks array for legacy compatibility", () => {
-      const result = parseMarkdown(`## Test
-
-\`\`\`python
-print("hello")
-\`\`\``);
-
-      expect(result).toHaveLength(1);
-      expect(result[0].codeBlocks).toHaveLength(1);
-      expect(result[0].codeBlocks?.[0].language).toBe("python");
-      expect(result[0].codeBlocks?.[0].code).toBe('print("hello")');
-    });
-
     it("should handle multiple code blocks", () => {
       const result = parseMarkdown(`## Test
 
@@ -519,21 +528,10 @@ const b: number = 2;
 \`\`\``);
 
       expect(result).toHaveLength(1);
-      expect(result[0].codeBlocks).toHaveLength(2);
-      expect(result[0].blocks).toHaveLength(2);
-    });
-
-    it("should handle code block without language", () => {
-      const result = parseMarkdown(`## Test
-
-\`\`\`
-no language
-\`\`\``);
-
-      expect(result).toHaveLength(1);
-      const codeBlock = result[0].codeBlocks?.[0];
-      expect(codeBlock?.language).toBeUndefined();
-      expect(codeBlock?.code).toBe("no language");
+      // heading + 2 code blocks
+      expect(result[0].blocks).toHaveLength(3);
+      expect(result[0].blocks[1].kind).toBe("code");
+      expect(result[0].blocks[2].kind).toBe("code");
     });
   });
 
@@ -546,7 +544,7 @@ no language
 | 1 | 2 |`);
 
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "table") {
         // No alignment specified, should default to nulls
         expect(block.align).toEqual([null, null]);
@@ -561,7 +559,7 @@ no language
 | data |`);
 
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "table") {
         expect(block.headers[0]).toContainEqual({
           text: "Bold Header",
@@ -579,7 +577,7 @@ no language
 > Line 2`);
 
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "blockquote") {
         expect(block.text).toContain("Line 1");
         expect(block.text).toContain("Line 2");
@@ -592,7 +590,7 @@ no language
 > This has **bold** and *italic*.`);
 
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "blockquote") {
         expect(block.spans).toContainEqual({ text: "bold", bold: true });
         expect(block.spans).toContainEqual({ text: "italic", italic: true });
@@ -611,7 +609,7 @@ y=200
 :::`);
 
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("figma");
       if (block?.kind === "figma") {
         expect(block.link.url).toBe(
@@ -631,7 +629,7 @@ y=200
         `## Test\n\n![Alt text](https://example.com/image.png)`,
       );
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("image");
       if (block?.kind === "image") {
         expect(block.url).toBe("https://example.com/image.png");
@@ -645,7 +643,7 @@ y=200
       // Without basePath option, local paths don't get marked as local
       const result = parseMarkdown(`## Test\n\n![Logo](./images/logo.png)`);
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("image");
       if (block?.kind === "image") {
         expect(block.url).toBe("./images/logo.png");
@@ -661,7 +659,7 @@ y=200
         basePath: "/fake/path",
       });
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("image");
       if (block?.kind === "image") {
         expect(block.url).toBe("./nonexistent.png");
@@ -677,7 +675,7 @@ y=200
         `## Test\n\n![Detailed description of the image](https://example.com/photo.jpg)`,
       );
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "image") {
         expect(block.alt).toBe("Detailed description of the image");
       }
@@ -688,7 +686,7 @@ y=200
         `## Test\n\n![](https://example.com/image.png)`,
       );
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "image") {
         expect(block.alt).toBeUndefined();
       }
@@ -808,7 +806,7 @@ Text[^1] here.
 [^1]: Footnote.`);
 
       expect(result).toHaveLength(1);
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       expect(block?.kind).toBe("paragraph");
       if (block?.kind === "paragraph" && block.spans) {
         expect(block.spans).toContainEqual({ text: "[1]", superscript: true });
@@ -877,7 +875,7 @@ Text with undefined reference[^undefined].`);
 
       expect(result).toHaveLength(1);
       // Without a matching definition, remark-gfm keeps the raw text as-is
-      const block = result[0].blocks?.[0];
+      const block = result[0].blocks[1];
       if (block?.kind === "paragraph" && block.spans) {
         // The text contains [^undefined] literally since no definition exists
         expect(block.spans[0].text).toContain("[^undefined]");
@@ -1037,6 +1035,71 @@ Some content.`);
 
       expect(result).toHaveLength(1);
       expect(result[0].transition).toBeUndefined();
+    });
+  });
+
+  describe("h1 and h2 in same slide", () => {
+    it("should include both h1 and h2 as blocks when in same slide", () => {
+      const result = parseMarkdown(`# Main Title
+
+## Subtitle`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].blocks).toHaveLength(2);
+
+      const h1Block = result[0].blocks[0];
+      const h2Block = result[0].blocks[1];
+
+      expect(h1Block.kind).toBe("heading");
+      expect(h2Block.kind).toBe("heading");
+
+      if (h1Block.kind === "heading") {
+        expect(h1Block.level).toBe(1);
+        expect(h1Block.text).toBe("Main Title");
+      }
+      if (h2Block.kind === "heading") {
+        expect(h2Block.level).toBe(2);
+        expect(h2Block.text).toBe("Subtitle");
+      }
+    });
+
+    it("should include h2 then h1 in order when h2 comes first", () => {
+      const result = parseMarkdown(`## Subtitle First
+
+# Then Title`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].blocks).toHaveLength(2);
+
+      const firstBlock = result[0].blocks[0];
+      const secondBlock = result[0].blocks[1];
+
+      if (firstBlock.kind === "heading") {
+        expect(firstBlock.level).toBe(2);
+        expect(firstBlock.text).toBe("Subtitle First");
+      }
+      if (secondBlock.kind === "heading") {
+        expect(secondBlock.level).toBe(1);
+        expect(secondBlock.text).toBe("Then Title");
+      }
+    });
+
+    it("should handle multiple h1 and h2 headings", () => {
+      const result = parseMarkdown(`# First H1
+
+## First H2
+
+# Second H1
+
+## Second H2`);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].blocks).toHaveLength(4);
+
+      const levels = result[0].blocks.map((b) =>
+        b.kind === "heading" ? b.level : null,
+      );
+      expect(levels).toEqual([1, 2, 1, 2]);
     });
   });
 });

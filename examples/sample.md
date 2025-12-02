@@ -1,13 +1,22 @@
 ---
 background: "#ffffff"
 color: "#1a1a2e"
+headings:
+  h1:
+    size: 96
+  h2:
+    size: 48
+  h3:
+    size: 28
+  h4:
+    size: 24
 ---
 
 # Welcome to figdeck
 
 ## Markdown to Figma Slides
 
-## Agenda
+### Agenda
 
 - Introduction
 - Features

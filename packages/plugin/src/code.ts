@@ -281,7 +281,21 @@ async function renderBlockToNode(
     }
 
     case "heading": {
-      const style = block.level === 3 ? styles.h3 : styles.h4;
+      let style: ReturnType<typeof resolveSlideStyles>["h1"];
+      switch (block.level) {
+        case 1:
+          style = styles.h1;
+          break;
+        case 2:
+          style = styles.h2;
+          break;
+        case 3:
+          style = styles.h3;
+          break;
+        case 4:
+          style = styles.h4;
+          break;
+      }
       const result = await renderHeading(block.text, block.spans, style, 0, 0);
       return result.node;
     }
@@ -455,92 +469,77 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
     slide.valign,
   );
 
-  // Render title if present
-  if (slide.title) {
-    const titleStyle = slide.type === "title" ? styles.h1 : styles.h2;
-    const titleNode = await renderTitleToNode(
-      slide.title,
-      titleStyle,
-      slide.titlePrefix,
-    );
-    container.appendChild(titleNode);
-  }
-
   // Collect nodes that need absolute positioning (to be added after container)
   const absoluteNodes: Array<{ node: SceneNode; x: number; y: number }> = [];
 
+  // Track if we've rendered the first title (H1/H2) for prefix support
+  let firstTitleRendered = false;
+
   // Render blocks
-  if (slide.blocks && slide.blocks.length > 0) {
-    for (const block of slide.blocks) {
-      // Handle figma blocks with custom position separately
-      if (
-        block.kind === "figma" &&
-        (block.link.x !== undefined || block.link.y !== undefined)
-      ) {
-        const figmaNode = await renderFigmaLink(block.link);
-        absoluteNodes.push({
-          node: figmaNode,
-          x: block.link.x ?? 0,
-          y: block.link.y ?? 0,
-        });
-        continue;
-      }
+  for (const block of slide.blocks) {
+    // Handle figma blocks with custom position separately
+    if (
+      block.kind === "figma" &&
+      (block.link.x !== undefined || block.link.y !== undefined)
+    ) {
+      const figmaNode = await renderFigmaLink(block.link);
+      absoluteNodes.push({
+        node: figmaNode,
+        x: block.link.x ?? 0,
+        y: block.link.y ?? 0,
+      });
+      continue;
+    }
 
-      // Determine the style for this block kind
-      const blockStyle = getStyleForBlock(block.kind, styles);
+    // Determine the style for this block kind
+    const blockStyle = getStyleForBlock(block.kind, styles);
 
-      // Check if this block has absolute positioning via style
-      if (
-        blockStyle &&
-        (blockStyle.x !== undefined || blockStyle.y !== undefined)
-      ) {
-        const blockNode = await renderBlockToNode(block, styles);
-        if (blockNode) {
-          absoluteNodes.push({
-            node: blockNode,
-            x: blockStyle.x ?? 0,
-            y: blockStyle.y ?? 0,
-          });
-        }
-        continue;
-      }
-
+    // Check if this block has absolute positioning via style
+    if (
+      blockStyle &&
+      (blockStyle.x !== undefined || blockStyle.y !== undefined)
+    ) {
       const blockNode = await renderBlockToNode(block, styles);
       if (blockNode) {
-        container.appendChild(blockNode);
+        absoluteNodes.push({
+          node: blockNode,
+          x: blockStyle.x ?? 0,
+          y: blockStyle.y ?? 0,
+        });
       }
-    }
-  } else {
-    // Render legacy content
-    if (slide.body && slide.body.length > 0) {
-      const result = await renderParagraph(
-        slide.body.join("\n"),
-        undefined,
-        styles.paragraph,
-        0,
-        0,
-      );
-      container.appendChild(result.node);
+      continue;
     }
 
-    if (slide.bullets && slide.bullets.length > 0) {
-      const result = await renderBulletList(
-        slide.bullets,
-        undefined,
-        styles.bullet,
-        false,
-        1,
-        0,
-        0,
+    // Special handling for first H1/H2 heading with titlePrefix
+    if (
+      block.kind === "heading" &&
+      (block.level === 1 || block.level === 2) &&
+      !firstTitleRendered &&
+      slide.titlePrefix
+    ) {
+      const titleStyle = block.level === 1 ? styles.h1 : styles.h2;
+      const titleNode = await renderTitleToNode(
+        block.text,
+        titleStyle,
+        slide.titlePrefix,
       );
-      container.appendChild(result.node);
+      container.appendChild(titleNode);
+      firstTitleRendered = true;
+      continue;
     }
 
-    if (slide.codeBlocks && slide.codeBlocks.length > 0) {
-      for (const codeBlock of slide.codeBlocks) {
-        const result = renderCodeBlock(codeBlock, styles.code.fontSize, 0, 0);
-        container.appendChild(result.node);
-      }
+    // Mark first H1/H2 as rendered even without prefix
+    if (
+      block.kind === "heading" &&
+      (block.level === 1 || block.level === 2) &&
+      !firstTitleRendered
+    ) {
+      firstTitleRendered = true;
+    }
+
+    const blockNode = await renderBlockToNode(block, styles);
+    if (blockNode) {
+      container.appendChild(blockNode);
     }
   }
 
@@ -678,45 +677,42 @@ function validateAndSanitizeSlides(
       return { valid: false, error: `Slide ${i + 1} is not an object` };
     }
 
-    if (slide.type !== "title" && slide.type !== "content") {
+    // Validate blocks array exists
+    if (!Array.isArray(slide.blocks)) {
       return {
         valid: false,
-        error: `Slide ${i + 1} has invalid type (must be "title" or "content")`,
+        error: `Slide ${i + 1} is missing blocks array`,
       };
     }
 
     // Check blocks limit
-    if (
-      slide.blocks &&
-      Array.isArray(slide.blocks) &&
-      slide.blocks.length > MAX_BLOCKS_PER_SLIDE
-    ) {
+    if (slide.blocks.length > MAX_BLOCKS_PER_SLIDE) {
       return {
         valid: false,
         error: `Slide ${i + 1} has too many blocks (max: ${MAX_BLOCKS_PER_SLIDE})`,
       };
     }
 
-    // Sanitize strings (use Object.assign for Figma sandbox compatibility)
+    // Sanitize strings in blocks (use Object.assign for Figma sandbox compatibility)
     const sanitizedSlide = Object.assign({}, slide) as unknown as SlideContent;
 
-    if (typeof sanitizedSlide.title === "string") {
-      sanitizedSlide.title = truncateString(
-        sanitizedSlide.title,
-        MAX_STRING_LENGTH,
-      );
-    }
-
-    if (Array.isArray(sanitizedSlide.body)) {
-      sanitizedSlide.body = sanitizedSlide.body.map((item) =>
-        typeof item === "string" ? truncateString(item, MAX_STRING_LENGTH) : "",
-      );
-    }
-
-    if (Array.isArray(sanitizedSlide.bullets)) {
-      sanitizedSlide.bullets = sanitizedSlide.bullets.map((item) =>
-        typeof item === "string" ? truncateString(item, MAX_STRING_LENGTH) : "",
-      );
+    // Sanitize text content in blocks
+    if (Array.isArray(sanitizedSlide.blocks)) {
+      sanitizedSlide.blocks = sanitizedSlide.blocks.map((block) => {
+        const sanitizedBlock = Object.assign({}, block);
+        if ("text" in sanitizedBlock && typeof sanitizedBlock.text === "string") {
+          sanitizedBlock.text = truncateString(sanitizedBlock.text, MAX_STRING_LENGTH);
+        }
+        if ("items" in sanitizedBlock && Array.isArray(sanitizedBlock.items)) {
+          sanitizedBlock.items = sanitizedBlock.items.map((item: unknown) =>
+            typeof item === "string" ? truncateString(item, MAX_STRING_LENGTH) : ""
+          );
+        }
+        if ("code" in sanitizedBlock && typeof sanitizedBlock.code === "string") {
+          sanitizedBlock.code = truncateString(sanitizedBlock.code, MAX_STRING_LENGTH * 10);
+        }
+        return sanitizedBlock;
+      });
     }
 
     sanitized.push(sanitizedSlide);

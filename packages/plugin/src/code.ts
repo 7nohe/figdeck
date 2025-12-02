@@ -700,16 +700,30 @@ function validateAndSanitizeSlides(
     if (Array.isArray(sanitizedSlide.blocks)) {
       sanitizedSlide.blocks = sanitizedSlide.blocks.map((block) => {
         const sanitizedBlock = Object.assign({}, block);
-        if ("text" in sanitizedBlock && typeof sanitizedBlock.text === "string") {
-          sanitizedBlock.text = truncateString(sanitizedBlock.text, MAX_STRING_LENGTH);
+        if (
+          "text" in sanitizedBlock &&
+          typeof sanitizedBlock.text === "string"
+        ) {
+          sanitizedBlock.text = truncateString(
+            sanitizedBlock.text,
+            MAX_STRING_LENGTH,
+          );
         }
         if ("items" in sanitizedBlock && Array.isArray(sanitizedBlock.items)) {
           sanitizedBlock.items = sanitizedBlock.items.map((item: unknown) =>
-            typeof item === "string" ? truncateString(item, MAX_STRING_LENGTH) : ""
+            typeof item === "string"
+              ? truncateString(item, MAX_STRING_LENGTH)
+              : "",
           );
         }
-        if ("code" in sanitizedBlock && typeof sanitizedBlock.code === "string") {
-          sanitizedBlock.code = truncateString(sanitizedBlock.code, MAX_STRING_LENGTH * 10);
+        if (
+          "code" in sanitizedBlock &&
+          typeof sanitizedBlock.code === "string"
+        ) {
+          sanitizedBlock.code = truncateString(
+            sanitizedBlock.code,
+            MAX_STRING_LENGTH * 10,
+          );
         }
         return sanitizedBlock;
       });

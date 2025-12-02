@@ -1,6 +1,6 @@
 {
   "name": "figdeck",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CLI for converting Markdown to Figma Slides",
   "type": "module",
   "bin": {

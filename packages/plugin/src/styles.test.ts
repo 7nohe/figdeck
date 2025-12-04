@@ -1,5 +1,11 @@
 import { describe, expect, it } from "bun:test";
-import { createFill, LAYOUT, resolveSlideStyles } from "./styles";
+import {
+  applyFontFallbacks,
+  collectFontNames,
+  createFill,
+  LAYOUT,
+  resolveSlideStyles,
+} from "./styles";
 
 type SolidPaint = { type: "SOLID"; color: RGB; opacity?: number };
 type RGB = { r: number; g: number; b: number };
@@ -155,5 +161,188 @@ describe("LAYOUT constants", () => {
     expect(LAYOUT.TITLE_SPACING).toBe(40);
     expect(LAYOUT.BLOCK_SPACING).toBe(30);
     expect(LAYOUT.BULLET_ITEM_SPACING).toBe(8);
+  });
+});
+
+describe("font resolution", () => {
+  it("should return default Inter font when no fonts config provided", () => {
+    const styles = resolveSlideStyles(undefined);
+
+    expect(styles.h1.font.family).toBe("Inter");
+    expect(styles.h1.font.regular).toBe("Bold"); // headings default to Bold
+    expect(styles.h1.font.bold).toBe("Bold");
+    expect(styles.h1.font.italic).toBe("Italic");
+    expect(styles.h1.font.boldItalic).toBe("Bold Italic");
+
+    expect(styles.paragraph.font.family).toBe("Inter");
+    expect(styles.paragraph.font.regular).toBe("Regular");
+  });
+
+  it("should apply custom font config for h1", () => {
+    const styles = resolveSlideStyles({
+      fonts: {
+        h1: {
+          family: "Roboto",
+          style: "Medium",
+          bold: "Bold",
+          italic: "Italic",
+          boldItalic: "Bold Italic",
+        },
+      },
+    });
+
+    expect(styles.h1.font.family).toBe("Roboto");
+    expect(styles.h1.font.regular).toBe("Medium");
+    expect(styles.h1.font.bold).toBe("Bold");
+    // Other styles should still use Inter
+    expect(styles.h2.font.family).toBe("Inter");
+  });
+
+  it("should apply custom font config for body/bullets/code", () => {
+    const styles = resolveSlideStyles({
+      fonts: {
+        body: { family: "Source Sans Pro", style: "Light", bold: "Semibold" },
+        bullets: { family: "Open Sans", style: "Regular" },
+      },
+    });
+
+    expect(styles.paragraph.font.family).toBe("Source Sans Pro");
+    expect(styles.paragraph.font.regular).toBe("Light");
+    expect(styles.paragraph.font.bold).toBe("Semibold");
+
+    expect(styles.bullet.font.family).toBe("Open Sans");
+  });
+
+  it("should use defaults for unspecified font variants", () => {
+    const styles = resolveSlideStyles({
+      fonts: {
+        h1: { family: "Custom", style: "Regular" },
+      },
+    });
+
+    // Only family and style are specified, others should use defaults
+    expect(styles.h1.font.family).toBe("Custom");
+    expect(styles.h1.font.regular).toBe("Regular");
+    expect(styles.h1.font.bold).toBe("Bold");
+    expect(styles.h1.font.italic).toBe("Italic");
+    expect(styles.h1.font.boldItalic).toBe("Bold Italic");
+  });
+});
+
+describe("collectFontNames", () => {
+  it("should collect all unique font variants from styles", () => {
+    const styles = resolveSlideStyles({
+      fonts: {
+        h1: { family: "Roboto", style: "Medium", bold: "Bold" },
+        body: { family: "Source Sans Pro", style: "Regular" },
+      },
+    });
+
+    const fontNames = collectFontNames(styles);
+
+    // Should include unique font/style combinations
+    expect(
+      fontNames.some((f) => f.family === "Roboto" && f.style === "Medium"),
+    ).toBe(true);
+    expect(
+      fontNames.some((f) => f.family === "Roboto" && f.style === "Bold"),
+    ).toBe(true);
+    expect(
+      fontNames.some(
+        (f) => f.family === "Source Sans Pro" && f.style === "Regular",
+      ),
+    ).toBe(true);
+    expect(fontNames.some((f) => f.family === "Inter")).toBe(true); // From other styles
+  });
+
+  it("should not duplicate font entries", () => {
+    const styles = resolveSlideStyles(undefined);
+    const fontNames = collectFontNames(styles);
+
+    // Count Inter/Bold entries (should be exactly 1)
+    const interBoldCount = fontNames.filter(
+      (f) => f.family === "Inter" && f.style === "Bold",
+    ).length;
+    expect(interBoldCount).toBe(1);
+  });
+
+  it("should include all four variants for each font family", () => {
+    const styles = resolveSlideStyles({
+      fonts: {
+        h1: {
+          family: "Custom",
+          style: "Regular",
+          bold: "Bold",
+          italic: "Italic",
+          boldItalic: "Bold Italic",
+        },
+      },
+    });
+
+    const fontNames = collectFontNames(styles);
+
+    expect(
+      fontNames.some((f) => f.family === "Custom" && f.style === "Regular"),
+    ).toBe(true);
+    expect(
+      fontNames.some((f) => f.family === "Custom" && f.style === "Bold"),
+    ).toBe(true);
+    expect(
+      fontNames.some((f) => f.family === "Custom" && f.style === "Italic"),
+    ).toBe(true);
+    expect(
+      fontNames.some((f) => f.family === "Custom" && f.style === "Bold Italic"),
+    ).toBe(true);
+  });
+});
+
+describe("applyFontFallbacks", () => {
+  const interFonts = [
+    "Inter|Regular",
+    "Inter|Bold",
+    "Inter|Italic",
+    "Inter|Bold Italic",
+  ];
+
+  it("should fall back to Inter when a font variant is unavailable", () => {
+    const styles = resolveSlideStyles({
+      fonts: {
+        h1: { family: "Missing Font", style: "Semibold", italic: "Italic" },
+      },
+    });
+
+    const availableFonts = new Set<string>(interFonts);
+    const resolved = applyFontFallbacks(styles, availableFonts);
+
+    expect(resolved.h1.font.family).toBe("Inter");
+    expect(resolved.h1.font.regular).toBe("Bold"); // Semibold → Bold
+    expect(resolved.h1.font.italic).toBe("Italic");
+    expect(resolved.h1.font.boldItalic).toBe("Bold Italic");
+  });
+
+  it("should keep custom fonts when all variants are loaded", () => {
+    const styles = resolveSlideStyles({
+      fonts: {
+        body: {
+          family: "Loaded Family",
+          style: "Regular",
+          bold: "Bold",
+          italic: "Italic",
+          boldItalic: "Bold Italic",
+        },
+      },
+    });
+
+    const availableFonts = new Set<string>([
+      ...interFonts,
+      "Loaded Family|Regular",
+      "Loaded Family|Bold",
+      "Loaded Family|Italic",
+      "Loaded Family|Bold Italic",
+    ]);
+
+    const resolved = applyFontFallbacks(styles, availableFonts);
+    expect(resolved.paragraph.font.family).toBe("Loaded Family");
+    expect(resolved.paragraph.font.regular).toBe("Regular");
   });
 });

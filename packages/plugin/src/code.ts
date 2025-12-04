@@ -15,7 +15,13 @@ import {
   clearSlideContent,
   renderSlideNumber,
 } from "./slide-utils";
-import { LAYOUT, type ResolvedTextStyle, resolveSlideStyles } from "./styles";
+import {
+  applyFontFallbacks,
+  collectFontNames,
+  LAYOUT,
+  type ResolvedTextStyle,
+  resolveSlideStyles,
+} from "./styles";
 import type {
   HorizontalAlign,
   SlideBlock,
@@ -117,11 +123,66 @@ async function findCloneableNode(nodeId: string): Promise<SceneNode | null> {
   }
 }
 
-async function loadFont() {
-  await figma.loadFontAsync({ family: "Inter", style: "Regular" });
-  await figma.loadFontAsync({ family: "Inter", style: "Bold" });
-  await figma.loadFontAsync({ family: "Inter", style: "Italic" });
-  await figma.loadFontAsync({ family: "Inter", style: "Bold Italic" });
+// Cache for loaded fonts to avoid repeated loadFontAsync calls
+const loadedFonts = new Set<string>();
+
+/**
+ * Load default Inter fonts (used as fallback)
+ */
+async function loadDefaultFonts() {
+  const defaultFonts = [
+    { family: "Inter", style: "Regular" },
+    { family: "Inter", style: "Bold" },
+    { family: "Inter", style: "Italic" },
+    { family: "Inter", style: "Bold Italic" },
+  ];
+
+  for (const font of defaultFonts) {
+    const key = `${font.family}|${font.style}`;
+    if (!loadedFonts.has(key)) {
+      try {
+        await figma.loadFontAsync(font);
+        loadedFonts.add(key);
+      } catch (e) {
+        console.warn(
+          `[figdeck] Failed to load font: ${font.family} ${font.style}`,
+          e,
+        );
+      }
+    }
+  }
+}
+
+/**
+ * Load fonts required for slide styles
+ * Falls back to Inter if a requested font is unavailable
+ */
+async function loadFontsForStyles(
+  fontNames: Array<{ family: string; style: string }>,
+): Promise<Set<string>> {
+  // Always load default fonts first as fallback
+  await loadDefaultFonts();
+
+  // Load custom fonts
+  for (const font of fontNames) {
+    const key = `${font.family}|${font.style}`;
+    if (loadedFonts.has(key)) continue;
+
+    try {
+      await figma.loadFontAsync({ family: font.family, style: font.style });
+      loadedFonts.add(key);
+    } catch (_e) {
+      console.warn(
+        `[figdeck] Font not available: ${font.family} ${font.style}, using Inter fallback`,
+      );
+      figma.notify(
+        `Font "${font.family} ${font.style}" not available, using Inter`,
+        { timeout: 3000 },
+      );
+    }
+  }
+
+  return new Set(loadedFonts);
 }
 
 /**
@@ -268,6 +329,8 @@ async function renderBlockToNode(
   block: SlideBlock,
   styles: ReturnType<typeof resolveSlideStyles>,
 ): Promise<SceneNode | null> {
+  const codeFont = styles.code.font;
+
   switch (block.kind) {
     case "paragraph": {
       const result = await renderParagraph(
@@ -276,6 +339,7 @@ async function renderBlockToNode(
         styles.paragraph,
         0,
         0,
+        codeFont,
       );
       return result.node;
     }
@@ -296,7 +360,14 @@ async function renderBlockToNode(
           style = styles.h4;
           break;
       }
-      const result = await renderHeading(block.text, block.spans, style, 0, 0);
+      const result = await renderHeading(
+        block.text,
+        block.spans,
+        style,
+        0,
+        0,
+        codeFont,
+      );
       return result.node;
     }
 
@@ -309,12 +380,19 @@ async function renderBlockToNode(
         block.start ?? 1,
         0,
         0,
+        codeFont,
       );
       return result.node;
     }
 
     case "code": {
-      const result = renderCodeBlock(block, styles.code.fontSize, 0, 0);
+      const result = renderCodeBlock(
+        block,
+        styles.code.fontSize,
+        0,
+        0,
+        codeFont,
+      );
       return result.node;
     }
 
@@ -325,6 +403,8 @@ async function renderBlockToNode(
         styles.paragraph.fills,
         0,
         0,
+        styles.paragraph.font,
+        codeFont,
       );
       return node;
     }
@@ -353,6 +433,7 @@ async function renderBlockToNode(
         styles.paragraph.fills,
         0,
         0,
+        styles.paragraph.font,
       );
       return node;
     }
@@ -379,10 +460,12 @@ async function renderTitleToNode(
   titleStyle: ReturnType<typeof resolveSlideStyles>["h1"],
   titlePrefix: TitlePrefixConfig | null | undefined,
 ): Promise<SceneNode> {
+  const font = titleStyle.font;
+
   // If no prefix config, render simple title
   if (!titlePrefix?.nodeId) {
     const titleText = figma.createText();
-    titleText.fontName = { family: "Inter", style: titleStyle.fontStyle };
+    titleText.fontName = { family: font.family, style: font.bold };
     titleText.fontSize = titleStyle.fontSize;
     titleText.characters = title;
     if (titleStyle.fills) {
@@ -396,7 +479,7 @@ async function renderTitleToNode(
   if (!prefixNode) {
     // Fallback to simple title if prefix not found
     const titleText = figma.createText();
-    titleText.fontName = { family: "Inter", style: titleStyle.fontStyle };
+    titleText.fontName = { family: font.family, style: font.bold };
     titleText.fontSize = titleStyle.fontSize;
     titleText.characters = title;
     if (titleStyle.fills) {
@@ -409,7 +492,7 @@ async function renderTitleToNode(
 
   // Create title text node
   const titleText = figma.createText();
-  titleText.fontName = { family: "Inter", style: titleStyle.fontStyle };
+  titleText.fontName = { family: font.family, style: font.bold };
   titleText.fontSize = titleStyle.fontSize;
   titleText.characters = title;
   if (titleStyle.fills) {
@@ -458,8 +541,15 @@ function getStyleForBlock(
 /**
  * Fill a slide with content using container-based layout
  */
-async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
-  const styles = resolveSlideStyles(slide.styles);
+async function fillSlide(
+  slideNode: SlideNode,
+  slide: SlideContent,
+  availableFonts: Set<string>,
+) {
+  const styles = applyFontFallbacks(
+    resolveSlideStyles(slide.styles),
+    availableFonts,
+  );
 
   // Create content container with alignment
   const container = createContentContainer(
@@ -563,6 +653,8 @@ async function fillSlide(slideNode: SlideNode, slide: SlideContent) {
       slide.footnotes,
       styles.paragraph.fontSize,
       styles.paragraph.fills,
+      styles.paragraph.font,
+      styles.code.font,
     );
     // Position at bottom-left with margin
     footnotesNode.x = LAYOUT.CONTAINER_PADDING;
@@ -609,7 +701,24 @@ function getOrCreateSlide(
 }
 
 async function generateSlides(slides: SlideContent[]) {
-  await loadFont();
+  // Collect all unique fonts needed across all slides
+  const allFontNames: Array<{ family: string; style: string }> = [];
+  const seenFonts = new Set<string>();
+
+  for (const slide of slides) {
+    const styles = resolveSlideStyles(slide.styles);
+    const fontNames = collectFontNames(styles);
+    for (const font of fontNames) {
+      const key = `${font.family}|${font.style}`;
+      if (!seenFonts.has(key)) {
+        seenFonts.add(key);
+        allFontNames.push(font);
+      }
+    }
+  }
+
+  // Load all required fonts upfront
+  const availableFonts = await loadFontsForStyles(allFontNames);
 
   const existingSlides = findExistingSlides();
   const totalSlides = slides.length;
@@ -625,7 +734,7 @@ async function generateSlides(slides: SlideContent[]) {
       await applyBackground(node, slide.background);
     }
 
-    await fillSlide(node, slide);
+    await fillSlide(node, slide, availableFonts);
 
     // Render slide number if configured
     if (slide.slideNumber) {

@@ -346,6 +346,93 @@ Use `transition: none` to disable transitions.
 
 **Note**: `after-delay` only works in presentation mode.
 
+## Custom Fonts
+
+You can configure custom font families for different text elements in your slides.
+
+### Basic Configuration
+
+```yaml
+---
+fonts:
+  h1: "Roboto"                    # Shorthand: just family name (uses "Regular" style)
+  h2: "Open Sans"
+  body: "Source Sans Pro"
+  bullets: "Inter"
+---
+```
+
+### Full Configuration
+
+For complete control over font variants, use the full object syntax:
+
+```yaml
+---
+fonts:
+  h1:
+    family: "Roboto"
+    style: "Medium"               # Base style (default: "Regular")
+    bold: "Bold"                  # Bold variant (default: "Bold")
+    italic: "Italic"              # Italic variant (default: "Italic")
+    boldItalic: "Bold Italic"     # Bold Italic variant
+  body:
+    family: "Source Sans Pro"
+    style: "Regular"
+    bold: "Semibold"              # Custom bold variant
+---
+```
+
+### Supported Elements
+
+| Element | Description |
+|---------|-------------|
+| `h1` | H1 headings (title slides) |
+| `h2` | H2 headings (content slide titles) |
+| `h3` | H3 sub-headings |
+| `h4` | H4 sub-headings |
+| `body` | Body paragraphs |
+| `bullets` | Bullet list items |
+| `code` | Code blocks and inline code |
+
+### Font Variants
+
+| Property | Description | Default |
+|----------|-------------|---------|
+| `family` | Font family name (e.g., "Roboto") | Required |
+| `style` | Base font style | "Regular" |
+| `bold` | Bold variant style name | "Bold" |
+| `italic` | Italic variant style name | "Italic" |
+| `boldItalic` | Bold Italic variant style name | "Bold Italic" |
+
+### Fallback Behavior
+
+If a requested font is not available in Figma:
+1. A notification warning is displayed
+2. The plugin falls back to Inter as the default font
+3. The slide continues to render normally
+
+### Per-Slide Override
+
+You can override fonts for individual slides:
+
+```yaml
+---
+fonts:
+  h1: "Roboto"
+  body: "Source Sans Pro"
+---
+
+# Slides with default fonts
+
+---
+fonts:
+  h1: "Georgia"
+  body: "Times New Roman"
+---
+
+# This slide uses different fonts
+```
+
 ## Code Blocks
 
 Blocks enclosed in ` ``` ` are displayed as code blocks.
@@ -440,3 +527,4 @@ This example generates the following 5 slides:
 | align/valign | Supported | Slide alignment settings |
 | Footnotes | Supported | GFM, displayed at slide bottom |
 | Transitions | Supported | Slide transition animations |
+| Custom Fonts | Supported | Per-element font families |

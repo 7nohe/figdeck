@@ -116,11 +116,20 @@ import {
   renderTable,
 } from "./block-renderers";
 
+const defaultFont = {
+  family: "Inter",
+  regular: "Regular",
+  bold: "Bold",
+  italic: "Italic",
+  boldItalic: "Bold Italic",
+};
+
 describe("renderHeading", () => {
   const defaultStyle: ResolvedTextStyle = {
     fontSize: 48,
     fills: undefined,
     fontStyle: "Bold",
+    font: defaultFont,
   };
 
   it("should render plain text heading", async () => {
@@ -169,6 +178,7 @@ describe("renderHeading", () => {
       fontSize: 48,
       fills: [{ type: "SOLID", color: { r: 1, g: 0, b: 0 } }],
       fontStyle: "Bold",
+      font: defaultFont,
     };
 
     const result = await renderHeading(
@@ -188,6 +198,7 @@ describe("renderParagraph", () => {
     fontSize: 24,
     fills: undefined,
     fontStyle: "Regular",
+    font: defaultFont,
   };
 
   it("should render plain text paragraph", async () => {
@@ -257,6 +268,7 @@ describe("renderBulletList", () => {
     fontSize: 24,
     fills: undefined,
     fontStyle: "Regular",
+    font: defaultFont,
   };
 
   it("should render unordered list with plain items", async () => {

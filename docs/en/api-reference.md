@@ -198,7 +198,7 @@ interface BackgroundImage {
 
 ### SlideStyles
 
-Font size and color settings.
+Font size, color, and font family settings.
 
 ```typescript
 interface SlideStyles {
@@ -211,6 +211,7 @@ interface SlideStyles {
   paragraphs?: TextStyle;
   bullets?: TextStyle;
   code?: TextStyle;
+  fonts?: FontConfig;          // Custom font configuration
 }
 
 interface TextStyle {
@@ -218,6 +219,30 @@ interface TextStyle {
   color?: string;              // Color (hex or rgb/rgba)
   x?: number;                  // Absolute X position in pixels (slide is 1920x1080)
   y?: number;                  // Absolute Y position in pixels (slide is 1920x1080)
+}
+```
+
+### FontConfig
+
+Custom font configuration for text elements.
+
+```typescript
+interface FontConfig {
+  h1?: FontVariant;            // Font for H1 headings
+  h2?: FontVariant;            // Font for H2 headings
+  h3?: FontVariant;            // Font for H3 headings
+  h4?: FontVariant;            // Font for H4 headings
+  body?: FontVariant;          // Font for body paragraphs
+  bullets?: FontVariant;       // Font for bullet list items
+  code?: FontVariant;          // Font for code blocks and inline code
+}
+
+interface FontVariant {
+  family: string;              // Font family name (e.g., "Roboto")
+  style: string;               // Base font style (default: "Regular")
+  bold?: string;               // Bold variant style name (default: "Bold")
+  italic?: string;             // Italic variant style name (default: "Italic")
+  boldItalic?: string;         // Bold Italic variant style name (default: "Bold Italic")
 }
 ```
 
@@ -351,6 +376,7 @@ color: "#58a6ff"
 | `paragraphs` | `object` | Paragraph styles |
 | `bullets` | `object` | Bullet point styles |
 | `code` | `object` | Code block styles |
+| `fonts` | `object` | Custom font configuration |
 | `slideNumber` | `object \| boolean` | Slide number settings |
 | `titlePrefix` | `object \| false` | Title prefix settings |
 | `align` | `string` | Horizontal alignment (`left`, `center`, `right`) |
@@ -467,7 +493,7 @@ async function generateSlides(slides: SlideContent[]): Promise<void>
 - `figma.createSlide()` creates slide nodes
 - `figma.createText()` creates text nodes
 - `figma.createFrame()` creates code blocks, tables, and quote blocks
-- Font: Inter (Regular/Bold/Italic/Bold Italic)
+- Font: Inter (Regular/Bold/Italic/Bold Italic) by default, or custom fonts via `fonts` configuration
 
 **Supported Languages for Syntax Highlighting:**
 

@@ -8,7 +8,34 @@ import {
   DEFAULT_H4_SIZE,
   DEFAULT_PARAGRAPH_SIZE,
 } from "./constants";
-import type { SlideStyles, TextStyle } from "./types";
+import type { FontVariant, SlideStyles, TextStyle } from "./types";
+
+/**
+ * Default font family and style
+ */
+const DEFAULT_FONT_FAMILY = "Inter";
+
+/**
+ * Default fallback font (Inter) used when a requested font cannot be loaded
+ */
+const FALLBACK_FONT: ResolvedFontName = {
+  family: DEFAULT_FONT_FAMILY,
+  regular: "Regular",
+  bold: "Bold",
+  italic: "Italic",
+  boldItalic: "Bold Italic",
+};
+
+/**
+ * Resolved font names for a text element
+ */
+export interface ResolvedFontName {
+  family: string;
+  regular: string;
+  bold: string;
+  italic: string;
+  boldItalic: string;
+}
 
 /**
  * Resolved style bundle for a specific text element
@@ -21,6 +48,8 @@ export interface ResolvedTextStyle {
   x?: number;
   /** Absolute Y position in pixels (if specified) */
   y?: number;
+  /** Resolved font names for this element */
+  font: ResolvedFontName;
 }
 
 /**
@@ -55,12 +84,29 @@ export function createFill(style: TextStyle | undefined): Paint[] | undefined {
 }
 
 /**
+ * Resolve font names from a FontVariant config
+ */
+function resolveFontName(
+  variant: FontVariant | undefined,
+  defaultStyle: string,
+): ResolvedFontName {
+  const family = variant?.family || DEFAULT_FONT_FAMILY;
+  const regular = variant?.style || defaultStyle;
+  const bold = variant?.bold || "Bold";
+  const italic = variant?.italic || "Italic";
+  const boldItalic = variant?.boldItalic || "Bold Italic";
+
+  return { family, regular, bold, italic, boldItalic };
+}
+
+/**
  * Resolve a single text style with defaults
  */
 function resolveTextStyle(
   style: TextStyle | undefined,
   defaultSize: number,
   defaultFontStyle: ResolvedTextStyle["fontStyle"] = "Regular",
+  fontVariant?: FontVariant,
 ): ResolvedTextStyle {
   return {
     fontSize: style?.size ?? defaultSize,
@@ -68,6 +114,7 @@ function resolveTextStyle(
     fontStyle: defaultFontStyle,
     x: style?.x,
     y: style?.y,
+    font: resolveFontName(fontVariant, defaultFontStyle),
   };
 }
 
@@ -76,18 +123,124 @@ function resolveTextStyle(
  */
 export function resolveSlideStyles(styles?: SlideStyles): ResolvedSlideStyles {
   const headings = styles?.headings;
+  const fonts = styles?.fonts;
   return {
-    h1: resolveTextStyle(headings?.h1, DEFAULT_H1_SIZE, "Bold"),
-    h2: resolveTextStyle(headings?.h2, DEFAULT_H2_SIZE, "Bold"),
-    h3: resolveTextStyle(headings?.h3, DEFAULT_H3_SIZE, "Bold"),
-    h4: resolveTextStyle(headings?.h4, DEFAULT_H4_SIZE, "Bold"),
+    h1: resolveTextStyle(headings?.h1, DEFAULT_H1_SIZE, "Bold", fonts?.h1),
+    h2: resolveTextStyle(headings?.h2, DEFAULT_H2_SIZE, "Bold", fonts?.h2),
+    h3: resolveTextStyle(headings?.h3, DEFAULT_H3_SIZE, "Bold", fonts?.h3),
+    h4: resolveTextStyle(headings?.h4, DEFAULT_H4_SIZE, "Bold", fonts?.h4),
     paragraph: resolveTextStyle(
       styles?.paragraphs,
       DEFAULT_PARAGRAPH_SIZE,
       "Regular",
+      fonts?.body,
     ),
-    bullet: resolveTextStyle(styles?.bullets, DEFAULT_BULLET_SIZE, "Regular"),
-    code: resolveTextStyle(styles?.code, DEFAULT_CODE_SIZE, "Regular"),
+    bullet: resolveTextStyle(
+      styles?.bullets,
+      DEFAULT_BULLET_SIZE,
+      "Regular",
+      fonts?.bullets,
+    ),
+    code: resolveTextStyle(
+      styles?.code,
+      DEFAULT_CODE_SIZE,
+      "Regular",
+      fonts?.code,
+    ),
+  };
+}
+
+/**
+ * Collect all unique FontName objects needed for a slide's styles
+ */
+export function collectFontNames(
+  styles: ResolvedSlideStyles,
+): Array<{ family: string; style: string }> {
+  const fontSet = new Map<string, { family: string; style: string }>();
+
+  const addFont = (family: string, style: string) => {
+    const key = `${family}|${style}`;
+    if (!fontSet.has(key)) {
+      fontSet.set(key, { family, style });
+    }
+  };
+
+  const addAllVariants = (font: ResolvedFontName) => {
+    addFont(font.family, font.regular);
+    addFont(font.family, font.bold);
+    addFont(font.family, font.italic);
+    addFont(font.family, font.boldItalic);
+  };
+
+  // Collect fonts from all style types
+  addAllVariants(styles.h1.font);
+  addAllVariants(styles.h2.font);
+  addAllVariants(styles.h3.font);
+  addAllVariants(styles.h4.font);
+  addAllVariants(styles.paragraph.font);
+  addAllVariants(styles.bullet.font);
+  addAllVariants(styles.code.font);
+
+  return Array.from(fontSet.values());
+}
+
+/**
+ * Map an arbitrary font style string to a safe fallback style available in Inter
+ */
+function mapToFallbackStyle(style: string): string {
+  const normalized = style.toLowerCase();
+  const isItalic =
+    normalized.includes("italic") || normalized.includes("oblique");
+  const isBold =
+    normalized.includes("bold") ||
+    normalized.includes("black") ||
+    normalized.includes("heavy") ||
+    normalized.includes("semi") ||
+    normalized.includes("demi") ||
+    normalized.includes("medium");
+
+  if (isBold && isItalic) return "Bold Italic";
+  if (isBold) return "Bold";
+  if (isItalic) return "Italic";
+  return "Regular";
+}
+
+/**
+ * Apply font fallbacks to resolved styles based on loaded font availability.
+ * Any text style whose family/style combinations are missing will fall back to Inter.
+ */
+export function applyFontFallbacks(
+  styles: ResolvedSlideStyles,
+  availableFonts: Set<string>,
+): ResolvedSlideStyles {
+  const resolveFallbackFont = (font: ResolvedFontName): ResolvedFontName => {
+    const variants = [font.regular, font.bold, font.italic, font.boldItalic];
+    const missingVariant = variants.some(
+      (style) => !availableFonts.has(`${font.family}|${style}`),
+    );
+
+    if (!missingVariant) return font;
+
+    return {
+      family: FALLBACK_FONT.family,
+      regular: mapToFallbackStyle(font.regular),
+      bold: mapToFallbackStyle(font.bold),
+      italic: mapToFallbackStyle(font.italic),
+      boldItalic: mapToFallbackStyle(font.boldItalic),
+    };
+  };
+
+  return {
+    h1: { ...styles.h1, font: resolveFallbackFont(styles.h1.font) },
+    h2: { ...styles.h2, font: resolveFallbackFont(styles.h2.font) },
+    h3: { ...styles.h3, font: resolveFallbackFont(styles.h3.font) },
+    h4: { ...styles.h4, font: resolveFallbackFont(styles.h4.font) },
+    paragraph: {
+      ...styles.paragraph,
+      font: resolveFallbackFont(styles.paragraph.font),
+    },
+    bullet: { ...styles.bullet, font: resolveFallbackFont(styles.bullet.font) },
+    code: { ...styles.code, font: resolveFallbackFont(styles.code.font) },
   };
 }
 

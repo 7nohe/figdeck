@@ -1,8 +1,41 @@
 import { createDefaultTextFill } from "./colors";
 import { INLINE_CODE_BG, LINK_COLOR } from "./constants";
+import type { ResolvedFontName } from "./styles";
 import type { TextSpan } from "./types";
 
 const DEFAULT_TEXT_FILL = createDefaultTextFill();
+
+/**
+ * Default font config (Inter)
+ */
+const DEFAULT_FONT: ResolvedFontName = {
+  family: "Inter",
+  regular: "Regular",
+  bold: "Bold",
+  italic: "Italic",
+  boldItalic: "Bold Italic",
+};
+
+/**
+ * Get font name for a specific style variant
+ */
+function getFontForStyle(
+  font: ResolvedFontName,
+  bold: boolean,
+  italic: boolean,
+): FontName {
+  let style: string;
+  if (bold && italic) {
+    style = font.boldItalic;
+  } else if (bold) {
+    style = font.bold;
+  } else if (italic) {
+    style = font.italic;
+  } else {
+    style = font.regular;
+  }
+  return { family: font.family, style };
+}
 
 /**
  * Check if a URL is valid for hyperlinks
@@ -43,10 +76,12 @@ export async function renderSpansToText(
   spans: TextSpan[],
   baseSize: number,
   baseFills?: Paint[],
+  font?: ResolvedFontName,
 ): Promise<TextNode> {
   const textNode = figma.createText();
   const fullText = spans.map((s) => s.text).join("");
   textNode.characters = fullText;
+  const resolvedFont = font || DEFAULT_FONT;
 
   let charIndex = 0;
   for (const span of spans) {
@@ -55,19 +90,13 @@ export async function renderSpansToText(
     const start = charIndex;
     const end = charIndex + span.text.length;
 
-    // Determine font style
-    let fontStyle: "Regular" | "Bold" | "Italic" | "Bold Italic" = "Regular";
-    if (span.bold && span.italic) {
-      fontStyle = "Bold Italic";
-    } else if (span.bold) {
-      fontStyle = "Bold";
-    } else if (span.italic) {
-      fontStyle = "Italic";
-    }
-    textNode.setRangeFontName(start, end, {
-      family: "Inter",
-      style: fontStyle,
-    });
+    // Determine font style and apply font name
+    const fontName = getFontForStyle(
+      resolvedFont,
+      span.bold === true,
+      span.italic === true,
+    );
+    textNode.setRangeFontName(start, end, fontName);
 
     // Set font size (smaller for superscript)
     const fontSize = span.superscript ? Math.round(baseSize * 0.7) : baseSize;
@@ -119,13 +148,15 @@ export async function renderSpansWithInlineCode(
   baseFills?: Paint[],
   x?: number,
   y?: number,
+  font?: ResolvedFontName,
+  codeFont?: ResolvedFontName,
 ): Promise<FrameNode | TextNode> {
   // Check if any spans have inline code
   const hasInlineCode = spans.some((s) => s.code);
 
   if (!hasInlineCode) {
     // Simple case: no inline code, just render text
-    const textNode = await renderSpansToText(spans, baseSize, baseFills);
+    const textNode = await renderSpansToText(spans, baseSize, baseFills, font);
     if (x !== undefined) textNode.x = x;
     if (y !== undefined) textNode.y = y;
     return textNode;
@@ -172,11 +203,12 @@ export async function renderSpansWithInlineCode(
       codeFrame.primaryAxisSizingMode = "AUTO";
       codeFrame.counterAxisSizingMode = "AUTO";
 
-      // Render code text (slightly smaller)
+      // Render code text (slightly smaller) with code font
       const codeTextNode = await renderSpansToText(
         group.spans,
         baseSize * 0.9,
         baseFills,
+        codeFont,
       );
       codeFrame.appendChild(codeTextNode);
       frame.appendChild(codeFrame);
@@ -186,6 +218,7 @@ export async function renderSpansWithInlineCode(
         group.spans,
         baseSize,
         baseFills,
+        font,
       );
       frame.appendChild(textNode);
     }

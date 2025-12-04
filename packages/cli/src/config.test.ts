@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  mergeFontsConfig,
   mergeSlideNumberConfig,
   mergeStyles,
   mergeTransitionConfig,
@@ -671,5 +672,189 @@ describe("transition in parseSlideConfig", () => {
   it("should return undefined transition when not specified", () => {
     const result = parseSlideConfig({ background: "#fff" });
     expect(result.transition).toBeUndefined();
+  });
+});
+
+describe("fonts in parseSlideConfig", () => {
+  it("should parse fonts with full object config", () => {
+    const result = parseSlideConfig({
+      fonts: {
+        h1: {
+          family: "Roboto",
+          style: "Medium",
+          bold: "Bold",
+          italic: "Italic",
+          boldItalic: "Bold Italic",
+        },
+      },
+    });
+    expect(result.styles.fonts?.h1).toEqual({
+      family: "Roboto",
+      style: "Medium",
+      bold: "Bold",
+      italic: "Italic",
+      boldItalic: "Bold Italic",
+    });
+  });
+
+  it("should parse fonts with shorthand (family string only)", () => {
+    const result = parseSlideConfig({
+      fonts: {
+        h2: "Open Sans",
+        body: "Source Sans Pro",
+      },
+    });
+    expect(result.styles.fonts?.h2).toEqual({
+      family: "Open Sans",
+      style: "Regular",
+    });
+    expect(result.styles.fonts?.body).toEqual({
+      family: "Source Sans Pro",
+      style: "Regular",
+    });
+  });
+
+  it("should parse all font element types", () => {
+    const result = parseSlideConfig({
+      fonts: {
+        h1: "Font1",
+        h2: "Font2",
+        h3: "Font3",
+        h4: "Font4",
+        body: "Font5",
+        bullets: "Font6",
+        code: "Font7",
+      },
+    });
+    expect(result.styles.fonts?.h1?.family).toBe("Font1");
+    expect(result.styles.fonts?.h2?.family).toBe("Font2");
+    expect(result.styles.fonts?.h3?.family).toBe("Font3");
+    expect(result.styles.fonts?.h4?.family).toBe("Font4");
+    expect(result.styles.fonts?.body?.family).toBe("Font5");
+    expect(result.styles.fonts?.bullets?.family).toBe("Font6");
+    expect(result.styles.fonts?.code?.family).toBe("Font7");
+  });
+
+  it("should return undefined fonts when not specified", () => {
+    const result = parseSlideConfig({ background: "#fff" });
+    expect(result.styles.fonts).toBeUndefined();
+  });
+
+  it("should handle empty fonts object", () => {
+    const result = parseSlideConfig({ fonts: {} });
+    expect(result.styles.fonts).toBeUndefined();
+  });
+
+  it("should ignore fonts without family in full object", () => {
+    const result = parseSlideConfig({
+      fonts: {
+        h1: { style: "Medium" } as { family: string; style: string },
+      },
+    });
+    expect(result.styles.fonts?.h1).toBeUndefined();
+  });
+
+  it("should use Regular as default style when only family is provided in object", () => {
+    const result = parseSlideConfig({
+      fonts: {
+        h1: { family: "Roboto" },
+      },
+    });
+    expect(result.styles.fonts?.h1?.style).toBe("Regular");
+  });
+});
+
+describe("mergeFontsConfig", () => {
+  it("should return undefined when both are undefined", () => {
+    expect(mergeFontsConfig(undefined, undefined)).toBeUndefined();
+  });
+
+  it("should return slide config when default is undefined", () => {
+    const slideConfig = { h1: { family: "Roboto", style: "Medium" } };
+    expect(mergeFontsConfig(undefined, slideConfig)).toEqual(slideConfig);
+  });
+
+  it("should return default config when slide is undefined", () => {
+    const defaultConfig = { h1: { family: "Inter", style: "Regular" } };
+    expect(mergeFontsConfig(defaultConfig, undefined)).toEqual(defaultConfig);
+  });
+
+  it("should merge font configs with slide overriding default", () => {
+    const defaultConfig = {
+      h1: { family: "Inter", style: "Regular", bold: "Bold" },
+      h2: { family: "Inter", style: "Regular" },
+    };
+    const slideConfig = {
+      h1: { family: "Roboto", style: "Medium" },
+    };
+
+    const result = mergeFontsConfig(defaultConfig, slideConfig);
+
+    expect(result?.h1?.family).toBe("Roboto");
+    expect(result?.h1?.style).toBe("Medium");
+    expect(result?.h1?.bold).toBe("Bold"); // Preserved from default
+    expect(result?.h2?.family).toBe("Inter"); // Unchanged
+  });
+
+  it("should merge individual font variant properties", () => {
+    const defaultConfig = {
+      body: {
+        family: "Inter",
+        style: "Regular",
+        bold: "Bold",
+        italic: "Italic",
+        boldItalic: "Bold Italic",
+      },
+    };
+    const slideConfig = {
+      body: {
+        family: "Source Sans Pro",
+        style: "Light",
+        bold: "Semibold",
+      },
+    };
+
+    const result = mergeFontsConfig(defaultConfig, slideConfig);
+
+    expect(result?.body?.family).toBe("Source Sans Pro");
+    expect(result?.body?.style).toBe("Light");
+    expect(result?.body?.bold).toBe("Semibold");
+    expect(result?.body?.italic).toBe("Italic"); // Preserved from default
+    expect(result?.body?.boldItalic).toBe("Bold Italic"); // Preserved from default
+  });
+});
+
+describe("mergeStyles with fonts", () => {
+  it("should merge fonts in styles", () => {
+    const defaultStyles = {
+      headings: { h1: { size: 64 } },
+      fonts: {
+        h1: { family: "Inter", style: "Bold" },
+      },
+    };
+    const slideStyles = {
+      fonts: {
+        h1: { family: "Roboto", style: "Medium" },
+      },
+    };
+
+    const result = mergeStyles(defaultStyles, slideStyles);
+
+    expect(result.fonts?.h1?.family).toBe("Roboto");
+    expect(result.fonts?.h1?.style).toBe("Medium");
+  });
+
+  it("should preserve default fonts when slide has no fonts", () => {
+    const defaultStyles = {
+      headings: { h1: { size: 64 } },
+      fonts: {
+        h1: { family: "Inter", style: "Bold" },
+      },
+    };
+    const slideStyles = {};
+
+    const result = mergeStyles(defaultStyles, slideStyles);
+
+    expect(result.fonts?.h1?.family).toBe("Inter");
   });
 });

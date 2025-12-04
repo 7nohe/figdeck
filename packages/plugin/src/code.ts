@@ -417,6 +417,7 @@ async function renderBlockToNode(
           mimeType: block.mimeType,
           dataBase64: block.dataBase64,
           source: block.source,
+          size: block.size,
         },
         0,
         0,

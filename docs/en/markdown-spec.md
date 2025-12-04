@@ -138,6 +138,25 @@ Paths are resolved relative to the Markdown file.
 
 **Size limit**: Default is 5MB. Files exceeding this are skipped with a warning.
 
+### Image Size (Marp-style)
+
+You can specify image dimensions using Marp-compatible syntax in the alt text:
+
+```markdown
+![w:400](./image.png)           # Width 400px (height auto-calculated)
+![h:300](./image.png)           # Height 300px (width auto-calculated)
+![w:400 h:300](./image.png)     # Fixed size 400x300px
+![w:50%](./image.png)           # 50% of slide width (960px)
+![w:400 Logo](./image.png)      # Size specification + alt text
+```
+
+**Behavior**:
+- `w:` only: Height is calculated to maintain aspect ratio
+- `h:` only: Width is calculated to maintain aspect ratio
+- Both specified: Uses exact dimensions (may not preserve aspect ratio)
+- Percentage: Calculated based on slide width (1920px)
+- No size specified: Default max constraints apply (400x300px)
+
 ### Fallback
 
 If image loading fails (file not found, network error, etc.), a placeholder is displayed.

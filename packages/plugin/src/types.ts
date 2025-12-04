@@ -230,6 +230,12 @@ export interface FigmaSelectionLink {
   y?: number;
 }
 
+/** Image size specification (parsed from Marp-style alt text) */
+export interface ImageSize {
+  width?: number; // px (percentages are pre-converted)
+  height?: number; // px
+}
+
 export type SlideBlock =
   | { kind: "paragraph"; text: string; spans?: TextSpan[] }
   | { kind: "heading"; level: 1 | 2 | 3 | 4; text: string; spans?: TextSpan[] }
@@ -248,6 +254,7 @@ export type SlideBlock =
       mimeType?: string;
       dataBase64?: string;
       source?: "local" | "remote";
+      size?: ImageSize;
     }
   | { kind: "blockquote"; text: string; spans?: TextSpan[] }
   | {

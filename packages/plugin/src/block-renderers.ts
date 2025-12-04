@@ -18,6 +18,7 @@ import {
 import type {
   FigmaSelectionLink,
   FootnoteItem,
+  ImageSize,
   TableAlignment,
   TextSpan,
 } from "./types";
@@ -371,6 +372,7 @@ export interface ImageBlockData {
   mimeType?: string;
   dataBase64?: string;
   source?: "local" | "remote";
+  size?: ImageSize;
 }
 
 /**
@@ -402,21 +404,41 @@ export async function renderImage(
     }
 
     if (imageData) {
-      // Get image dimensions
-      const size = await imageData.getSizeAsync();
+      // Get natural image dimensions
+      const naturalSize = await imageData.getSizeAsync();
 
-      // Scale down if needed
-      let width = size.width;
-      let height = size.height;
-      const maxWidth = MAX_PREVIEW_WIDTH;
-      const maxHeight = MAX_PREVIEW_HEIGHT;
+      // Calculate target size based on user specification or defaults
+      let width: number;
+      let height: number;
 
-      if (width > maxWidth || height > maxHeight) {
-        const scaleX = maxWidth / width;
-        const scaleY = maxHeight / height;
-        const scale = Math.min(scaleX, scaleY);
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
+      if (image.size?.width && image.size?.height) {
+        // Both dimensions specified - use as-is
+        width = image.size.width;
+        height = image.size.height;
+      } else if (image.size?.width) {
+        // Width only - calculate height from aspect ratio
+        const ratio = naturalSize.height / naturalSize.width;
+        width = image.size.width;
+        height = Math.round(width * ratio);
+      } else if (image.size?.height) {
+        // Height only - calculate width from aspect ratio
+        const ratio = naturalSize.width / naturalSize.height;
+        height = image.size.height;
+        width = Math.round(height * ratio);
+      } else {
+        // No size specified - apply max constraints
+        width = naturalSize.width;
+        height = naturalSize.height;
+        const maxWidth = MAX_PREVIEW_WIDTH;
+        const maxHeight = MAX_PREVIEW_HEIGHT;
+
+        if (width > maxWidth || height > maxHeight) {
+          const scaleX = maxWidth / width;
+          const scaleY = maxHeight / height;
+          const scale = Math.min(scaleX, scaleY);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
       }
 
       // Create frame with image fill

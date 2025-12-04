@@ -102,7 +102,7 @@ type SlideBlock =
   | { kind: "heading"; level: 3 | 4; text: string; spans?: TextSpan[] }
   | { kind: "bullets"; items: string[]; ordered?: boolean; start?: number; itemSpans?: TextSpan[][] }
   | { kind: "code"; language?: string; code: string }
-  | { kind: "image"; url: string; alt?: string }
+  | { kind: "image"; url: string; alt?: string; size?: { width?: number; height?: number } }
   | { kind: "blockquote"; text: string; spans?: TextSpan[] }
   | { kind: "table"; headers: TextSpan[][]; rows: TextSpan[][][]; align?: TableAlignment[] }
   | { kind: "figma"; link: FigmaSelectionLink }
@@ -129,9 +129,18 @@ interface TextSpan {
 - Lists (ordered/unordered): added to `bullets[]` and `blocks[]`
 - `### H3`, `#### H4`: sub-headings within slides
 - Code blocks (``` with language): syntax highlighted
-- Images `![alt](url)`: rendered as placeholder
+- Images `![alt](url)`: rendered with actual image data
 - Blockquotes `>`: styled with left border
 - Tables (GFM): rendered with headers and alignment
+
+### Image Size (Marp-style)
+```markdown
+![w:400](./image.png)           # Width 400px (height auto)
+![h:300](./image.png)           # Height 300px (width auto)
+![w:400 h:300](./image.png)     # Fixed size 400x300px
+![w:50%](./image.png)           # 50% of slide width (960px)
+![w:400 Logo](./image.png)      # Size + alt text
+```
 
 ### Inline Formatting
 - `**bold**` or `__bold__`
@@ -231,6 +240,7 @@ y=300
   - `backgrounds.md` - Background styles
   - `rich-formatting.md` - Inline formatting
   - `transitions.md` - Slide transition animations
+  - `images.md` - Image size specifications (Marp-style)
 
 ## Figma Plugin JavaScript Constraints
 
@@ -267,3 +277,24 @@ The CLI and Plugin implement security hardening for network exposure:
 **Figma URL validation:**
 - Strict hostname check: must be `figma.com` or `*.figma.com`
 - Blocks spoofed hostnames like `evilfigma.com`
+
+## Development Guidelines
+
+### Backward Compatibility
+
+When modifying files, always consider backward compatibility:
+
+- Avoid breaking changes to existing APIs and interfaces
+- When changing function signatures, maintain support for the old signature if possible
+- When renaming exports, keep old names as aliases
+- Document any breaking changes clearly
+- Consider migration paths for users of the existing code
+
+### Documentation Updates
+
+Always keep documentation in sync with code changes:
+
+- Update relevant markdown files in `docs/` when features change
+- Update `CLAUDE.md` when architecture or commands change
+- Update example files in `examples/` when syntax changes
+- Update type definitions and comments when APIs change

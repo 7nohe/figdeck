@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { parseMarkdown } from "./markdown.js";
+import { parseImageAlt, parseMarkdown } from "./markdown.js";
 
 describe("parseMarkdown", () => {
   describe("inline formatting", () => {
@@ -691,6 +691,64 @@ y=200
         expect(block.alt).toBeUndefined();
       }
     });
+
+    it("should parse Marp-style width specification", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![w:400](https://example.com/image.png)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks[1];
+      expect(block?.kind).toBe("image");
+      if (block?.kind === "image") {
+        expect(block.alt).toBeUndefined();
+        expect(block.size).toEqual({ width: 400, height: undefined });
+      }
+    });
+
+    it("should parse Marp-style height specification", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![h:300](https://example.com/image.png)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks[1];
+      if (block?.kind === "image") {
+        expect(block.size).toEqual({ width: undefined, height: 300 });
+      }
+    });
+
+    it("should parse both width and height", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![w:400 h:300](https://example.com/image.png)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks[1];
+      if (block?.kind === "image") {
+        expect(block.size).toEqual({ width: 400, height: 300 });
+      }
+    });
+
+    it("should parse percentage width as pixels", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![w:50%](https://example.com/image.png)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks[1];
+      if (block?.kind === "image") {
+        expect(block.size).toEqual({ width: 960, height: undefined });
+      }
+    });
+
+    it("should preserve alt text with size specification", () => {
+      const result = parseMarkdown(
+        `## Test\n\n![w:400 Logo image](https://example.com/image.png)`,
+      );
+      expect(result).toHaveLength(1);
+      const block = result[0].blocks[1];
+      if (block?.kind === "image") {
+        expect(block.alt).toBe("Logo image");
+        expect(block.size).toEqual({ width: 400, height: undefined });
+      }
+    });
   });
 
   describe("align/valign frontmatter", () => {
@@ -1100,6 +1158,85 @@ Some content.`);
         b.kind === "heading" ? b.level : null,
       );
       expect(levels).toEqual([1, 2, 1, 2]);
+    });
+  });
+});
+
+describe("parseImageAlt", () => {
+  it("should parse width only", () => {
+    const result = parseImageAlt("w:400");
+    expect(result).toEqual({
+      cleanAlt: "",
+      size: { width: 400, height: undefined },
+    });
+  });
+
+  it("should parse height only", () => {
+    const result = parseImageAlt("h:300");
+    expect(result).toEqual({
+      cleanAlt: "",
+      size: { width: undefined, height: 300 },
+    });
+  });
+
+  it("should parse both dimensions", () => {
+    const result = parseImageAlt("w:400 h:300");
+    expect(result).toEqual({ cleanAlt: "", size: { width: 400, height: 300 } });
+  });
+
+  it("should parse percentage width", () => {
+    const result = parseImageAlt("w:50%");
+    expect(result).toEqual({
+      cleanAlt: "",
+      size: { width: 960, height: undefined },
+    });
+  });
+
+  it("should parse percentage height", () => {
+    const result = parseImageAlt("h:25%");
+    expect(result).toEqual({
+      cleanAlt: "",
+      size: { width: undefined, height: 480 },
+    });
+  });
+
+  it("should preserve alt text after size", () => {
+    const result = parseImageAlt("w:400 ロゴ画像");
+    expect(result).toEqual({
+      cleanAlt: "ロゴ画像",
+      size: { width: 400, height: undefined },
+    });
+  });
+
+  it("should preserve alt text with both dimensions", () => {
+    const result = parseImageAlt("w:400 h:300 説明文");
+    expect(result).toEqual({
+      cleanAlt: "説明文",
+      size: { width: 400, height: 300 },
+    });
+  });
+
+  it("should return original alt when no size specified", () => {
+    const result = parseImageAlt("通常のalt");
+    expect(result).toEqual({ cleanAlt: "通常のalt" });
+  });
+
+  it("should handle empty alt", () => {
+    const result = parseImageAlt("");
+    expect(result).toEqual({ cleanAlt: "" });
+  });
+
+  it("should strip invalid zero values from alt text", () => {
+    const result = parseImageAlt("w:0 h:0");
+    // Zero values are invalid and stripped from alt text
+    expect(result).toEqual({ cleanAlt: "" });
+  });
+
+  it("should handle size in middle of alt text", () => {
+    const result = parseImageAlt("logo w:200 image");
+    expect(result).toEqual({
+      cleanAlt: "logo image",
+      size: { width: 200, height: undefined },
     });
   });
 });

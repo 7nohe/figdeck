@@ -234,14 +234,16 @@ y=300
 
 ## Figma Plugin JavaScript Constraints
 
-Figma Plugin runs in a sandboxed JavaScript environment with limited ES version support. The plugin is built with esbuild targeting **ES2018** to ensure compatibility.
+Figma Plugin runs in a sandboxed JavaScript environment with limited ES version support. The plugin is built with esbuild targeting **ES2016** to ensure compatibility.
 
 Modern syntax automatically transpiled:
+- `{ ...obj }` (object spread) → `Object.assign()`
+- `[...arr]` (array spread in certain contexts) → `Array.prototype.slice.call()`
 - `??` (nullish coalescing) → ternary operator
 - `?.` (optional chaining) → explicit checks
 - `catch {}` (empty catch) → `catch (_e) {}`
 
-Do not change the `--target=es2018` flag in the plugin build script.
+Do not change the `--target=es2016` flag in the plugin build script.
 
 ## Security
 

@@ -280,6 +280,54 @@ export interface GenerateSlidesMessage {
   slides: SlideContent[];
 }
 
+/**
+ * Protocol version for CLI-Plugin communication.
+ * Increment only when breaking changes are made to the message format.
+ */
+export const PROTOCOL_VERSION = "1";
+
+/**
+ * Hello message sent by CLI to Plugin upon connection.
+ * Used for version compatibility checking.
+ */
+export interface HelloMessage {
+  type: "hello";
+  protocolVersion: string;
+  cliVersion: string;
+}
+
+/**
+ * Hello response sent by Plugin to CLI.
+ */
+export interface HelloResponseMessage {
+  type: "hello";
+  protocolVersion: string;
+  pluginVersion: string;
+}
+
+/**
+ * Auth message sent by Plugin to CLI.
+ */
+export interface AuthMessage {
+  type: "auth";
+  secret: string;
+}
+
+/**
+ * Auth success response from CLI.
+ */
+export interface AuthOkMessage {
+  type: "auth-ok";
+}
+
+/**
+ * Auth error response from CLI.
+ */
+export interface AuthErrorMessage {
+  type: "auth-error";
+  message: string;
+}
+
 export interface PluginMessage {
   type: string;
   [key: string]: unknown;

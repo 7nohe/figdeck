@@ -1,4 +1,5 @@
 import { describe, expect, it } from "bun:test";
+import { PROTOCOL_VERSION } from "./types";
 import { generateSecret, isLoopbackHost } from "./ws-server";
 
 describe("isLoopbackHost", () => {
@@ -46,5 +47,16 @@ describe("generateSecret", () => {
       secrets.add(generateSecret());
     }
     expect(secrets.size).toBe(100);
+  });
+});
+
+describe("PROTOCOL_VERSION", () => {
+  it("should be a non-empty string", () => {
+    expect(typeof PROTOCOL_VERSION).toBe("string");
+    expect(PROTOCOL_VERSION.length).toBeGreaterThan(0);
+  });
+
+  it("should be a numeric string", () => {
+    expect(PROTOCOL_VERSION).toMatch(/^\d+$/);
   });
 });

@@ -463,7 +463,8 @@ export async function renderSlideNumber(
  * Clear all content from a slide
  */
 export function clearSlideContent(slideNode: SlideNode): void {
-  for (const child of [...slideNode.children]) {
+  // Use Array.from instead of spread operator for Figma sandbox compatibility
+  for (const child of Array.from(slideNode.children)) {
     child.remove();
   }
 }

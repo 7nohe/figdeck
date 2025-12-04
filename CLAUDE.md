@@ -97,10 +97,16 @@ interface SlideContent {
   transition?: SlideTransitionConfig;  // Slide transition animation
 }
 
+interface BulletItem {
+  text: string;
+  spans?: TextSpan[];
+  children?: BulletItem[];  // Nested bullet items
+}
+
 type SlideBlock =
   | { kind: "paragraph"; text: string; spans?: TextSpan[] }
   | { kind: "heading"; level: 3 | 4; text: string; spans?: TextSpan[] }
-  | { kind: "bullets"; items: string[]; ordered?: boolean; start?: number; itemSpans?: TextSpan[][] }
+  | { kind: "bullets"; items: BulletItem[]; ordered?: boolean; start?: number }
   | { kind: "code"; language?: string; code: string }
   | { kind: "image"; url: string; alt?: string; size?: { width?: number; height?: number } }
   | { kind: "blockquote"; text: string; spans?: TextSpan[] }
@@ -127,11 +133,27 @@ interface TextSpan {
 ### Content Blocks
 - Paragraphs: added to `body[]` and `blocks[]`
 - Lists (ordered/unordered): added to `bullets[]` and `blocks[]`
+  - Supports nested lists with different bullet markers per level
 - `### H3`, `#### H4`: sub-headings within slides
 - Code blocks (``` with language): syntax highlighted
 - Images `![alt](url)`: rendered with actual image data
 - Blockquotes `>`: styled with left border
 - Tables (GFM): rendered with headers and alignment
+
+### Nested Bullet Lists
+```markdown
+- Level 0 item
+  - Level 1 item (indented with 2 spaces)
+    - Level 2 item
+      - Level 3 item
+- Back to level 0
+```
+
+Bullet markers change by nesting level:
+- Level 0: `•` (U+2022)
+- Level 1: `◦` (U+25E6)
+- Level 2: `▪` (U+25AA)
+- Level 3+: `–` (U+2013)
 
 ### Image Size (Marp-style)
 ```markdown
@@ -241,6 +263,7 @@ y=300
   - `rich-formatting.md` - Inline formatting
   - `transitions.md` - Slide transition animations
   - `images.md` - Image size specifications (Marp-style)
+  - `bullets.md` - Nested bullet lists
 
 ## Figma Plugin JavaScript Constraints
 

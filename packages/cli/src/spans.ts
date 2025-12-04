@@ -13,7 +13,7 @@ import type {
   TableRow,
   Text,
 } from "mdast";
-import type { TextSpan } from "./types.js";
+import type { BulletItem, TextSpan } from "./types.js";
 
 /**
  * Current inline formatting state during span extraction
@@ -165,6 +165,7 @@ export function spansToText(spans: TextSpan[]): string {
 
 /**
  * Extract list items with their TextSpan[] for rich formatting
+ * @deprecated Use extractBulletItems for nested list support
  */
 export function extractListItemSpans(list: List): {
   texts: string[];
@@ -197,6 +198,68 @@ export function extractListItemSpans(list: List): {
   }
 
   return { texts, spans };
+}
+
+/**
+ * Extract list items with nested structure support
+ * Recursively processes list items and their nested lists
+ */
+export function extractBulletItems(list: List): BulletItem[] {
+  const items: BulletItem[] = [];
+
+  for (const item of list.children) {
+    if (item.type === "listItem" && item.children.length > 0) {
+      const bulletItem: BulletItem = { text: "", spans: [] };
+
+      // Use a local array to collect spans, avoiding non-null assertions
+      const collectedSpans: TextSpan[] = [];
+      let collectedText = "";
+
+      for (const child of item.children) {
+        if (child.type === "paragraph") {
+          // Extract text and spans from paragraph
+          const para = child as Paragraph;
+          const spans = extractSpans(para.children as PhrasingContent[]);
+          if (collectedText) {
+            // Concatenate with newline for multiple paragraphs
+            collectedSpans.push({ text: "\n" });
+            collectedText += "\n";
+          }
+          collectedSpans.push(...spans);
+          collectedText += spansToText(spans);
+        } else if (child.type === "list") {
+          // Recursively process nested lists
+          const nestedList = child as List;
+          bulletItem.children = extractBulletItems(nestedList);
+        } else {
+          // For other content types (e.g., code blocks), extract plain text
+          const text = extractText(child as Content);
+          if (text) {
+            if (collectedText) {
+              // Concatenate with newline
+              collectedSpans.push({ text: "\n" });
+              collectedText += "\n";
+            }
+            collectedSpans.push({ text });
+            collectedText += text;
+          }
+        }
+      }
+
+      bulletItem.text = collectedText;
+      bulletItem.spans = collectedSpans.length > 0 ? collectedSpans : undefined;
+
+      // Only add items that have content or children
+      if (
+        bulletItem.text ||
+        (bulletItem.children && bulletItem.children.length > 0)
+      ) {
+        items.push(bulletItem);
+      }
+    }
+  }
+
+  return items;
 }
 
 /**

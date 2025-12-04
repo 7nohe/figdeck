@@ -137,6 +137,15 @@ export interface TitlePrefixConfig {
 export type TableAlignment = "left" | "center" | "right" | null;
 
 /**
+ * Nested bullet item with optional children
+ */
+export interface BulletItem {
+  text: string;
+  spans?: TextSpan[];
+  children?: BulletItem[];
+}
+
+/**
  * Footnote item for slide footnotes
  */
 export interface FootnoteItem {
@@ -241,9 +250,10 @@ export type SlideBlock =
   | { kind: "heading"; level: 1 | 2 | 3 | 4; text: string; spans?: TextSpan[] }
   | {
       kind: "bullets";
-      items: string[];
+      items: string[] | BulletItem[];
       ordered?: boolean;
       start?: number;
+      /** @deprecated Use BulletItem[] with spans instead */
       itemSpans?: TextSpan[][];
     }
   | { kind: "code"; language?: string; code: string }

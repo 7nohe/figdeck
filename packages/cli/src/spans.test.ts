@@ -9,6 +9,7 @@ import type {
 } from "mdast";
 import {
   extractBlockquoteContent,
+  extractBulletItems,
   extractListItemSpans,
   extractSpans,
   extractTableRow,
@@ -260,6 +261,256 @@ describe("extractTableRow", () => {
     const cells = extractTableRow(row);
 
     expect(cells[0]).toEqual([{ text: "Bold", bold: true }]);
+  });
+});
+
+describe("extractBulletItems", () => {
+  it("should extract flat list items", () => {
+    const list: List = {
+      type: "list",
+      ordered: false,
+      children: [
+        {
+          type: "listItem",
+          children: [paragraph([textNode("Item 1")])],
+        },
+        {
+          type: "listItem",
+          children: [paragraph([textNode("Item 2")])],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items).toHaveLength(2);
+    expect(items[0].text).toBe("Item 1");
+    expect(items[1].text).toBe("Item 2");
+    expect(items[0].children).toBeUndefined();
+    expect(items[1].children).toBeUndefined();
+  });
+
+  it("should extract nested list items", () => {
+    const list: List = {
+      type: "list",
+      ordered: false,
+      children: [
+        {
+          type: "listItem",
+          children: [
+            paragraph([textNode("Parent")]),
+            {
+              type: "list",
+              ordered: false,
+              children: [
+                {
+                  type: "listItem",
+                  children: [paragraph([textNode("Child 1")])],
+                },
+                {
+                  type: "listItem",
+                  children: [paragraph([textNode("Child 2")])],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].text).toBe("Parent");
+    expect(items[0].children).toHaveLength(2);
+    expect(items[0].children?.[0].text).toBe("Child 1");
+    expect(items[0].children?.[1].text).toBe("Child 2");
+  });
+
+  it("should extract deeply nested list items", () => {
+    const list: List = {
+      type: "list",
+      ordered: false,
+      children: [
+        {
+          type: "listItem",
+          children: [
+            paragraph([textNode("Level 0")]),
+            {
+              type: "list",
+              ordered: false,
+              children: [
+                {
+                  type: "listItem",
+                  children: [
+                    paragraph([textNode("Level 1")]),
+                    {
+                      type: "list",
+                      ordered: false,
+                      children: [
+                        {
+                          type: "listItem",
+                          children: [paragraph([textNode("Level 2")])],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].text).toBe("Level 0");
+    expect(items[0].children).toHaveLength(1);
+    expect(items[0].children?.[0].text).toBe("Level 1");
+    expect(items[0].children?.[0].children).toHaveLength(1);
+    expect(items[0].children?.[0].children?.[0].text).toBe("Level 2");
+  });
+
+  it("should extract spans with formatting from list items", () => {
+    const list: List = {
+      type: "list",
+      ordered: false,
+      children: [
+        {
+          type: "listItem",
+          children: [
+            paragraph([
+              textNode("Normal "),
+              { type: "strong", children: [textNode("bold")] },
+              textNode(" text"),
+            ]),
+          ],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].text).toBe("Normal bold text");
+    expect(items[0].spans).toHaveLength(3);
+    expect(items[0].spans?.[0].text).toBe("Normal ");
+    expect(items[0].spans?.[0].bold).toBeUndefined();
+    expect(items[0].spans?.[1].text).toBe("bold");
+    expect(items[0].spans?.[1].bold).toBe(true);
+    expect(items[0].spans?.[2].text).toBe(" text");
+  });
+
+  it("should handle mixed nested and flat items", () => {
+    const list: List = {
+      type: "list",
+      ordered: false,
+      children: [
+        {
+          type: "listItem",
+          children: [paragraph([textNode("Flat item")])],
+        },
+        {
+          type: "listItem",
+          children: [
+            paragraph([textNode("Parent with children")]),
+            {
+              type: "list",
+              ordered: false,
+              children: [
+                {
+                  type: "listItem",
+                  children: [paragraph([textNode("Child")])],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: "listItem",
+          children: [paragraph([textNode("Another flat item")])],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items).toHaveLength(3);
+    expect(items[0].text).toBe("Flat item");
+    expect(items[0].children).toBeUndefined();
+    expect(items[1].text).toBe("Parent with children");
+    expect(items[1].children).toHaveLength(1);
+    expect(items[1].children?.[0].text).toBe("Child");
+    expect(items[2].text).toBe("Another flat item");
+    expect(items[2].children).toBeUndefined();
+  });
+
+  it("should concatenate multiple paragraphs in a list item", () => {
+    const list: List = {
+      type: "list",
+      ordered: false,
+      children: [
+        {
+          type: "listItem",
+          children: [
+            paragraph([textNode("First paragraph")]),
+            paragraph([textNode("Second paragraph")]),
+            paragraph([textNode("Third paragraph")]),
+          ],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].text).toBe(
+      "First paragraph\nSecond paragraph\nThird paragraph",
+    );
+    expect(items[0].spans).toHaveLength(5); // 3 text spans + 2 newline spans
+    expect(items[0].spans?.[0].text).toBe("First paragraph");
+    expect(items[0].spans?.[1].text).toBe("\n");
+    expect(items[0].spans?.[2].text).toBe("Second paragraph");
+    expect(items[0].spans?.[3].text).toBe("\n");
+    expect(items[0].spans?.[4].text).toBe("Third paragraph");
+  });
+
+  it("should concatenate multiple paragraphs with formatting", () => {
+    const list: List = {
+      type: "list",
+      ordered: false,
+      children: [
+        {
+          type: "listItem",
+          children: [
+            paragraph([
+              textNode("Normal "),
+              { type: "strong", children: [textNode("bold")] },
+            ]),
+            paragraph([
+              { type: "emphasis", children: [textNode("italic")] },
+              textNode(" text"),
+            ]),
+          ],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].text).toBe("Normal bold\nitalic text");
+    // Check formatting is preserved across paragraphs
+    const spans = items[0].spans ?? [];
+    expect(spans[0].text).toBe("Normal ");
+    expect(spans[1].text).toBe("bold");
+    expect(spans[1].bold).toBe(true);
+    expect(spans[2].text).toBe("\n");
+    expect(spans[3].text).toBe("italic");
+    expect(spans[3].italic).toBe(true);
+    expect(spans[4].text).toBe(" text");
   });
 });
 

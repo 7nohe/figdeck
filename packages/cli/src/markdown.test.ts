@@ -78,7 +78,12 @@ describe("parseMarkdown", () => {
       if (block?.kind === "bullets") {
         expect(block.ordered).toBe(true);
         expect(block.start).toBe(1);
-        expect(block.items).toEqual(["First", "Second", "Third"]);
+        expect(block.items).toHaveLength(3);
+        // Items are now BulletItem[] with text and spans
+        const items = block.items as Array<{ text: string }>;
+        expect(items[0].text).toBe("First");
+        expect(items[1].text).toBe("Second");
+        expect(items[2].text).toBe("Third");
       }
     });
 
@@ -466,17 +471,27 @@ code();
       const block = result[0].blocks[1];
       expect(block?.kind).toBe("bullets");
 
-      if (block?.kind === "bullets" && block.itemSpans) {
+      if (block?.kind === "bullets") {
         expect(block.items).toHaveLength(4);
-        expect(block.itemSpans).toHaveLength(4);
+        // Items are now BulletItem[] with text and spans
+        const items = block.items as Array<{
+          text: string;
+          spans?: Array<{
+            text: string;
+            bold?: boolean;
+            italic?: boolean;
+            code?: boolean;
+            href?: string;
+          }>;
+        }>;
         // Check that spans contain formatting
-        expect(block.itemSpans[0]).toContainEqual({ text: "Bold", bold: true });
-        expect(block.itemSpans[1]).toContainEqual({
+        expect(items[0].spans).toContainEqual({ text: "Bold", bold: true });
+        expect(items[1].spans).toContainEqual({
           text: "Italic",
           italic: true,
         });
-        expect(block.itemSpans[2]).toContainEqual({ text: "code", code: true });
-        expect(block.itemSpans[3]).toContainEqual({
+        expect(items[2].spans).toContainEqual({ text: "code", code: true });
+        expect(items[3].spans).toContainEqual({
           text: "Link",
           href: "https://example.com",
         });

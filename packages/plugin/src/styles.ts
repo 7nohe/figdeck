@@ -269,6 +269,8 @@ export const LAYOUT = {
   BLOCK_SPACING: 30,
   /** Spacing between bullet items */
   BULLET_ITEM_SPACING: 8,
+  /** Indent per nesting level for bullet lists */
+  BULLET_INDENT: 24,
   /** Padding inside content container */
   CONTAINER_PADDING: 100,
 } as const;

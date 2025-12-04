@@ -82,6 +82,25 @@ You can specify the starting number with the `start` attribute.
 3. Last step
 ```
 
+### Nested Lists
+
+Lists can be nested by indenting with 2 spaces. Bullet markers change by nesting level:
+
+- Level 0: `•` (U+2022)
+- Level 1: `◦` (U+25E6)
+- Level 2: `▪` (U+25AA)
+- Level 3+: `–` (U+2013)
+
+```markdown
+## Nested Example
+
+- Parent item
+  - Child item (2 spaces indent)
+    - Grandchild item
+      - Great-grandchild item
+- Back to parent level
+```
+
 ## Inline Formatting
 
 The following formatting can be used within text:

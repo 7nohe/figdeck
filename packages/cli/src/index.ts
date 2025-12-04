@@ -1,16 +1,23 @@
 import { existsSync, readFileSync, watchFile, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { parseMarkdown } from "./markdown.js";
 import { getInitTemplate } from "./templates.js";
 import { generateSecret, isLoopbackHost, startServer } from "./ws-server.js";
+
+// Read CLI version from package.json
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkgPath = resolve(__dirname, "../package.json");
+const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+const CLI_VERSION: string = pkg.version;
 
 const program = new Command();
 
 program
   .name("figdeck")
   .description("Convert Markdown to Figma Slides")
-  .version("0.1.0");
+  .version(CLI_VERSION);
 
 // init: create template slides.md
 program
@@ -134,6 +141,7 @@ program
           host,
           port: parseInt(options.port, 10),
           secret,
+          cliVersion: CLI_VERSION,
         });
 
         if (options.watch) {

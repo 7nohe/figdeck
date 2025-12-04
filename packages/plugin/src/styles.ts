@@ -231,16 +231,27 @@ export function applyFontFallbacks(
   };
 
   return {
-    h1: { ...styles.h1, font: resolveFallbackFont(styles.h1.font) },
-    h2: { ...styles.h2, font: resolveFallbackFont(styles.h2.font) },
-    h3: { ...styles.h3, font: resolveFallbackFont(styles.h3.font) },
-    h4: { ...styles.h4, font: resolveFallbackFont(styles.h4.font) },
-    paragraph: {
-      ...styles.paragraph,
+    h1: Object.assign({}, styles.h1, {
+      font: resolveFallbackFont(styles.h1.font),
+    }),
+    h2: Object.assign({}, styles.h2, {
+      font: resolveFallbackFont(styles.h2.font),
+    }),
+    h3: Object.assign({}, styles.h3, {
+      font: resolveFallbackFont(styles.h3.font),
+    }),
+    h4: Object.assign({}, styles.h4, {
+      font: resolveFallbackFont(styles.h4.font),
+    }),
+    paragraph: Object.assign({}, styles.paragraph, {
       font: resolveFallbackFont(styles.paragraph.font),
-    },
-    bullet: { ...styles.bullet, font: resolveFallbackFont(styles.bullet.font) },
-    code: { ...styles.code, font: resolveFallbackFont(styles.code.font) },
+    }),
+    bullet: Object.assign({}, styles.bullet, {
+      font: resolveFallbackFont(styles.bullet.font),
+    }),
+    code: Object.assign({}, styles.code, {
+      font: resolveFallbackFont(styles.code.font),
+    }),
   };
 }
 

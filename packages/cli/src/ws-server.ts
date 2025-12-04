@@ -1,6 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { type WebSocket, WebSocketServer } from "ws";
-import type { GenerateSlidesMessage, SlideContent } from "./types.js";
+import {
+  type GenerateSlidesMessage,
+  type HelloMessage,
+  PROTOCOL_VERSION,
+  type SlideContent,
+} from "./types.js";
 
 const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 const AUTH_TIMEOUT_MS = 5000;
@@ -9,6 +14,7 @@ export interface WsServerOptions {
   host: string;
   port: number;
   secret?: string; // If provided, require auth handshake
+  cliVersion: string; // CLI package version for compatibility checking
 }
 
 export interface WsServerInstance {
@@ -32,6 +38,7 @@ export function startServer(
   return new Promise((resolve, reject) => {
     let latestSlides = initialSlides;
     const secret = options.secret ?? null;
+    const cliVersion = options.cliVersion;
     const authenticatedClients = new WeakSet<WebSocket>();
 
     const wss = new WebSocketServer({
@@ -43,6 +50,9 @@ export function startServer(
 
     console.log(
       `WebSocket server started on ws://${options.host}:${options.port}`,
+    );
+    console.log(
+      `CLI version: ${cliVersion}, Protocol version: ${PROTOCOL_VERSION}`,
     );
     if (secret) {
       console.log(`Authentication secret: ${secret}`);
@@ -75,6 +85,14 @@ export function startServer(
 
       let authTimer: ReturnType<typeof setTimeout> | null = null;
 
+      // Send hello message immediately on connection
+      const helloMessage: HelloMessage = {
+        type: "hello",
+        protocolVersion: PROTOCOL_VERSION,
+        cliVersion: cliVersion,
+      };
+      ws.send(JSON.stringify(helloMessage));
+
       if (secret) {
         // Set auth timeout - close if not authenticated in time
         authTimer = setTimeout(() => {
@@ -101,6 +119,29 @@ export function startServer(
       ws.on("message", (data) => {
         try {
           const response = JSON.parse(data.toString());
+
+          // Handle hello response from plugin (version check)
+          if (response.type === "hello" && response.pluginVersion) {
+            const pluginVersion = response.pluginVersion as string;
+            const pluginProtocol = response.protocolVersion as string;
+
+            if (pluginProtocol !== PROTOCOL_VERSION) {
+              console.warn(
+                `[WARNING] Protocol version mismatch: CLI=${PROTOCOL_VERSION}, Plugin=${pluginProtocol}. ` +
+                  `Update both to the same version to avoid compatibility issues.`,
+              );
+            } else if (pluginVersion !== cliVersion) {
+              console.log(
+                `[INFO] Version difference: CLI=${cliVersion}, Plugin=${pluginVersion}. ` +
+                  `Consider updating to ensure compatibility.`,
+              );
+            } else {
+              console.log(
+                `Version check passed: CLI=${cliVersion}, Plugin=${pluginVersion}`,
+              );
+            }
+            return;
+          }
 
           // Handle auth message
           if (response.type === "auth") {

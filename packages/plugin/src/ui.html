@@ -86,6 +86,28 @@
     .warning-banner.visible {
       display: block;
     }
+    .version-warning {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      display: none;
+    }
+    .version-warning.visible {
+      display: block;
+    }
+    .version-warning.info {
+      background: #cce5ff;
+      color: #004085;
+    }
+    .version-warning .dismiss {
+      float: right;
+      cursor: pointer;
+      font-weight: bold;
+      margin-left: 8px;
+    }
     .import-section {
       margin-bottom: 12px;
     }
@@ -168,6 +190,10 @@
   </div>
 
   <div id="tab-websocket" class="tab-content active">
+    <div id="version-warning" class="version-warning">
+      <span class="dismiss" onclick="dismissVersionWarning()">×</span>
+      <span id="version-warning-text"></span>
+    </div>
     <div id="remote-warning" class="warning-banner">
       ⚠️ Connecting to non-loopback host. Ensure you trust this server.
     </div>
@@ -211,6 +237,10 @@
     var SECRET_KEY = 'figdeck-ws-secret';
     var TAB_KEY = 'figdeck-active-tab';
 
+    // Version compatibility
+    var PROTOCOL_VERSION = '1';
+    var PLUGIN_VERSION = '1.1.0';
+
     // Security limits
     var MAX_SLIDES = 100;
     var MAX_BLOCKS_PER_SLIDE = 50;
@@ -220,6 +250,8 @@
     var statusEl = document.getElementById('status');
     var importStatusEl = document.getElementById('import-status');
     var logEl = document.getElementById('log');
+    var versionWarningEl = document.getElementById('version-warning');
+    var versionWarningTextEl = document.getElementById('version-warning-text');
     var hostInput = document.getElementById('host');
     var portInput = document.getElementById('port');
     var secretInput = document.getElementById('secret');
@@ -240,6 +272,9 @@
     var autoConnect = true;
     var authenticated = false;
     var logEntryCount = 0;
+    var helloReceived = false;
+    var helloTimeoutId = null;
+    var HELLO_TIMEOUT_MS = 3000;
 
     function safeGet(key) {
       try {
@@ -266,6 +301,84 @@
         remoteWarning.classList.remove('visible');
       } else {
         remoteWarning.classList.add('visible');
+      }
+    }
+
+    function showVersionWarning(message, isInfo) {
+      versionWarningTextEl.textContent = message;
+      versionWarningEl.classList.remove('info');
+      if (isInfo) {
+        versionWarningEl.classList.add('info');
+      }
+      versionWarningEl.classList.add('visible');
+    }
+
+    function dismissVersionWarning() {
+      versionWarningEl.classList.remove('visible');
+    }
+
+    function handleHelloMessage(msg) {
+      helloReceived = true;
+      if (helloTimeoutId) {
+        clearTimeout(helloTimeoutId);
+        helloTimeoutId = null;
+      }
+
+      var cliVersion = msg.cliVersion;
+      var cliProtocol = msg.protocolVersion;
+
+      log('CLI version: ' + cliVersion + ', Protocol: ' + cliProtocol);
+
+      // Send hello response
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'hello',
+          protocolVersion: PROTOCOL_VERSION,
+          pluginVersion: PLUGIN_VERSION
+        }));
+      }
+
+      // Check protocol version compatibility
+      if (cliProtocol !== PROTOCOL_VERSION) {
+        showVersionWarning(
+          'Protocol version mismatch: CLI=' + cliProtocol + ', Plugin=' + PROTOCOL_VERSION + '. ' +
+          'Update both to the same version to avoid compatibility issues.',
+          false
+        );
+        log('[WARNING] Protocol version mismatch');
+      } else if (cliVersion !== PLUGIN_VERSION) {
+        showVersionWarning(
+          'Version difference: CLI=' + cliVersion + ', Plugin=' + PLUGIN_VERSION + '. ' +
+          'Consider updating to ensure compatibility.',
+          true
+        );
+        log('[INFO] Version difference detected');
+      } else {
+        dismissVersionWarning();
+        log('Version check passed');
+      }
+    }
+
+    function startHelloTimeout() {
+      helloReceived = false;
+      if (helloTimeoutId) {
+        clearTimeout(helloTimeoutId);
+      }
+      helloTimeoutId = setTimeout(function() {
+        if (!helloReceived && ws && ws.readyState === WebSocket.OPEN) {
+          showVersionWarning(
+            'CLI version unknown (older CLI detected). Consider updating figdeck CLI for better compatibility.',
+            true
+          );
+          log('[INFO] No hello received from CLI - possibly older version');
+        }
+      }, HELLO_TIMEOUT_MS);
+    }
+
+    function clearHelloTimeout() {
+      if (helloTimeoutId) {
+        clearTimeout(helloTimeoutId);
+        helloTimeoutId = null;
       }
     }
 
@@ -465,6 +578,8 @@
 
         ws.onopen = function() {
           log('Connected to CLI');
+          // Start timeout to detect old CLI that doesn't send hello
+          startHelloTimeout();
           // Send auth message if secret is provided
           if (currentSecret) {
             log('Sending authentication...');
@@ -483,6 +598,12 @@
           try {
             var msg = JSON.parse(event.data);
             log('Received: ' + msg.type);
+
+            // Handle hello message from CLI (version check)
+            if (msg.type === 'hello' && msg.cliVersion) {
+              handleHelloMessage(msg);
+              return;
+            }
 
             // Handle auth responses
             if (msg.type === 'auth-ok') {
@@ -520,6 +641,8 @@
 
         ws.onclose = function(event) {
           authenticated = false;
+          clearHelloTimeout();
+          dismissVersionWarning();
           if (event.code === 4001) {
             setStatus('Authentication timeout', 'error');
             log('Authentication timeout - provide the secret from CLI');

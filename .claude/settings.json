@@ -1,0 +1,20 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd $CLAUDE_PROJECT_DIR && bun run check --write && bun run typecheck && bun test",
+            "timeout": 120
+          },
+          {
+            "type": "command",
+            "command": "echo '\\n📝 Documentation check: Verify if README.md, CLAUDE.md, AGENTS.md, docs/, or examples/ need updates\\n🔄 Backward compatibility check: Verify if changes break existing APIs, types, or configurations'"
+          }
+        ]
+      }
+    ]
+  }
+}

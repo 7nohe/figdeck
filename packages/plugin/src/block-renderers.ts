@@ -16,6 +16,7 @@ import {
   safeSetRangeHyperlink,
 } from "./text-renderer";
 import type {
+  BulletItem,
   FigmaSelectionLink,
   FootnoteItem,
   ImageSize,
@@ -111,12 +112,168 @@ export async function renderParagraph(
   return { node: body, height: body.height };
 }
 
+/** Bullet markers for different nesting levels */
+const BULLET_MARKERS = ["•", "◦", "▪", "–"];
+
+/**
+ * Type guard to check if items are BulletItem[] (nested structure)
+ */
+function isBulletItemArray(
+  items: string[] | BulletItem[],
+): items is BulletItem[] {
+  return (
+    items.length > 0 &&
+    typeof items[0] === "object" &&
+    items[0] !== null &&
+    "text" in items[0]
+  );
+}
+
+/**
+ * Check if any BulletItem (recursively) has special formatting
+ */
+function hasSpecialFormattingInItems(items: BulletItem[]): boolean {
+  for (const item of items) {
+    if (item.spans?.some((s) => s.code || s.superscript)) {
+      return true;
+    }
+    if (item.children && hasSpecialFormattingInItems(item.children)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Render nested bullet items recursively using Frame-based layout
+ */
+async function renderNestedBulletItems(
+  items: BulletItem[],
+  style: ResolvedTextStyle,
+  ordered: boolean,
+  startNum: number,
+  depth: number,
+  codeFont?: ResolvedFontName,
+): Promise<FrameNode> {
+  const font = style.font;
+  const frame = figma.createFrame();
+  frame.name =
+    depth === 0
+      ? ordered
+        ? "Ordered List"
+        : "Bullet List"
+      : `Nested Level ${depth}`;
+  frame.layoutMode = "VERTICAL";
+  frame.primaryAxisSizingMode = "AUTO";
+  frame.counterAxisSizingMode = "AUTO";
+  frame.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+  frame.fills = [];
+
+  // Add left padding for nested levels
+  if (depth > 0) {
+    frame.paddingLeft = LAYOUT.BULLET_INDENT;
+  }
+
+  // Load fonts for marker and plain text
+  const regularFontName = { family: font.family, style: font.regular };
+  try {
+    await figma.loadFontAsync(regularFontName);
+  } catch {
+    // Fall back to Inter if font not available
+    await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+  }
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+
+    // Create container for this item and its children
+    const itemContainer = figma.createFrame();
+    itemContainer.name = `Item ${i}`;
+    itemContainer.layoutMode = "VERTICAL";
+    itemContainer.primaryAxisSizingMode = "AUTO";
+    itemContainer.counterAxisSizingMode = "AUTO";
+    itemContainer.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+    itemContainer.fills = [];
+
+    // Create the item row (marker + text)
+    const itemRow = figma.createFrame();
+    itemRow.name = "Item Row";
+    itemRow.layoutMode = "HORIZONTAL";
+    itemRow.primaryAxisSizingMode = "AUTO";
+    itemRow.counterAxisSizingMode = "AUTO";
+    itemRow.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+    itemRow.fills = [];
+
+    // Bullet/number marker
+    const marker = figma.createText();
+    try {
+      marker.fontName = regularFontName;
+    } catch {
+      marker.fontName = { family: "Inter", style: "Regular" };
+    }
+    marker.fontSize = style.fontSize;
+    marker.characters = ordered
+      ? `${startNum + i}.`
+      : BULLET_MARKERS[Math.min(depth, BULLET_MARKERS.length - 1)];
+    if (style.fills) {
+      marker.fills = style.fills;
+    }
+    itemRow.appendChild(marker);
+
+    // Item text content
+    if (item.spans && item.spans.length > 0) {
+      const textNode = await renderSpansWithInlineCode(
+        item.spans,
+        style.fontSize,
+        style.fills,
+        undefined,
+        undefined,
+        font,
+        codeFont,
+      );
+      itemRow.appendChild(textNode);
+    } else if (item.text) {
+      const textNode = figma.createText();
+      try {
+        textNode.fontName = regularFontName;
+      } catch {
+        textNode.fontName = { family: "Inter", style: "Regular" };
+      }
+      textNode.fontSize = style.fontSize;
+      textNode.characters = item.text;
+      if (style.fills) {
+        textNode.fills = style.fills;
+      }
+      itemRow.appendChild(textNode);
+    }
+
+    itemContainer.appendChild(itemRow);
+
+    // Render children recursively
+    if (item.children && item.children.length > 0) {
+      const childFrame = await renderNestedBulletItems(
+        item.children,
+        style,
+        false, // Child lists are unordered by default
+        1,
+        depth + 1,
+        codeFont,
+      );
+      itemContainer.appendChild(childFrame);
+    }
+
+    frame.appendChild(itemContainer);
+  }
+
+  return frame;
+}
+
 /**
  * Render a bullet/numbered list block
- * Handles both plain text items and items with spans
+ * Handles both plain text items, items with spans, and nested BulletItem[]
  */
 export async function renderBulletList(
-  items: string[],
+  items: string[] | BulletItem[],
   itemSpans: TextSpan[][] | undefined,
   style: ResolvedTextStyle,
   ordered: boolean,
@@ -127,6 +284,115 @@ export async function renderBulletList(
 ): Promise<BlockRenderResult> {
   const font = style.font;
 
+  // Check if using new nested BulletItem[] structure
+  if (isBulletItemArray(items)) {
+    // Check if any item has nested children or special formatting
+    const hasNesting = items.some(
+      (item) => item.children && item.children.length > 0,
+    );
+    const hasSpecial = hasSpecialFormattingInItems(items);
+
+    if (hasNesting || hasSpecial) {
+      // Use Frame-based layout for nested/complex lists
+      const frame = await renderNestedBulletItems(
+        items,
+        style,
+        ordered,
+        startNum,
+        0,
+        codeFont,
+      );
+      frame.x = x;
+      frame.y = y;
+      return { node: frame, height: frame.height };
+    }
+
+    // Flat BulletItem[] without nesting - can use native Figma list
+    const useNativeList = !ordered || startNum === 1;
+    const bullets = figma.createText();
+    bullets.fontName = { family: font.family, style: font.regular };
+    bullets.fontSize = style.fontSize;
+
+    const itemTexts = items.map((item) => item.text);
+
+    if (useNativeList) {
+      bullets.characters = itemTexts.join("\n");
+      bullets.setRangeListOptions(0, bullets.characters.length, {
+        type: ordered ? "ORDERED" : "UNORDERED",
+      });
+    } else {
+      const text = itemTexts.map((t, i) => `${startNum + i}. ${t}`).join("\n");
+      bullets.characters = text;
+    }
+
+    // Apply formatting from spans
+    let charIndex = 0;
+    for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
+      const item = items[itemIdx];
+      const prefixLength = useNativeList ? 0 : `${startNum + itemIdx}. `.length;
+
+      if (item.spans && item.spans.length > 0) {
+        let spanIndex = charIndex + prefixLength;
+        for (const span of item.spans) {
+          if (span.text.length === 0) continue;
+
+          const start = spanIndex;
+          const end = start + span.text.length;
+
+          // Font style
+          let fontStyle: string = font.regular;
+          if (span.bold && span.italic) {
+            fontStyle = font.boldItalic;
+          } else if (span.bold) {
+            fontStyle = font.bold;
+          } else if (span.italic) {
+            fontStyle = font.italic;
+          }
+          bullets.setRangeFontName(start, end, {
+            family: font.family,
+            style: fontStyle,
+          });
+
+          // Fill color
+          if (span.href) {
+            bullets.setRangeFills(start, end, [
+              { type: "SOLID", color: { r: 0.1, g: 0.4, b: 0.9 } },
+            ]);
+            bullets.setRangeTextDecoration(start, end, "UNDERLINE");
+            try {
+              bullets.setRangeHyperlink(start, end, {
+                type: "URL",
+                value: span.href,
+              });
+            } catch {
+              // Ignore hyperlink errors
+            }
+          } else if (style.fills) {
+            bullets.setRangeFills(start, end, style.fills);
+          }
+
+          // Strikethrough
+          if (span.strike) {
+            bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+          }
+
+          spanIndex = end;
+        }
+      }
+
+      // Advance charIndex by prefix + text + newline
+      charIndex += prefixLength + item.text.length + 1;
+    }
+
+    if (style.fills) {
+      bullets.fills = style.fills;
+    }
+    bullets.x = x;
+    bullets.y = y;
+    return { node: bullets, height: bullets.height };
+  }
+
+  // Legacy: string[] items with optional itemSpans
   if (itemSpans && itemSpans.length > 0) {
     // Check if any item has inline code or superscript - if so, use Frame-based layout
     const hasSpecialFormatting = itemSpans.some((spans) =>
@@ -207,11 +473,13 @@ export async function renderBulletList(
     // Apply formatting to each span
     let charIndex = 0;
     for (let itemIdx = 0; itemIdx < itemSpans.length; itemIdx++) {
+      const prefixLength = useNativeList ? 0 : `${startNum + itemIdx}. `.length;
+      let spanIndex = charIndex + prefixLength;
       for (const span of itemSpans[itemIdx]) {
         if (span.text.length === 0) continue;
 
-        const start = charIndex;
-        const end = charIndex + span.text.length;
+        const start = spanIndex;
+        const end = start + span.text.length;
 
         // Font style
         let fontStyle: string = font.regular;
@@ -250,14 +518,14 @@ export async function renderBulletList(
           bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
         }
 
-        charIndex = end;
+        spanIndex = end;
       }
-      charIndex++; // Account for newline character between items
-    }
-
-    if (style.fills) {
-      // Apply base fill to entire text (will be overridden by span-specific fills)
-      // This ensures any unformatted text has the correct color
+      // Advance charIndex by prefix + text + newline
+      const itemTextLength = itemSpans[itemIdx].reduce(
+        (sum, span) => sum + span.text.length,
+        0,
+      );
+      charIndex += prefixLength + itemTextLength + 1;
     }
 
     bullets.x = x;

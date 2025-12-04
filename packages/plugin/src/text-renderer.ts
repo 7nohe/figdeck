@@ -80,8 +80,39 @@ export async function renderSpansToText(
 ): Promise<TextNode> {
   const textNode = figma.createText();
   const fullText = spans.map((s) => s.text).join("");
-  textNode.characters = fullText;
   const resolvedFont = font || DEFAULT_FONT;
+
+  // Load required fonts before setting characters
+  // We need regular, bold, italic, and bold-italic variants
+  const fontsToLoad = [
+    { family: resolvedFont.family, style: resolvedFont.regular },
+    { family: resolvedFont.family, style: resolvedFont.bold },
+    { family: resolvedFont.family, style: resolvedFont.italic },
+    { family: resolvedFont.family, style: resolvedFont.boldItalic },
+  ];
+
+  for (const fontName of fontsToLoad) {
+    try {
+      await figma.loadFontAsync(fontName);
+    } catch {
+      // Fallback to Inter if font not available
+      const interFallback = fontName.style.includes("Bold")
+        ? fontName.style.includes("Italic")
+          ? "Bold Italic"
+          : "Bold"
+        : fontName.style.includes("Italic")
+          ? "Italic"
+          : "Regular";
+      try {
+        await figma.loadFontAsync({ family: "Inter", style: interFallback });
+      } catch {
+        // Last resort: load Inter Regular
+        await figma.loadFontAsync({ family: "Inter", style: "Regular" });
+      }
+    }
+  }
+
+  textNode.characters = fullText;
 
   let charIndex = 0;
   for (const span of spans) {

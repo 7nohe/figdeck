@@ -32,7 +32,7 @@ import {
 import { isRemoteUrl, readLocalImage } from "./local-image.js";
 import {
   extractBlockquoteContent,
-  extractListItemSpans,
+  extractBulletItems,
   extractSpans,
   extractTableRow,
   spansToText,
@@ -282,13 +282,12 @@ function processParagraph(
  * Process a list node (ordered or unordered)
  */
 function processList(listNode: List, builder: SlideBuilder): void {
-  const { texts, spans: itemSpans } = extractListItemSpans(listNode);
+  const bulletItems = extractBulletItems(listNode);
   builder.blocks.push({
     kind: "bullets",
-    items: texts,
+    items: bulletItems,
     ordered: listNode.ordered || false,
     start: listNode.start ?? 1,
-    itemSpans,
   });
 }
 

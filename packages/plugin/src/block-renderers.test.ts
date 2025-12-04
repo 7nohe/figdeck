@@ -380,6 +380,155 @@ describe("renderBulletList", () => {
     expect(result.node.x).toBe(150);
     expect(result.node.y).toBe(300);
   });
+
+  it("should render flat BulletItem[] without nesting as TextNode", async () => {
+    const items = [
+      { text: "First item", spans: [{ text: "First item" }] },
+      { text: "Second item", spans: [{ text: "Second item" }] },
+    ];
+
+    const result = await renderBulletList(
+      items,
+      undefined,
+      defaultStyle,
+      false,
+      1,
+      100,
+      200,
+    );
+
+    expect(result.node).toBeDefined();
+    // Flat BulletItem[] without nesting uses native Figma list
+    expect(result.node.type).toBe("TEXT");
+  });
+
+  it("should offset span formatting when ordered list starts at custom number", async () => {
+    const items = [
+      { text: "First", spans: [{ text: "First", bold: true }] },
+      { text: "Second", spans: [{ text: "Second", italic: true }] },
+    ];
+
+    // Reset shared mock to isolate this test's calls
+    const sharedFontMock = mockTextNode.setRangeFontName as ReturnType<
+      typeof mock
+    >;
+    sharedFontMock.mockReset();
+
+    const result = await renderBulletList(
+      items,
+      undefined,
+      defaultStyle,
+      true,
+      5,
+      100,
+      200,
+    );
+
+    expect(result.node).toBeDefined();
+    const textNode = result.node as unknown as typeof mockTextNode;
+    expect(textNode.characters).toBe("5. First\n6. Second");
+
+    // Ensure span formatting accounts for numeric prefixes
+    const calls = (textNode.setRangeFontName as ReturnType<typeof mock>).mock
+      .calls;
+    expect(calls[0]).toEqual([
+      3,
+      8,
+      { family: defaultFont.family, style: defaultFont.bold },
+    ]);
+    expect(calls[1]).toEqual([
+      12,
+      18,
+      { family: defaultFont.family, style: defaultFont.italic },
+    ]);
+  });
+
+  it("should render nested BulletItem[] as Frame", async () => {
+    const items = [
+      {
+        text: "Parent item",
+        spans: [{ text: "Parent item" }],
+        children: [
+          { text: "Child item 1", spans: [{ text: "Child item 1" }] },
+          { text: "Child item 2", spans: [{ text: "Child item 2" }] },
+        ],
+      },
+      { text: "Another parent", spans: [{ text: "Another parent" }] },
+    ];
+
+    const result = await renderBulletList(
+      items,
+      undefined,
+      defaultStyle,
+      false,
+      1,
+      100,
+      200,
+    );
+
+    expect(result.node).toBeDefined();
+    // Nested BulletItem[] uses Frame-based layout
+    expect(result.node.type).toBe("FRAME");
+  });
+
+  it("should render deeply nested BulletItem[] as Frame", async () => {
+    const items = [
+      {
+        text: "Level 0",
+        spans: [{ text: "Level 0" }],
+        children: [
+          {
+            text: "Level 1",
+            spans: [{ text: "Level 1" }],
+            children: [
+              {
+                text: "Level 2",
+                spans: [{ text: "Level 2" }],
+                children: [{ text: "Level 3", spans: [{ text: "Level 3" }] }],
+              },
+            ],
+          },
+        ],
+      },
+    ];
+
+    const result = await renderBulletList(
+      items,
+      undefined,
+      defaultStyle,
+      false,
+      1,
+      100,
+      200,
+    );
+
+    expect(result.node).toBeDefined();
+    expect(result.node.type).toBe("FRAME");
+  });
+
+  it("should render BulletItem[] with special formatting as Frame", async () => {
+    const items = [
+      {
+        text: "Item with code",
+        spans: [{ text: "Item with " }, { text: "code", code: true }],
+      },
+      { text: "Normal item", spans: [{ text: "Normal item" }] },
+    ];
+
+    const result = await renderBulletList(
+      items,
+      undefined,
+      defaultStyle,
+      false,
+      1,
+      100,
+      200,
+    );
+
+    expect(result.node).toBeDefined();
+    // BulletItem[] with inline code uses Frame-based layout
+    expect(result.node.type).toBe("FRAME");
+  });
 });
 
 describe("renderTable", () => {

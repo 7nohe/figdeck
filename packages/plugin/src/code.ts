@@ -23,12 +23,14 @@ import {
   resolveSlideStyles,
 } from "./styles";
 import type {
+  BulletItem,
   HorizontalAlign,
   SlideBlock,
   SlideContent,
   SlideTransitionConfig,
   SlideTransitionCurve,
   SlideTransitionStyle,
+  TextSpan,
   TitlePrefixConfig,
   VerticalAlign,
 } from "./types";
@@ -763,7 +765,77 @@ function truncateString(str: string, maxLen: number): string {
   return str;
 }
 
-function validateAndSanitizeSlides(
+function sanitizeTextSpans(spans: unknown): TextSpan[] | undefined {
+  if (!Array.isArray(spans)) return undefined;
+
+  const sanitizedSpans: TextSpan[] = [];
+
+  for (const span of spans) {
+    if (!span || typeof span !== "object") continue;
+
+    const { text, ...rest } = span as TextSpan & Record<string, unknown>;
+    if (typeof text !== "string") continue;
+
+    sanitizedSpans.push({
+      ...rest,
+      text: truncateString(text, MAX_STRING_LENGTH),
+    } as TextSpan);
+  }
+
+  return sanitizedSpans.length > 0 ? sanitizedSpans : undefined;
+}
+
+function sanitizeBulletItem(item: unknown): BulletItem | null {
+  if (typeof item === "string") {
+    return { text: truncateString(item, MAX_STRING_LENGTH) };
+  }
+
+  if (!item || typeof item !== "object") {
+    return null;
+  }
+
+  const bulletItem = item as BulletItem;
+  const sanitized: BulletItem = {
+    text:
+      typeof bulletItem.text === "string"
+        ? truncateString(bulletItem.text, MAX_STRING_LENGTH)
+        : "",
+  };
+
+  const spans = sanitizeTextSpans(bulletItem.spans);
+  if (spans) {
+    sanitized.spans = spans;
+  }
+
+  if (Array.isArray(bulletItem.children)) {
+    const children = bulletItem.children
+      .map((child) => sanitizeBulletItem(child))
+      .filter((child): child is BulletItem => child !== null);
+    if (children.length > 0) {
+      sanitized.children = children;
+    }
+  }
+
+  return sanitized;
+}
+
+function sanitizeBulletItems(items: Array<unknown>): string[] | BulletItem[] {
+  const hasBulletObjects = items.some(
+    (item) => item !== null && typeof item === "object",
+  );
+
+  if (hasBulletObjects) {
+    return items
+      .map((item) => sanitizeBulletItem(item))
+      .filter((item): item is BulletItem => item !== null);
+  }
+
+  return items
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => truncateString(item, MAX_STRING_LENGTH));
+}
+
+export function validateAndSanitizeSlides(
   slides: unknown,
 ): { valid: true; slides: SlideContent[] } | { valid: false; error: string } {
   if (!Array.isArray(slides)) {
@@ -820,10 +892,8 @@ function validateAndSanitizeSlides(
           );
         }
         if ("items" in sanitizedBlock && Array.isArray(sanitizedBlock.items)) {
-          sanitizedBlock.items = sanitizedBlock.items.map((item: unknown) =>
-            typeof item === "string"
-              ? truncateString(item, MAX_STRING_LENGTH)
-              : "",
+          sanitizedBlock.items = sanitizeBulletItems(
+            sanitizedBlock.items as Array<unknown>,
           );
         }
         if (

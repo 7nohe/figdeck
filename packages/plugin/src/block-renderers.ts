@@ -7,7 +7,7 @@ import {
   MAX_PREVIEW_WIDTH,
 } from "./constants";
 import { highlightCode } from "./highlight";
-import type { ResolvedTextStyle } from "./styles";
+import type { ResolvedFontName, ResolvedTextStyle } from "./styles";
 import { LAYOUT } from "./styles";
 import {
   isValidHyperlinkUrl,
@@ -40,6 +40,7 @@ export async function renderHeading(
   style: ResolvedTextStyle,
   x: number,
   y: number,
+  codeFont?: ResolvedFontName,
 ): Promise<BlockRenderResult> {
   if (spans && spans.length > 0) {
     const node = await renderSpansWithInlineCode(
@@ -48,17 +49,19 @@ export async function renderHeading(
       style.fills,
       x,
       y,
+      style.font,
+      codeFont,
     );
     // For headings rendered via spans, apply bold to non-code text nodes
     if (node.type === "TEXT") {
-      node.fontName = { family: "Inter", style: "Bold" };
+      node.fontName = { family: style.font.family, style: style.font.bold };
     }
     return { node, height: node.height };
   }
 
   // Plain text fallback
   const heading = figma.createText();
-  heading.fontName = { family: "Inter", style: style.fontStyle };
+  heading.fontName = { family: style.font.family, style: style.font.bold };
   heading.fontSize = style.fontSize;
   heading.characters = text;
   if (style.fills) {
@@ -79,6 +82,7 @@ export async function renderParagraph(
   style: ResolvedTextStyle,
   x: number,
   y: number,
+  codeFont?: ResolvedFontName,
 ): Promise<BlockRenderResult> {
   if (spans && spans.length > 0) {
     const node = await renderSpansWithInlineCode(
@@ -87,13 +91,15 @@ export async function renderParagraph(
       style.fills,
       x,
       y,
+      style.font,
+      codeFont,
     );
     return { node, height: node.height };
   }
 
   // Plain text fallback
   const body = figma.createText();
-  body.fontName = { family: "Inter", style: style.fontStyle };
+  body.fontName = { family: style.font.family, style: style.font.regular };
   body.fontSize = style.fontSize;
   body.characters = text;
   if (style.fills) {
@@ -116,7 +122,10 @@ export async function renderBulletList(
   startNum: number,
   x: number,
   y: number,
+  codeFont?: ResolvedFontName,
 ): Promise<BlockRenderResult> {
+  const font = style.font;
+
   if (itemSpans && itemSpans.length > 0) {
     // Check if any item has inline code or superscript - if so, use Frame-based layout
     const hasSpecialFormatting = itemSpans.some((spans) =>
@@ -146,7 +155,7 @@ export async function renderBulletList(
 
         // Bullet/number prefix
         const prefix = figma.createText();
-        prefix.fontName = { family: "Inter", style: "Regular" };
+        prefix.fontName = { family: font.family, style: font.regular };
         prefix.fontSize = style.fontSize;
         prefix.characters = ordered ? `${startNum + i}.` : "•";
         if (style.fills) {
@@ -159,6 +168,10 @@ export async function renderBulletList(
           itemSpans[i],
           style.fontSize,
           style.fills,
+          undefined,
+          undefined,
+          font,
+          codeFont,
         );
         itemFrame.appendChild(itemNode);
 
@@ -171,7 +184,7 @@ export async function renderBulletList(
     // Native Figma list with rich text formatting (no inline code)
     const useNativeList = !ordered || startNum === 1;
     const bullets = figma.createText();
-    bullets.fontName = { family: "Inter", style: style.fontStyle };
+    bullets.fontName = { family: font.family, style: font.regular };
     bullets.fontSize = style.fontSize;
 
     // Build full text from spans, separated by newlines
@@ -200,17 +213,16 @@ export async function renderBulletList(
         const end = charIndex + span.text.length;
 
         // Font style
-        let fontStyle: "Regular" | "Bold" | "Italic" | "Bold Italic" =
-          "Regular";
+        let fontStyle: string = font.regular;
         if (span.bold && span.italic) {
-          fontStyle = "Bold Italic";
+          fontStyle = font.boldItalic;
         } else if (span.bold) {
-          fontStyle = "Bold";
+          fontStyle = font.bold;
         } else if (span.italic) {
-          fontStyle = "Italic";
+          fontStyle = font.italic;
         }
         bullets.setRangeFontName(start, end, {
-          family: "Inter",
+          family: font.family,
           style: fontStyle,
         });
 
@@ -254,7 +266,7 @@ export async function renderBulletList(
 
   // Plain text with native Figma list (or manual prefix for ordered lists starting from non-1)
   const bullets = figma.createText();
-  bullets.fontName = { family: "Inter", style: style.fontStyle };
+  bullets.fontName = { family: font.family, style: font.regular };
   bullets.fontSize = style.fontSize;
 
   // Figma native ordered lists always start from 1, so use manual prefix if startNum != 1
@@ -288,6 +300,8 @@ export async function renderBlockquote(
   baseFills?: Paint[],
   x?: number,
   y?: number,
+  font?: ResolvedFontName,
+  codeFont?: ResolvedFontName,
 ): Promise<FrameNode> {
   const frame = figma.createFrame();
   frame.name = "Blockquote";
@@ -315,6 +329,10 @@ export async function renderBlockquote(
     spans,
     baseSize * 0.95,
     quoteFills,
+    undefined,
+    undefined,
+    font,
+    codeFont,
   );
   frame.appendChild(textNode);
 
@@ -785,6 +803,7 @@ export async function renderTable(
   baseFills?: Paint[],
   x?: number,
   y?: number,
+  font?: ResolvedFontName,
 ): Promise<FrameNode> {
   const tableFrame = figma.createFrame();
   tableFrame.name = "Table";
@@ -800,6 +819,15 @@ export async function renderTable(
   if (x !== undefined) tableFrame.x = x;
   if (y !== undefined) tableFrame.y = y;
 
+  // Default font for table
+  const tableFont: ResolvedFontName = font || {
+    family: "Inter",
+    regular: "Regular",
+    bold: "Bold",
+    italic: "Italic",
+    boldItalic: "Bold Italic",
+  };
+
   // Render header row
   if (headers.length > 0) {
     const headerRow = createTableRow(
@@ -810,8 +838,13 @@ export async function renderTable(
 
     for (let i = 0; i < headers.length; i++) {
       const cell = createTableCell(`Header ${i}`, i > 0);
-      const textNode = await renderSpansToText(headers[i], baseSize, baseFills);
-      textNode.fontName = { family: "Inter", style: "Bold" };
+      const textNode = await renderSpansToText(
+        headers[i],
+        baseSize,
+        baseFills,
+        tableFont,
+      );
+      textNode.fontName = { family: tableFont.family, style: tableFont.bold };
       textNode.textAlignHorizontal = toFigmaAlignment(align, i);
       cell.appendChild(textNode);
       headerRow.appendChild(cell);
@@ -827,7 +860,12 @@ export async function renderTable(
 
     for (let i = 0; i < row.length; i++) {
       const cell = createTableCell(`Cell ${rowIdx}-${i}`, i > 0);
-      const textNode = await renderSpansToText(row[i], baseSize, baseFills);
+      const textNode = await renderSpansToText(
+        row[i],
+        baseSize,
+        baseFills,
+        tableFont,
+      );
       textNode.textAlignHorizontal = toFigmaAlignment(align, i);
       cell.appendChild(textNode);
       rowFrame.appendChild(cell);
@@ -861,6 +899,7 @@ export function renderCodeBlock(
   codeSize: number,
   x: number,
   y: number,
+  font?: ResolvedFontName,
 ): BlockRenderResult {
   const codeFrame = figma.createFrame();
   codeFrame.name = codeBlock.language ? `Code (${codeBlock.language})` : "Code";
@@ -875,7 +914,8 @@ export function renderCodeBlock(
   codeFrame.counterAxisSizingMode = "AUTO";
 
   const codeText = figma.createText();
-  codeText.fontName = { family: "Inter", style: "Regular" };
+  const codeFont = font || { family: "Inter", regular: "Regular" };
+  codeText.fontName = { family: codeFont.family, style: codeFont.regular };
   codeText.fontSize = codeSize;
 
   const segments = highlightCode(codeBlock.code, codeBlock.language);
@@ -908,6 +948,8 @@ export async function renderFootnotes(
   footnotes: FootnoteItem[],
   baseSize: number,
   baseFills?: Paint[],
+  font?: ResolvedFontName,
+  codeFont?: ResolvedFontName,
 ): Promise<FrameNode> {
   const frame = figma.createFrame();
   frame.name = "Footnotes";
@@ -963,6 +1005,7 @@ export async function renderFootnotes(
       markerSpans,
       footnoteSize,
       mutedFills,
+      font,
     );
     footnoteFrame.appendChild(markerNode);
 
@@ -972,6 +1015,10 @@ export async function renderFootnotes(
       contentSpans,
       footnoteSize,
       mutedFills,
+      undefined,
+      undefined,
+      font,
+      codeFont,
     );
     footnoteFrame.appendChild(contentNode);
 

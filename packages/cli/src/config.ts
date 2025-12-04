@@ -8,6 +8,8 @@ import {
 import { getTemplateDefaults } from "./templates.js";
 import type {
   BackgroundImage,
+  FontConfig,
+  FontVariant,
   HorizontalAlign,
   TextStyle as ParsedTextStyle,
   SlideBackground,
@@ -89,6 +91,31 @@ interface TransitionYamlConfig {
 }
 
 /**
+ * Font variant configuration from YAML
+ * Supports both shorthand (just family string) and full object
+ */
+interface FontVariantYamlConfig {
+  family?: string;
+  style?: string;
+  bold?: string;
+  italic?: string;
+  boldItalic?: string;
+}
+
+/**
+ * Fonts configuration from YAML
+ */
+interface FontsYamlConfig {
+  h1?: FontVariantYamlConfig | string;
+  h2?: FontVariantYamlConfig | string;
+  h3?: FontVariantYamlConfig | string;
+  h4?: FontVariantYamlConfig | string;
+  body?: FontVariantYamlConfig | string;
+  bullets?: FontVariantYamlConfig | string;
+  code?: FontVariantYamlConfig | string;
+}
+
+/**
  * Full slide configuration from YAML frontmatter
  */
 export interface SlideConfig {
@@ -106,6 +133,7 @@ export interface SlideConfig {
   align?: string;
   valign?: string;
   transition?: TransitionYamlConfig | string;
+  fonts?: FontsYamlConfig;
 }
 
 /**
@@ -331,6 +359,12 @@ export function parseSlideConfig(
   styles.paragraphs = applyBaseColor(parseTextStyle(config.paragraphs));
   styles.bullets = applyBaseColor(parseTextStyle(config.bullets));
   styles.code = applyBaseColor(parseTextStyle(config.code));
+
+  // Parse fonts config
+  const fonts = parseFontsConfig(config.fonts);
+  if (fonts) {
+    styles.fonts = fonts;
+  }
 
   // Parse slideNumber config
   const slideNumber = parseSlideNumberConfig(config.slideNumber);
@@ -561,6 +595,110 @@ export function parseTransitionConfig(
 }
 
 /**
+ * Parse a single FontVariant from YAML config
+ * Supports both shorthand (just family string) and full object
+ */
+function parseFontVariant(
+  config: FontVariantYamlConfig | string | undefined,
+): FontVariant | undefined {
+  if (!config) return undefined;
+
+  // Shorthand: just family name with "Regular" style
+  if (typeof config === "string") {
+    return {
+      family: config,
+      style: "Regular",
+    };
+  }
+
+  // Full object form
+  if (!config.family) return undefined;
+
+  return {
+    family: config.family,
+    style: config.style || "Regular",
+    bold: config.bold,
+    italic: config.italic,
+    boldItalic: config.boldItalic,
+  };
+}
+
+/**
+ * Parse fonts config from YAML
+ */
+function parseFontsConfig(
+  config: FontsYamlConfig | undefined,
+): FontConfig | undefined {
+  if (!config) return undefined;
+
+  const result: FontConfig = {};
+
+  if (config.h1) result.h1 = parseFontVariant(config.h1);
+  if (config.h2) result.h2 = parseFontVariant(config.h2);
+  if (config.h3) result.h3 = parseFontVariant(config.h3);
+  if (config.h4) result.h4 = parseFontVariant(config.h4);
+  if (config.body) result.body = parseFontVariant(config.body);
+  if (config.bullets) result.bullets = parseFontVariant(config.bullets);
+  if (config.code) result.code = parseFontVariant(config.code);
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
+ * Merge two FontVariant objects
+ */
+function mergeFontVariant(
+  defaultVariant: FontVariant | undefined,
+  slideVariant: FontVariant | undefined,
+): FontVariant | undefined {
+  if (!defaultVariant && !slideVariant) return undefined;
+  if (!defaultVariant) return slideVariant;
+  if (!slideVariant) return defaultVariant;
+
+  return {
+    family: slideVariant.family ?? defaultVariant.family,
+    style: slideVariant.style ?? defaultVariant.style,
+    bold: slideVariant.bold ?? defaultVariant.bold,
+    italic: slideVariant.italic ?? defaultVariant.italic,
+    boldItalic: slideVariant.boldItalic ?? defaultVariant.boldItalic,
+  };
+}
+
+/**
+ * Merge FontConfig, with slide config overriding defaults
+ */
+export function mergeFontsConfig(
+  defaultConfig: FontConfig | undefined,
+  slideConfig: FontConfig | undefined,
+): FontConfig | undefined {
+  if (!defaultConfig && !slideConfig) return undefined;
+  if (!defaultConfig) return slideConfig;
+  if (!slideConfig) return defaultConfig;
+
+  const result: FontConfig = {};
+
+  const merged = {
+    h1: mergeFontVariant(defaultConfig.h1, slideConfig.h1),
+    h2: mergeFontVariant(defaultConfig.h2, slideConfig.h2),
+    h3: mergeFontVariant(defaultConfig.h3, slideConfig.h3),
+    h4: mergeFontVariant(defaultConfig.h4, slideConfig.h4),
+    body: mergeFontVariant(defaultConfig.body, slideConfig.body),
+    bullets: mergeFontVariant(defaultConfig.bullets, slideConfig.bullets),
+    code: mergeFontVariant(defaultConfig.code, slideConfig.code),
+  };
+
+  if (merged.h1) result.h1 = merged.h1;
+  if (merged.h2) result.h2 = merged.h2;
+  if (merged.h3) result.h3 = merged.h3;
+  if (merged.h4) result.h4 = merged.h4;
+  if (merged.body) result.body = merged.body;
+  if (merged.bullets) result.bullets = merged.bullets;
+  if (merged.code) result.code = merged.code;
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+/**
  * Merge two SlideStyles, with slide styles overriding defaults
  */
 /**
@@ -585,7 +723,7 @@ export function mergeStyles(
   defaultStyles: SlideStyles,
   slideStyles: SlideStyles,
 ): SlideStyles {
-  return {
+  const result: SlideStyles = {
     headings: {
       h1: mergeTextStyle(defaultStyles.headings?.h1, slideStyles.headings?.h1),
       h2: mergeTextStyle(defaultStyles.headings?.h2, slideStyles.headings?.h2),
@@ -599,6 +737,14 @@ export function mergeStyles(
     bullets: mergeTextStyle(defaultStyles.bullets, slideStyles.bullets),
     code: mergeTextStyle(defaultStyles.code, slideStyles.code),
   };
+
+  // Merge fonts config
+  const mergedFonts = mergeFontsConfig(defaultStyles.fonts, slideStyles.fonts);
+  if (mergedFonts) {
+    result.fonts = mergedFonts;
+  }
+
+  return result;
 }
 
 /**

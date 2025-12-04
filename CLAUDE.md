@@ -157,6 +157,21 @@ headings:
   h2: { size: 56 }
 paragraphs: { size: 24, color: "#ccc", x: 100, y: 400 }  # Absolute position (slide is 1920x1080)
 bullets: { size: 20, x: 100, y: 600 }
+fonts:                              # Custom font configuration
+  h1:                               # Full font variant config
+    family: "Roboto"
+    style: "Medium"                 # Base style (default: "Regular")
+    bold: "Bold"                    # Bold variant (default: "Bold")
+    italic: "Italic"                # Italic variant (default: "Italic")
+    boldItalic: "Bold Italic"       # Bold Italic variant
+  h2: "Open Sans"                   # Shorthand: just family name (uses "Regular")
+  body:
+    family: "Source Sans Pro"
+    style: "Regular"
+    bold: "Semibold"                # Custom bold variant
+  bullets:
+    family: "Inter"
+    style: "Regular"
 code: { size: 14 }
 slideNumber:
   show: true
@@ -210,6 +225,7 @@ y=300
 - `examples/` - Sample Markdown files
   - `sample.md` - Basic example
   - `font-sizes.md` - Custom font sizing
+  - `fonts.md` - Custom font family configuration
   - `slide-numbers.md` - Slide number configuration
   - `figma-links.md` - Figma node embedding
   - `backgrounds.md` - Background styles

@@ -48,6 +48,42 @@ export interface TextStyle {
   y?: number;
 }
 
+/**
+ * Font variant definition for a specific style
+ * family: font family name (e.g., "Inter", "Roboto")
+ * style: base font style (e.g., "Regular", "Medium")
+ */
+export interface FontVariant {
+  family: string;
+  style: string;
+  /** Override for bold variant (e.g., "Bold", "SemiBold") */
+  bold?: string;
+  /** Override for italic variant (e.g., "Italic", "Light Italic") */
+  italic?: string;
+  /** Override for bold italic variant (e.g., "Bold Italic") */
+  boldItalic?: string;
+}
+
+/**
+ * Font configuration for all text elements in slides
+ */
+export interface FontConfig {
+  /** Font for H1 headings */
+  h1?: FontVariant;
+  /** Font for H2 headings */
+  h2?: FontVariant;
+  /** Font for H3 headings */
+  h3?: FontVariant;
+  /** Font for H4 headings */
+  h4?: FontVariant;
+  /** Font for body paragraphs */
+  body?: FontVariant;
+  /** Font for bullet list items */
+  bullets?: FontVariant;
+  /** Font for code blocks and inline code */
+  code?: FontVariant;
+}
+
 export interface HeadingStyles {
   h1?: TextStyle;
   h2?: TextStyle;
@@ -60,6 +96,8 @@ export interface SlideStyles {
   paragraphs?: TextStyle;
   bullets?: TextStyle;
   code?: TextStyle;
+  /** Font configuration for all text elements */
+  fonts?: FontConfig;
 }
 
 export type SlideNumberPosition =

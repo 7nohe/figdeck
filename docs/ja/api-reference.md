@@ -198,7 +198,7 @@ interface BackgroundImage {
 
 ### SlideStyles
 
-フォントサイズと色の設定です。
+フォントサイズ、色、フォントファミリーの設定です。
 
 ```typescript
 interface SlideStyles {
@@ -211,6 +211,7 @@ interface SlideStyles {
   paragraphs?: TextStyle;
   bullets?: TextStyle;
   code?: TextStyle;
+  fonts?: FontConfig;          // カスタムフォント設定
 }
 
 interface TextStyle {
@@ -218,6 +219,30 @@ interface TextStyle {
   color?: string;              // 色（hex または rgb/rgba）
   x?: number;                  // X座標（ピクセル、スライドは1920x1080）
   y?: number;                  // Y座標（ピクセル、スライドは1920x1080）
+}
+```
+
+### FontConfig
+
+テキスト要素のカスタムフォント設定です。
+
+```typescript
+interface FontConfig {
+  h1?: FontVariant;            // H1 見出し用フォント
+  h2?: FontVariant;            // H2 見出し用フォント
+  h3?: FontVariant;            // H3 見出し用フォント
+  h4?: FontVariant;            // H4 見出し用フォント
+  body?: FontVariant;          // 本文段落用フォント
+  bullets?: FontVariant;       // 箇条書き用フォント
+  code?: FontVariant;          // コードブロック・インラインコード用フォント
+}
+
+interface FontVariant {
+  family: string;              // フォントファミリー名（例: "Roboto"）
+  style: string;               // ベースフォントスタイル（デフォルト: "Regular"）
+  bold?: string;               // 太字バリアントのスタイル名（デフォルト: "Bold"）
+  italic?: string;             // イタリックバリアントのスタイル名（デフォルト: "Italic"）
+  boldItalic?: string;         // 太字イタリックバリアントのスタイル名（デフォルト: "Bold Italic"）
 }
 ```
 
@@ -351,6 +376,7 @@ color: "#58a6ff"
 | `paragraphs` | `object` | 段落スタイル |
 | `bullets` | `object` | 箇条書きスタイル |
 | `code` | `object` | コードブロックスタイル |
+| `fonts` | `object` | カスタムフォント設定 |
 | `slideNumber` | `object \| boolean` | スライド番号設定 |
 | `titlePrefix` | `object \| false` | タイトルプレフィックス設定 |
 | `align` | `string` | 水平方向配置（`left`, `center`, `right`） |
@@ -467,7 +493,7 @@ async function generateSlides(slides: SlideContent[]): Promise<void>
 - `figma.createSlide()` でスライドノード作成
 - `figma.createText()` でテキストノード作成
 - `figma.createFrame()` でコードブロック・テーブル・引用ブロック作成
-- フォント: Inter (Regular/Bold/Italic/Bold Italic)
+- フォント: デフォルトは Inter (Regular/Bold/Italic/Bold Italic)、`fonts` 設定でカスタムフォントも使用可能
 
 **シンタックスハイライト対応言語:**
 

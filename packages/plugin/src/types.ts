@@ -142,6 +142,8 @@ export type TableAlignment = "left" | "center" | "right" | null;
 export interface BulletItem {
   text: string;
   spans?: TextSpan[];
+  childrenOrdered?: boolean;
+  childrenStart?: number;
   children?: BulletItem[];
 }
 

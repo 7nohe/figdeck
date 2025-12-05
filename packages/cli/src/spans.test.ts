@@ -327,6 +327,39 @@ describe("extractBulletItems", () => {
     expect(items[0].children?.[1].text).toBe("Child 2");
   });
 
+  it("should preserve ordered metadata for nested lists", () => {
+    const list: List = {
+      type: "list",
+      ordered: true,
+      start: 3,
+      children: [
+        {
+          type: "listItem",
+          children: [
+            paragraph([textNode("Parent")]),
+            {
+              type: "list",
+              ordered: true,
+              start: 5,
+              children: [
+                {
+                  type: "listItem",
+                  children: [paragraph([textNode("Child 1")])],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const items = extractBulletItems(list);
+
+    expect(items[0].childrenOrdered).toBe(true);
+    expect(items[0].childrenStart).toBe(5);
+    expect(items[0].children?.[0].text).toBe("Child 1");
+  });
+
   it("should extract deeply nested list items", () => {
     const list: List = {
       type: "list",

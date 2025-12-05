@@ -53,4 +53,36 @@ describe("validateAndSanitizeSlides", () => {
     expect(items[0]?.children?.[1].text).toBe("Child with grandchild");
     expect(items[0]?.children?.[1].children?.[0].text).toBe("Grandchild item");
   });
+
+  it("keeps nested list ordering metadata", async () => {
+    const { validateAndSanitizeSlides } = await import("./code");
+
+    const result = validateAndSanitizeSlides([
+      {
+        blocks: [
+          {
+            kind: "bullets",
+            items: [
+              {
+                text: "Parent",
+                childrenOrdered: true,
+                childrenStart: 4,
+                children: [{ text: "Child" }],
+              },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+
+    const block = result.slides[0].blocks[0];
+    if (block.kind !== "bullets") return;
+
+    const bulletItems = block.items as BulletItem[];
+    expect(bulletItems[0].childrenOrdered).toBe(true);
+    expect(bulletItems[0].childrenStart).toBe(4);
+  });
 });

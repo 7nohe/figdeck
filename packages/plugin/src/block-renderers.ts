@@ -145,6 +145,21 @@ function hasSpecialFormattingInItems(items: BulletItem[]): boolean {
 }
 
 /**
+ * Check if any BulletItem contains multi-paragraph content (line breaks)
+ */
+function hasMultiParagraphItems(items: BulletItem[]): boolean {
+  for (const item of items) {
+    if (item.text.includes("\n")) {
+      return true;
+    }
+    if (item.children && hasMultiParagraphItems(item.children)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Render nested bullet items recursively using Frame-based layout
  */
 async function renderNestedBulletItems(
@@ -254,8 +269,8 @@ async function renderNestedBulletItems(
       const childFrame = await renderNestedBulletItems(
         item.children,
         style,
-        false, // Child lists are unordered by default
-        1,
+        item.childrenOrdered ?? false,
+        item.childrenStart ?? 1,
         depth + 1,
         codeFont,
       );
@@ -291,8 +306,9 @@ export async function renderBulletList(
       (item) => item.children && item.children.length > 0,
     );
     const hasSpecial = hasSpecialFormattingInItems(items);
+    const hasMultiParagraph = hasMultiParagraphItems(items);
 
-    if (hasNesting || hasSpecial) {
+    if (hasNesting || hasSpecial || hasMultiParagraph) {
       // Use Frame-based layout for nested/complex lists
       const frame = await renderNestedBulletItems(
         items,

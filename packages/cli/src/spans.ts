@@ -230,7 +230,12 @@ export function extractBulletItems(list: List): BulletItem[] {
         } else if (child.type === "list") {
           // Recursively process nested lists
           const nestedList = child as List;
-          bulletItem.children = extractBulletItems(nestedList);
+          const nestedItems = extractBulletItems(nestedList);
+          if (nestedItems.length > 0) {
+            bulletItem.children = nestedItems;
+            bulletItem.childrenOrdered = nestedList.ordered || false;
+            bulletItem.childrenStart = nestedList.start ?? 1;
+          }
         } else {
           // For other content types (e.g., code blocks), extract plain text
           const text = extractText(child as Content);

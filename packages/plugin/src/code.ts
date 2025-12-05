@@ -807,6 +807,17 @@ function sanitizeBulletItem(item: unknown): BulletItem | null {
     sanitized.spans = spans;
   }
 
+  if (typeof bulletItem.childrenOrdered === "boolean") {
+    sanitized.childrenOrdered = bulletItem.childrenOrdered;
+  }
+
+  if (
+    typeof bulletItem.childrenStart === "number" &&
+    Number.isFinite(bulletItem.childrenStart)
+  ) {
+    sanitized.childrenStart = bulletItem.childrenStart;
+  }
+
   if (Array.isArray(bulletItem.children)) {
     const children = bulletItem.children
       .map((child) => sanitizeBulletItem(child))

@@ -68,10 +68,41 @@
     .connection button:active {
       transform: translateY(1px);
     }
-    .field.secret-field {
+    .advanced-toggle {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #666;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 0;
+      margin-bottom: 8px;
+    }
+    .advanced-toggle:hover {
+      color: #1a73e8;
+    }
+    .advanced-toggle .arrow {
+      font-size: 10px;
+      transition: transform 0.2s;
+    }
+    .advanced-toggle[aria-expanded="true"] .arrow {
+      transform: rotate(90deg);
+    }
+    .secret-wrapper {
+      display: none;
+      margin-bottom: 8px;
+    }
+    .secret-wrapper.visible {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .secret-wrapper .field {
       flex-grow: 1;
     }
-    .field.secret-field input {
+    .secret-wrapper .field input {
       width: 100%;
     }
     .warning-banner {
@@ -197,20 +228,28 @@
     <div id="remote-warning" class="warning-banner">
       ⚠️ Connecting to non-loopback host. Ensure you trust this server.
     </div>
-    <form id="connection-form" class="connection">
-      <label class="field">
-        <span>Host</span>
-        <input id="host" name="host" type="text" placeholder="127.0.0.1" autocomplete="off">
-      </label>
-      <label class="field">
-        <span>Port</span>
-        <input id="port" name="port" type="number" min="1" max="65535" placeholder="4141" autocomplete="off">
-      </label>
-      <label class="field secret-field">
-        <span>Secret (optional)</span>
-        <input id="secret" name="secret" type="text" placeholder="Auth secret from CLI" autocomplete="off">
-      </label>
-      <button id="connect" type="button">Connect</button>
+    <form id="connection-form">
+      <div class="connection">
+        <label class="field">
+          <span>Host</span>
+          <input id="host" name="host" type="text" placeholder="127.0.0.1" autocomplete="off">
+        </label>
+        <label class="field">
+          <span>Port</span>
+          <input id="port" name="port" type="number" min="1" max="65535" placeholder="4141" autocomplete="off">
+        </label>
+        <button id="connect" type="button">Connect</button>
+      </div>
+      <button type="button" id="advanced-toggle" class="advanced-toggle" aria-expanded="false" aria-controls="secret-wrapper">
+        <span class="arrow">▶</span>
+        <span>Advanced</span>
+      </button>
+      <div id="secret-wrapper" class="secret-wrapper">
+        <label class="field">
+          <span>Secret (optional)</span>
+          <input id="secret" name="secret" type="text" placeholder="Auth secret from CLI" autocomplete="off">
+        </label>
+      </div>
     </form>
     <div id="status" class="status waiting">Connecting to WebSocket server...</div>
   </div>
@@ -236,6 +275,7 @@
     var PORT_KEY = 'figdeck-ws-port';
     var SECRET_KEY = 'figdeck-ws-secret';
     var TAB_KEY = 'figdeck-active-tab';
+    var ADVANCED_KEY = 'figdeck-ws-advanced-visible';
 
     // Version compatibility
     var PROTOCOL_VERSION = '1';
@@ -262,6 +302,8 @@
     var importButton = document.getElementById('import-json');
     var loadFileButton = document.getElementById('load-file');
     var fileInput = document.getElementById('file-input');
+    var advancedToggle = document.getElementById('advanced-toggle');
+    var secretWrapper = document.getElementById('secret-wrapper');
     var tabs = document.querySelectorAll('.tab');
     var tabContents = document.querySelectorAll('.tab-content');
     var ws = null;
@@ -410,9 +452,8 @@
       importStatusEl.style.display = text ? 'block' : 'none';
     }
 
-    function switchTab(tabName) {
+    function applyTabState(tabName) {
       activeTab = tabName;
-      safeSet(TAB_KEY, tabName);
 
       tabs.forEach(function(tab) {
         if (tab.getAttribute('data-tab') === tabName) {
@@ -432,6 +473,11 @@
 
       // Show/hide log based on tab
       logEl.style.display = tabName === 'websocket' ? 'block' : 'none';
+    }
+
+    function switchTab(tabName) {
+      applyTabState(tabName);
+      safeSet(TAB_KEY, tabName);
 
       // Stop auto-reconnect when on import tab
       if (tabName === 'import' && ws) {
@@ -445,11 +491,22 @@
       }
     }
 
+    function setAdvancedVisible(visible) {
+      advancedToggle.setAttribute('aria-expanded', visible ? 'true' : 'false');
+      if (visible) {
+        secretWrapper.classList.add('visible');
+      } else {
+        secretWrapper.classList.remove('visible');
+      }
+      safeSet(ADVANCED_KEY, visible ? 'true' : 'false');
+    }
+
     function loadStoredConnection() {
       var storedHost = safeGet(HOST_KEY);
       var storedPort = parseInt(safeGet(PORT_KEY) || '', 10);
       var storedSecret = safeGet(SECRET_KEY);
       var storedTab = safeGet(TAB_KEY);
+      var storedAdvanced = safeGet(ADVANCED_KEY);
 
       currentHost = storedHost && storedHost.trim() ? storedHost.trim() : DEFAULT_HOST;
       currentPort = Number.isFinite(storedPort) ? storedPort : DEFAULT_PORT;
@@ -461,9 +518,15 @@
 
       updateRemoteWarning();
 
-      if (storedTab === 'import') {
+      // Restore advanced toggle state
+      setAdvancedVisible(storedAdvanced === 'true');
+
+      // Apply initial tab state without triggering connection
+      var initialTab = storedTab === 'import' ? 'import' : 'websocket';
+      applyTabState(initialTab);
+
+      if (initialTab === 'import') {
         autoConnect = false;
-        switchTab('import');
       }
     }
 
@@ -751,6 +814,12 @@
       } else {
         remoteWarning.classList.add('visible');
       }
+    });
+
+    // Advanced toggle handler
+    advancedToggle.addEventListener('click', function() {
+      var isExpanded = advancedToggle.getAttribute('aria-expanded') === 'true';
+      setAdvancedVisible(!isExpanded);
     });
 
     // Only auto-connect if on websocket tab

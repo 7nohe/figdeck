@@ -46,6 +46,8 @@ export interface TextStyle {
   x?: number;
   /** Absolute Y position in pixels (slide is 1920x1080) */
   y?: number;
+  /** Spacing between items in pixels (for bullet lists) */
+  spacing?: number;
 }
 
 /**

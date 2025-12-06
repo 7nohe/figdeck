@@ -115,6 +115,13 @@ export async function renderParagraph(
 /** Bullet markers for different nesting levels */
 const BULLET_MARKERS = ["•", "◦", "▪", "–"];
 
+function applyBulletSpacing(node: TextNode, style: ResolvedTextStyle) {
+  const spacing = style.spacing ?? LAYOUT.BULLET_ITEM_SPACING;
+  node.paragraphSpacing = spacing;
+  // listSpacing is used for native Figma lists (setRangeListOptions)
+  node.listSpacing = spacing;
+}
+
 /**
  * Type guard to check if items are BulletItem[] (nested structure)
  */
@@ -181,7 +188,7 @@ async function renderNestedBulletItems(
   frame.layoutMode = "VERTICAL";
   frame.primaryAxisSizingMode = "AUTO";
   frame.counterAxisSizingMode = "AUTO";
-  frame.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+  frame.itemSpacing = style.spacing ?? LAYOUT.BULLET_ITEM_SPACING;
   frame.fills = [];
 
   // Add left padding for nested levels
@@ -207,7 +214,7 @@ async function renderNestedBulletItems(
     itemContainer.layoutMode = "VERTICAL";
     itemContainer.primaryAxisSizingMode = "AUTO";
     itemContainer.counterAxisSizingMode = "AUTO";
-    itemContainer.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+    itemContainer.itemSpacing = style.spacing ?? LAYOUT.BULLET_ITEM_SPACING;
     itemContainer.fills = [];
 
     // Create the item row (marker + text)
@@ -328,6 +335,7 @@ export async function renderBulletList(
     const bullets = figma.createText();
     bullets.fontName = { family: font.family, style: font.regular };
     bullets.fontSize = style.fontSize;
+    applyBulletSpacing(bullets, style);
 
     const itemTexts = items.map((item) => item.text);
 
@@ -422,7 +430,7 @@ export async function renderBulletList(
       bulletFrame.layoutMode = "VERTICAL";
       bulletFrame.primaryAxisSizingMode = "AUTO";
       bulletFrame.counterAxisSizingMode = "AUTO";
-      bulletFrame.itemSpacing = LAYOUT.BULLET_ITEM_SPACING;
+      bulletFrame.itemSpacing = style.spacing ?? LAYOUT.BULLET_ITEM_SPACING;
       bulletFrame.fills = [];
       bulletFrame.x = x;
       bulletFrame.y = y;
@@ -469,6 +477,7 @@ export async function renderBulletList(
     const bullets = figma.createText();
     bullets.fontName = { family: font.family, style: font.regular };
     bullets.fontSize = style.fontSize;
+    applyBulletSpacing(bullets, style);
 
     // Build full text from spans, separated by newlines
     const itemTexts = itemSpans.map((spans) =>
@@ -553,6 +562,7 @@ export async function renderBulletList(
   const bullets = figma.createText();
   bullets.fontName = { family: font.family, style: font.regular };
   bullets.fontSize = style.fontSize;
+  applyBulletSpacing(bullets, style);
 
   // Figma native ordered lists always start from 1, so use manual prefix if startNum != 1
   const useNativeList = !ordered || startNum === 1;

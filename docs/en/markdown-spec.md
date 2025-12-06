@@ -101,6 +101,25 @@ Lists can be nested by indenting with 2 spaces. Bullet markers change by nesting
 - Back to parent level
 ```
 
+### Bullet Spacing
+
+You can customize the spacing between bullet items using the `spacing` property in YAML frontmatter:
+
+```yaml
+---
+bullets:
+  spacing: 16  # Gap between bullet items (default: 8px)
+---
+
+## Wide Spacing
+
+- Item 1
+- Item 2
+- Item 3
+```
+
+The `spacing` value is in pixels. The default is 8px.
+
 ## Inline Formatting
 
 The following formatting can be used within text:

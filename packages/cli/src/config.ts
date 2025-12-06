@@ -33,6 +33,7 @@ interface TextStyle {
   color?: string;
   x?: number;
   y?: number;
+  spacing?: number;
 }
 
 /**
@@ -180,6 +181,12 @@ function parseTextStyle(
   }
   if (style.y !== undefined) {
     result.y = style.y;
+  }
+  if (style.spacing !== undefined) {
+    const spacing = Number(style.spacing);
+    if (!Number.isNaN(spacing) && spacing >= 0) {
+      result.spacing = spacing;
+    }
   }
   return Object.keys(result).length > 0 ? result : undefined;
 }
@@ -716,6 +723,7 @@ function mergeTextStyle(
     color: slideStyle.color ?? defaultStyle.color,
     x: slideStyle.x ?? defaultStyle.x,
     y: slideStyle.y ?? defaultStyle.y,
+    spacing: slideStyle.spacing ?? defaultStyle.spacing,
   };
 }
 

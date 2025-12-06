@@ -50,6 +50,8 @@ export interface ResolvedTextStyle {
   y?: number;
   /** Resolved font names for this element */
   font: ResolvedFontName;
+  /** Spacing between items in pixels (for bullet lists) */
+  spacing?: number;
 }
 
 /**
@@ -115,6 +117,7 @@ function resolveTextStyle(
     x: style?.x,
     y: style?.y,
     font: resolveFontName(fontVariant, defaultFontStyle),
+    spacing: style?.spacing,
   };
 }
 

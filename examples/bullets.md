@@ -56,3 +56,49 @@ Demonstrating nested bullet list support
    - Supporting detail C
      - Even deeper detail
 3. Third main point
+
+---
+bullets:
+  spacing: 16
+---
+
+## Wide Spacing (16px)
+
+- First item with wide spacing
+- Second item
+  - Nested item also uses wide spacing
+  - Another nested item
+- Third item
+
+---
+bullets:
+  spacing: 4
+---
+
+## Compact Spacing (4px)
+
+- Tightly packed item 1
+- Tightly packed item 2
+- Tightly packed item 3
+  - Nested compact item
+  - Another nested compact item
+- Tightly packed item 4
+
+---
+bullets:
+  spacing: 24
+---
+
+## Native List Spacing (24px)
+
+Simple bullet list without nesting (uses native Figma list):
+
+- Simple bullet one
+- Simple bullet two
+- Simple bullet three
+
+Ordered list:
+
+1. Ordered item one
+2. Ordered item two
+3. Ordered item three

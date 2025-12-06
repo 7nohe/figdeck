@@ -268,40 +268,22 @@ async function updateTextNodesByName(
 }
 
 /**
- * Render slide number using Frame template
+ * Calculate position and append node to slide
+ * Appends first, then sets position to avoid constraints affecting placement
  */
-async function renderSlideNumberFromTemplate(
+function appendNodeAtPosition(
   slideNode: SlideNode,
-  config: SlideNumberConfig,
-  current: number,
-  total: number,
-): Promise<boolean> {
-  if (!config.nodeId) return false;
-
-  const templateNode = await findSlideNumberTemplateNode(config.nodeId);
-  if (!templateNode) {
-    figma.notify(`Slide number template not found: ${config.nodeId}`, {
-      error: true,
-    });
-    return false;
-  }
-
-  // Clone the template
-  const clonedNode = cloneSlideNumberNode(templateNode);
-  clonedNode.name = SLIDE_NUMBER_NODE_NAME;
-
-  // Update text nodes by name
-  await updateTextNodesByName(clonedNode, current, total);
-
-  // Position the cloned node
+  node: SceneNode,
+  config: Pick<SlideNumberConfig, "position" | "paddingX" | "paddingY">,
+): void {
   const position = config.position ?? DEFAULT_SLIDE_NUMBER_POSITION;
   const paddingX = config.paddingX ?? DEFAULT_SLIDE_NUMBER_PADDING_X;
   const paddingY = config.paddingY ?? DEFAULT_SLIDE_NUMBER_PADDING_Y;
 
   const slideWidth = slideNode.width;
   const slideHeight = slideNode.height;
-  const nodeWidth = clonedNode.width;
-  const nodeHeight = clonedNode.height;
+  const nodeWidth = node.width;
+  const nodeHeight = node.height;
 
   let x: number;
   let y: number;
@@ -328,10 +310,41 @@ async function renderSlideNumberFromTemplate(
       y = slideHeight - paddingY - nodeHeight;
   }
 
-  clonedNode.x = x;
-  clonedNode.y = y;
+  // Append first, then set position (constraints may affect position during appendChild)
+  slideNode.appendChild(node);
+  node.x = x;
+  node.y = y;
+}
 
-  slideNode.appendChild(clonedNode);
+/**
+ * Render slide number using Frame template
+ */
+async function renderSlideNumberFromTemplate(
+  slideNode: SlideNode,
+  config: SlideNumberConfig,
+  current: number,
+  total: number,
+): Promise<boolean> {
+  if (!config.nodeId) return false;
+
+  const templateNode = await findSlideNumberTemplateNode(config.nodeId);
+  if (!templateNode) {
+    figma.notify(`Slide number template not found: ${config.nodeId}`, {
+      error: true,
+    });
+    return false;
+  }
+
+  // Clone the template
+  const clonedNode = cloneSlideNumberNode(templateNode);
+  clonedNode.name = SLIDE_NUMBER_NODE_NAME;
+
+  // Update text nodes by name
+  await updateTextNodesByName(clonedNode, current, total);
+
+  // Position and append the cloned node
+  appendNodeAtPosition(slideNode, clonedNode, config);
+
   return true;
 }
 
@@ -385,9 +398,6 @@ export async function renderSlideNumber(
   }
 
   const size = config.size ?? DEFAULT_SLIDE_NUMBER_SIZE;
-  const position = config.position ?? DEFAULT_SLIDE_NUMBER_POSITION;
-  const paddingX = config.paddingX ?? DEFAULT_SLIDE_NUMBER_PADDING_X;
-  const paddingY = config.paddingY ?? DEFAULT_SLIDE_NUMBER_PADDING_Y;
   const format = config.format ?? DEFAULT_SLIDE_NUMBER_FORMAT;
 
   const text = formatSlideNumber(format, displayedCurrent, displayedTotal);
@@ -421,42 +431,8 @@ export async function renderSlideNumber(
     ];
   }
 
-  // Get slide dimensions
-  const slideWidth = slideNode.width;
-  const slideHeight = slideNode.height;
-  const textWidth = textNode.width;
-  const textHeight = textNode.height;
-
-  // Calculate position
-  let x: number;
-  let y: number;
-
-  switch (position) {
-    case "bottom-right":
-      x = slideWidth - paddingX - textWidth;
-      y = slideHeight - paddingY - textHeight;
-      break;
-    case "bottom-left":
-      x = paddingX;
-      y = slideHeight - paddingY - textHeight;
-      break;
-    case "top-right":
-      x = slideWidth - paddingX - textWidth;
-      y = paddingY;
-      break;
-    case "top-left":
-      x = paddingX;
-      y = paddingY;
-      break;
-    default:
-      x = slideWidth - paddingX - textWidth;
-      y = slideHeight - paddingY - textHeight;
-  }
-
-  textNode.x = x;
-  textNode.y = y;
-
-  slideNode.appendChild(textNode);
+  // Position and append the text node
+  appendNodeAtPosition(slideNode, textNode, config);
 }
 
 /**

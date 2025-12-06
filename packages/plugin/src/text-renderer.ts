@@ -82,11 +82,7 @@ export function normalizeHyperlinkUrl(url?: string): string | undefined {
     // Check each domain label doesn't start/end with hyphen or be empty
     const labels = domainPart.split(".");
     for (const label of labels) {
-      if (
-        label.length === 0 ||
-        label.startsWith("-") ||
-        label.endsWith("-")
-      ) {
+      if (label.length === 0 || label.startsWith("-") || label.endsWith("-")) {
         return undefined;
       }
     }

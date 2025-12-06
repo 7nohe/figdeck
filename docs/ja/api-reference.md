@@ -219,6 +219,7 @@ interface TextStyle {
   color?: string;              // 色（hex または rgb/rgba）
   x?: number;                  // X座標（ピクセル、スライドは1920x1080）
   y?: number;                  // Y座標（ピクセル、スライドは1920x1080）
+  spacing?: number;            // 項目間の間隔（ピクセル、箇条書き用、デフォルト: 8）
 }
 ```
 

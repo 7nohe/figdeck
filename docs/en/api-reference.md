@@ -219,6 +219,7 @@ interface TextStyle {
   color?: string;              // Color (hex or rgb/rgba)
   x?: number;                  // Absolute X position in pixels (slide is 1920x1080)
   y?: number;                  // Absolute Y position in pixels (slide is 1920x1080)
+  spacing?: number;            // Spacing between items in pixels (for bullet lists, default: 8)
 }
 ```
 

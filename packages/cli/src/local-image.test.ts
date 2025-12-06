@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from "bun:test";
 import * as fs from "node:fs";
 import {
+  clearImageCache,
+  getImageCacheSize,
   getMimeType,
   isRemoteUrl,
   isSupportedImageFormat,
@@ -230,5 +232,130 @@ describe("readLocalImage", () => {
 
     existsSpy.mockRestore();
     statSpy.mockRestore();
+  });
+});
+
+describe("image cache", () => {
+  const testBasePath = "/test/base";
+  const testImageData = Buffer.from("fake image data");
+
+  let warnSpy: ReturnType<typeof spyOn>;
+  let existsSpy: ReturnType<typeof spyOn>;
+  let statSpy: ReturnType<typeof spyOn>;
+  let readSpy: ReturnType<typeof spyOn>;
+
+  beforeEach(() => {
+    clearImageCache();
+    warnSpy = spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    if (existsSpy) existsSpy.mockRestore();
+    if (statSpy) statSpy.mockRestore();
+    if (readSpy) readSpy.mockRestore();
+  });
+
+  it("clearImageCache clears the cache", () => {
+    existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
+    statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+      mtimeMs: 1000,
+    } as fs.Stats);
+    readSpy = spyOn(fs, "readFileSync").mockReturnValue(testImageData);
+
+    // Read an image to populate cache
+    readLocalImage("image.png", testBasePath);
+    expect(getImageCacheSize()).toBe(1);
+
+    // Clear cache
+    clearImageCache();
+    expect(getImageCacheSize()).toBe(0);
+  });
+
+  it("returns cached result on second read with same mtime", () => {
+    existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
+    statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+      mtimeMs: 1000,
+    } as fs.Stats);
+    readSpy = spyOn(fs, "readFileSync").mockReturnValue(testImageData);
+
+    // First read - should call readFileSync
+    const result1 = readLocalImage("image.png", testBasePath);
+    expect(result1).not.toBe(null);
+    expect(readSpy).toHaveBeenCalledTimes(1);
+
+    // Second read - should use cache, not call readFileSync again
+    const result2 = readLocalImage("image.png", testBasePath);
+    expect(result2).not.toBe(null);
+    expect(result2?.dataBase64).toBe(result1?.dataBase64);
+    expect(readSpy).toHaveBeenCalledTimes(1); // Still 1, not 2
+  });
+
+  it("invalidates cache when mtime changes", () => {
+    existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
+    readSpy = spyOn(fs, "readFileSync").mockReturnValue(testImageData);
+
+    // First read with mtime 1000
+    statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+      mtimeMs: 1000,
+    } as fs.Stats);
+    readLocalImage("image.png", testBasePath);
+    expect(readSpy).toHaveBeenCalledTimes(1);
+    statSpy.mockRestore();
+
+    // Second read with different mtime - should re-read file
+    statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+      mtimeMs: 2000,
+    } as fs.Stats);
+    readLocalImage("image.png", testBasePath);
+    expect(readSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("invalidates cache when size changes", () => {
+    existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
+    readSpy = spyOn(fs, "readFileSync").mockReturnValue(testImageData);
+
+    // First read with size 1000
+    statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+      mtimeMs: 1000,
+    } as fs.Stats);
+    readLocalImage("image.png", testBasePath);
+    expect(readSpy).toHaveBeenCalledTimes(1);
+    statSpy.mockRestore();
+
+    // Second read with different size - should re-read file
+    statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 2000,
+      mtimeMs: 1000,
+    } as fs.Stats);
+    readLocalImage("image.png", testBasePath);
+    expect(readSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("caches different files separately", () => {
+    existsSpy = spyOn(fs, "existsSync").mockReturnValue(true);
+    statSpy = spyOn(fs, "statSync").mockReturnValue({
+      size: 1000,
+      mtimeMs: 1000,
+    } as fs.Stats);
+    readSpy = spyOn(fs, "readFileSync").mockReturnValue(testImageData);
+
+    // Read two different images
+    readLocalImage("image1.png", testBasePath);
+    readLocalImage("image2.png", testBasePath);
+
+    expect(getImageCacheSize()).toBe(2);
+    expect(readSpy).toHaveBeenCalledTimes(2);
+
+    // Re-read both - should use cache
+    readLocalImage("image1.png", testBasePath);
+    readLocalImage("image2.png", testBasePath);
+
+    expect(readSpy).toHaveBeenCalledTimes(2); // Still 2, both cached
   });
 });

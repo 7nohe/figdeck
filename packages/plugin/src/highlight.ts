@@ -9,6 +9,7 @@ import rust from "highlight.js/lib/languages/rust";
 import sql from "highlight.js/lib/languages/sql";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
+import { djb2Hash } from "./hash";
 
 // Register languages
 hljs.registerLanguage("typescript", typescript);
@@ -31,6 +32,21 @@ export const LANG_ALIASES: Record<string, string> = {
   sh: "bash",
   shell: "bash",
 };
+
+// Maximum code length for syntax highlighting (chars)
+// Larger blocks will use plain text to avoid performance issues
+const MAX_HIGHLIGHT_LENGTH = 10000;
+
+// Cache for highlight results: maps "lang:hash" to segments
+const highlightCache = new Map<string, HighlightSegment[]>();
+
+/**
+ * Compute cache key for highlight results.
+ * Uses full hash since code is already limited by MAX_HIGHLIGHT_LENGTH.
+ */
+function computeHighlightCacheKey(code: string, lang: string | null): string {
+  return `${lang || "plain"}:${djb2Hash(code)}`;
+}
 
 // Theme colors (VS Code dark theme inspired)
 export const THEME_COLORS: Record<string, RGB> = {
@@ -142,7 +158,9 @@ function parseHighlightedCode(html: string): HighlightSegment[] {
 }
 
 /**
- * Highlight code and return segments with colors
+ * Highlight code and return segments with colors.
+ * Uses caching to avoid re-highlighting identical code.
+ * Skips highlighting for very large code blocks.
  */
 export function highlightCode(
   code: string,
@@ -153,10 +171,27 @@ export function highlightCode(
     lang = LANG_ALIASES[lang];
   }
 
-  if (lang && hljs.getLanguage(lang)) {
-    const result = hljs.highlight(code, { language: lang });
-    return parseHighlightedCode(result.value);
+  // Check cache first (before any processing, including large block handling)
+  const cacheKey = computeHighlightCacheKey(code, lang);
+  const cached = highlightCache.get(cacheKey);
+  if (cached) {
+    return cached;
   }
 
-  return [{ text: code, color: THEME_COLORS.default }];
+  let segments: HighlightSegment[];
+
+  // Guard: skip highlighting for very large code blocks
+  if (code.length > MAX_HIGHLIGHT_LENGTH) {
+    segments = [{ text: code, color: THEME_COLORS.default }];
+  } else if (lang && hljs.getLanguage(lang)) {
+    const result = hljs.highlight(code, { language: lang });
+    segments = parseHighlightedCode(result.value);
+  } else {
+    segments = [{ text: code, color: THEME_COLORS.default }];
+  }
+
+  // Store in cache
+  highlightCache.set(cacheKey, segments);
+
+  return segments;
 }

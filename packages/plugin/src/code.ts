@@ -10,6 +10,8 @@ import {
   renderTable,
 } from "./block-renderers";
 import { PLUGIN_DATA_KEY } from "./constants";
+import { djb2Hash } from "./hash";
+import { cloneNode, createNodeCache } from "./node-cache";
 import {
   applyBackground,
   clearSlideContent,
@@ -40,89 +42,42 @@ const MAX_SLIDES = 100;
 const MAX_BLOCKS_PER_SLIDE = 50;
 const MAX_STRING_LENGTH = 100000;
 
-// Cache to track failed node lookups
-const failedNodeIds = new Set<string>();
+// Slide hash cache: maps slide index to { hash, nodeId } for incremental updates
+interface SlideHashEntry {
+  hash: string;
+  nodeId: string;
+}
+const slideHashCache = new Map<number, SlideHashEntry>();
+
+/**
+ * Compute a stable hash for a slide's content.
+ * Includes all fields that affect rendering.
+ */
+function computeSlideHash(slide: SlideContent): string {
+  // JSON.stringify provides a stable serialization for comparison
+  return djb2Hash(JSON.stringify(slide));
+}
 
 // Default spacing between prefix component and title text
 const DEFAULT_PREFIX_SPACING = 16;
 
+// Back-pressure: track in-flight generateSlides and pending payload
+let isGenerating = false;
+let pendingSlides: SlideContent[] | null = null;
+
 figma.showUI(__html__, { visible: true, width: 360, height: 420 });
 
-// Cache for cloneable nodes (Frame, Component, etc.)
-const nodeCache = new Map<string, SceneNode | null>();
+// Node cache for title prefix components
+const prefixNodeCache = createNodeCache();
 
 /**
  * Find a node by nodeId that can be cloned for title prefix
- * Supports FRAME, COMPONENT, COMPONENT_SET, and INSTANCE nodes
- * Returns null if not found, with caching
  */
 async function findCloneableNode(nodeId: string): Promise<SceneNode | null> {
-  // Check cache first
-  if (nodeCache.has(nodeId)) {
-    return nodeCache.get(nodeId) || null;
-  }
-
-  // Skip if already known to fail
-  if (failedNodeIds.has(nodeId)) {
-    return null;
-  }
-
-  try {
-    const node = await figma.getNodeByIdAsync(nodeId);
-    if (!node) {
-      console.warn(`[figdeck] Node "${nodeId}" not found`);
-      failedNodeIds.add(nodeId);
-      figma.notify(`Node not found: ${nodeId}`, { error: true });
-      return null;
-    }
-
-    // Frame - can be cloned directly
-    if (node.type === "FRAME" || node.type === "GROUP") {
-      nodeCache.set(nodeId, node as SceneNode);
-      return node as SceneNode;
-    }
-
-    // Direct component - can create instance
-    if (node.type === "COMPONENT") {
-      nodeCache.set(nodeId, node as SceneNode);
-      return node as SceneNode;
-    }
-
-    // Component set - use default variant
-    if (node.type === "COMPONENT_SET") {
-      const componentSet = node as ComponentSetNode;
-      const defaultVariant = componentSet.defaultVariant;
-      if (defaultVariant) {
-        nodeCache.set(nodeId, defaultVariant);
-        return defaultVariant;
-      }
-      const firstChild = componentSet.children[0];
-      if (firstChild && firstChild.type === "COMPONENT") {
-        nodeCache.set(nodeId, firstChild as SceneNode);
-        return firstChild as SceneNode;
-      }
-    }
-
-    // Instance - can be cloned directly
-    if (node.type === "INSTANCE") {
-      nodeCache.set(nodeId, node as SceneNode);
-      return node as SceneNode;
-    }
-
-    console.warn(
-      `[figdeck] Node "${nodeId}" is type "${node.type}", cannot be used as prefix`,
-    );
-    failedNodeIds.add(nodeId);
-    figma.notify(`Cannot use as prefix: ${nodeId} (${node.type})`, {
-      error: true,
-    });
-    return null;
-  } catch (e) {
-    console.warn(`[figdeck] Failed to find node: ${nodeId}`, e);
-    failedNodeIds.add(nodeId);
-    figma.notify(`Node not found: ${nodeId}`, { error: true });
-    return null;
-  }
+  return prefixNodeCache.findNode(nodeId, {
+    notifyOnError: true,
+    errorPrefix: "Prefix node",
+  });
 }
 
 // Cache for loaded fonts to avoid repeated loadFontAsync calls
@@ -491,7 +446,20 @@ async function renderTitleToNode(
     return titleText;
   }
 
-  const prefixClone = prefixNode.clone();
+  const prefixClone = cloneNode(prefixNode);
+
+  // If clone failed (node was deleted), fallback to simple title
+  if (!prefixClone) {
+    prefixNodeCache.clear(); // Clear stale cache
+    const titleText = figma.createText();
+    titleText.fontName = { family: font.family, style: font.bold };
+    titleText.fontSize = titleStyle.fontSize;
+    titleText.characters = title;
+    if (titleStyle.fills) {
+      titleText.fills = titleStyle.fills;
+    }
+    return titleText;
+  }
 
   // Create title text node
   const titleText = figma.createText();
@@ -726,10 +694,34 @@ async function generateSlides(slides: SlideContent[]) {
   const existingSlides = findExistingSlides();
   const totalSlides = slides.length;
 
+  // Track which slides were updated vs skipped for the notification
+  let updatedCount = 0;
+  let skippedCount = 0;
+
+  // Build set of valid indices for cleanup
+  const validIndices = new Set<number>();
+
   for (let i = 0; i < slides.length; i++) {
     const slide = slides[i];
-    const node = getOrCreateSlide(i, existingSlides);
+    validIndices.add(i);
 
+    // Compute hash for this slide
+    const slideHash = computeSlideHash(slide);
+    const cachedEntry = slideHashCache.get(i);
+
+    // Check if slide is unchanged and node still exists
+    if (cachedEntry && cachedEntry.hash === slideHash) {
+      const existingNode = existingSlides.get(i);
+      if (existingNode && existingNode.id === cachedEntry.nodeId) {
+        // Slide unchanged - skip regeneration
+        existingSlides.delete(i);
+        skippedCount++;
+        continue;
+      }
+    }
+
+    // Slide changed or new - regenerate
+    const node = getOrCreateSlide(i, existingSlides);
     node.setPluginData(PLUGIN_DATA_KEY, String(i));
 
     // Apply background before filling content
@@ -748,14 +740,36 @@ async function generateSlides(slides: SlideContent[]) {
     if (slide.transition) {
       applySlideTransition(node, slide.transition);
     }
+
+    // Update hash cache
+    slideHashCache.set(i, { hash: slideHash, nodeId: node.id });
+    updatedCount++;
   }
 
   // Remove extra slides that no longer exist in the markdown
-  for (const [, slideNode] of existingSlides) {
+  for (const [index, slideNode] of existingSlides) {
     slideNode.remove();
+    slideHashCache.delete(index);
   }
 
-  figma.notify(`Updated ${slides.length} slides`);
+  // Clean up hash cache for removed slides
+  // Collect indices first to avoid modifying Map during iteration
+  const indicesToDelete: number[] = [];
+  for (const index of slideHashCache.keys()) {
+    if (!validIndices.has(index)) {
+      indicesToDelete.push(index);
+    }
+  }
+  for (const index of indicesToDelete) {
+    slideHashCache.delete(index);
+  }
+
+  // Show notification with update stats
+  if (skippedCount > 0) {
+    figma.notify(`Updated ${updatedCount} slides (${skippedCount} unchanged)`);
+  } else {
+    figma.notify(`Updated ${slides.length} slides`);
+  }
 }
 
 function truncateString(str: string, maxLen: number): string {
@@ -926,6 +940,55 @@ export function validateAndSanitizeSlides(
   return { valid: true, slides: sanitized };
 }
 
+/**
+ * Process the pending slides if any, with back-pressure handling.
+ * Only one generateSlides can run at a time; newer payloads replace pending ones.
+ *
+ * @param slides - The slides to process
+ * @param isContinuation - If true, this is a scheduled continuation from pending work
+ *                         and should bypass the isGenerating guard
+ */
+async function processSlides(
+  slides: SlideContent[],
+  isContinuation = false,
+): Promise<void> {
+  // If already generating (and not a scheduled continuation), queue this payload
+  if (isGenerating && !isContinuation) {
+    const hadPending = pendingSlides !== null;
+    pendingSlides = slides;
+    if (hadPending) {
+      console.log("[figdeck] Render skipped - newer payload queued");
+    }
+    return;
+  }
+
+  isGenerating = true;
+
+  try {
+    await generateSlides(slides);
+    figma.ui.postMessage({
+      type: "success",
+      count: slides.length,
+    });
+  } catch (error) {
+    console.error("[figdeck] Error generating slides:", error);
+    figma.ui.postMessage({ type: "error", message: String(error) });
+  } finally {
+    // Process pending payload if any
+    // NOTE: Keep isGenerating = true until all pending work completes
+    // to prevent race conditions with new messages arriving between
+    // resetting the flag and the setTimeout callback executing
+    if (pendingSlides) {
+      const next = pendingSlides;
+      pendingSlides = null;
+      // Use setTimeout to avoid stack overflow on rapid updates
+      setTimeout(() => processSlides(next, true), 0);
+    } else {
+      isGenerating = false;
+    }
+  }
+}
+
 figma.ui.onmessage = async (msg: { type: string; slides?: unknown }) => {
   if (msg.type === "generate-slides" && msg.slides) {
     const validation = validateAndSanitizeSlides(msg.slides);
@@ -936,15 +999,6 @@ figma.ui.onmessage = async (msg: { type: string; slides?: unknown }) => {
       return;
     }
 
-    try {
-      await generateSlides(validation.slides);
-      figma.ui.postMessage({
-        type: "success",
-        count: validation.slides.length,
-      });
-    } catch (error) {
-      console.error("[figdeck] Error generating slides:", error);
-      figma.ui.postMessage({ type: "error", message: String(error) });
-    }
+    await processSlides(validation.slides);
   }
 };

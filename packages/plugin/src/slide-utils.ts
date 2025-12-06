@@ -8,11 +8,71 @@ import {
   DEFAULT_SLIDE_NUMBER_SIZE,
   SLIDE_NUMBER_NODE_NAME,
 } from "./constants";
+import { djb2HashSampled } from "./hash";
+import { cloneNode, createNodeCache } from "./node-cache";
 import type {
   BackgroundImage,
   SlideBackground,
   SlideNumberConfig,
 } from "./types";
+
+// Image cache: maps hash key (base64 hash or URL) to Figma imageHash
+const imageHashCache = new Map<string, string>();
+
+// Paint style cache: maps style name to style ID
+const paintStyleCache = new Map<string, string>();
+
+// Deduplicate concurrent style lookups
+const pendingPaintStyleLookups = new Map<string, Promise<string | null>>();
+
+// Track styles we've already notified about to avoid repeated toasts
+const missingPaintStyleNotifications = new Set<string>();
+
+// Node cache for slide number templates
+const slideNumberNodeCache = createNodeCache();
+
+async function resolvePaintStyleId(styleName: string): Promise<string | null> {
+  const cachedId = paintStyleCache.get(styleName);
+  if (cachedId) {
+    return cachedId;
+  }
+
+  const pendingLookup = pendingPaintStyleLookups.get(styleName);
+  if (pendingLookup) {
+    return await pendingLookup;
+  }
+
+  const lookupPromise = (async (): Promise<string | null> => {
+    const localStyles = await figma.getLocalPaintStylesAsync();
+    const localStyle = localStyles.find((style) => style.name === styleName);
+
+    if (localStyle) {
+      return localStyle.id;
+    }
+
+    try {
+      const importedStyle = await figma.importStyleByKeyAsync(styleName);
+      if (importedStyle && importedStyle.type === "PAINT") {
+        return importedStyle.id;
+      }
+    } catch (_e) {
+      // ignore and fall through to null
+    }
+
+    return null;
+  })();
+
+  pendingPaintStyleLookups.set(styleName, lookupPromise);
+
+  const resolvedId = await lookupPromise;
+  pendingPaintStyleLookups.delete(styleName);
+
+  if (resolvedId) {
+    paintStyleCache.set(styleName, resolvedId);
+  }
+
+  return resolvedId;
+}
 
 /**
  * Fetch remote image data as bytes for figma.createImage
@@ -36,30 +96,48 @@ async function fetchRemoteImageBytes(url: string): Promise<Uint8Array | null> {
 
 /**
  * Apply image background to a slide node
+ * Uses cache to avoid re-creating images that have already been uploaded
  */
 async function applyImageBackground(
   slideNode: SlideNode,
   image: BackgroundImage,
 ): Promise<boolean> {
   try {
-    let imageData: Image | null = null;
+    let cachedHash: string | undefined;
+    let cacheKey: string | undefined;
 
     if (image.dataBase64) {
-      // Local image with base64 data
-      const bytes = base64ToUint8Array(image.dataBase64);
-      imageData = figma.createImage(bytes);
+      // Local image with base64 data - use hash of data as cache key
+      cacheKey = `base64:${djb2HashSampled(image.dataBase64)}`;
+      cachedHash = imageHashCache.get(cacheKey);
+
+      if (!cachedHash) {
+        // Not in cache - create image
+        const bytes = base64ToUint8Array(image.dataBase64);
+        const imageData = figma.createImage(bytes);
+        cachedHash = imageData.hash;
+        imageHashCache.set(cacheKey, cachedHash);
+      }
     } else if (image.source === "remote" && image.url) {
-      // Remote image - fetch bytes then use createImage
-      const remoteBytes = await fetchRemoteImageBytes(image.url);
-      if (remoteBytes) {
-        imageData = figma.createImage(remoteBytes);
+      // Remote image - use URL as cache key
+      cacheKey = `url:${image.url}`;
+      cachedHash = imageHashCache.get(cacheKey);
+
+      if (!cachedHash) {
+        // Not in cache - fetch and create image
+        const remoteBytes = await fetchRemoteImageBytes(image.url);
+        if (remoteBytes) {
+          const imageData = figma.createImage(remoteBytes);
+          cachedHash = imageData.hash;
+          imageHashCache.set(cacheKey, cachedHash);
+        }
       }
     }
 
-    if (imageData) {
+    if (cachedHash) {
       const imageFill: ImagePaint = {
         type: "IMAGE",
-        imageHash: imageData.hash,
+        imageHash: cachedHash,
         scaleMode: "FILL",
       };
       slideNode.fills = [imageFill];
@@ -82,33 +160,20 @@ export async function applyBackground(
 ): Promise<void> {
   // Priority: templateStyle > gradient > solid > image
   if (background.templateStyle) {
-    // Try to find local paint style first
-    const localStyles = await figma.getLocalPaintStylesAsync();
-    const localStyle = localStyles.find(
-      (s) => s.name === background.templateStyle,
-    );
+    const styleName = background.templateStyle;
 
-    if (localStyle) {
-      slideNode.fillStyleId = localStyle.id;
+    const styleId = await resolvePaintStyleId(styleName);
+
+    if (styleId) {
+      missingPaintStyleNotifications.delete(styleName);
+      slideNode.fillStyleId = styleId;
       return;
     }
 
-    // Try to import by key (for team library styles)
-    try {
-      const importedStyle = await figma.importStyleByKeyAsync(
-        background.templateStyle,
-      );
-      if (importedStyle && importedStyle.type === "PAINT") {
-        slideNode.fillStyleId = importedStyle.id;
-        return;
-      }
-    } catch (_e) {
-      // Style not found, fall through to notify
+    if (!missingPaintStyleNotifications.has(styleName)) {
+      figma.notify(`Paint style "${styleName}" not found`, { error: true });
+      missingPaintStyleNotifications.add(styleName);
     }
-
-    figma.notify(`Paint style "${background.templateStyle}" not found`, {
-      error: true,
-    });
     return;
   }
 
@@ -178,67 +243,16 @@ function formatSlideNumber(
     .replace("{{total}}", String(total));
 }
 
-// Cache for slide number template nodes
-const slideNumberNodeCache = new Map<string, SceneNode | null>();
-const failedSlideNumberNodeIds = new Set<string>();
-
 /**
  * Find a cloneable node for slide number template
  */
 async function findSlideNumberTemplateNode(
   nodeId: string,
 ): Promise<SceneNode | null> {
-  if (slideNumberNodeCache.has(nodeId)) {
-    return slideNumberNodeCache.get(nodeId) || null;
-  }
-
-  if (failedSlideNumberNodeIds.has(nodeId)) {
-    return null;
-  }
-
-  try {
-    const node = await figma.getNodeByIdAsync(nodeId);
-    if (!node) {
-      console.warn(
-        `[figdeck] Slide number template node "${nodeId}" not found`,
-      );
-      failedSlideNumberNodeIds.add(nodeId);
-      return null;
-    }
-
-    if (
-      node.type === "FRAME" ||
-      node.type === "GROUP" ||
-      node.type === "COMPONENT" ||
-      node.type === "INSTANCE"
-    ) {
-      slideNumberNodeCache.set(nodeId, node as SceneNode);
-      return node as SceneNode;
-    }
-
-    console.warn(
-      `[figdeck] Slide number template "${nodeId}" is type "${node.type}", not supported`,
-    );
-    failedSlideNumberNodeIds.add(nodeId);
-    return null;
-  } catch (e) {
-    console.warn(
-      `[figdeck] Failed to find slide number template: ${nodeId}`,
-      e,
-    );
-    failedSlideNumberNodeIds.add(nodeId);
-    return null;
-  }
-}
-
-/**
- * Clone a node for slide number
- */
-function cloneSlideNumberNode(node: SceneNode): SceneNode {
-  if (node.type === "COMPONENT") {
-    return (node as ComponentNode).createInstance();
-  }
-  return node.clone();
+  return slideNumberNodeCache.findNode(nodeId, {
+    allowedTypes: ["FRAME", "GROUP", "COMPONENT", "INSTANCE"],
+    errorPrefix: "Slide number template",
+  });
 }
 
 /**
@@ -336,7 +350,15 @@ async function renderSlideNumberFromTemplate(
   }
 
   // Clone the template
-  const clonedNode = cloneSlideNumberNode(templateNode);
+  const clonedNode = cloneNode(templateNode);
+  if (!clonedNode) {
+    // Node was deleted, clear cache and notify
+    slideNumberNodeCache.clear();
+    figma.notify(`Slide number template was deleted: ${config.nodeId}`, {
+      error: true,
+    });
+    return false;
+  }
   clonedNode.name = SLIDE_NUMBER_NODE_NAME;
 
   // Update text nodes by name

@@ -6,6 +6,9 @@ import { parseMarkdown } from "./markdown.js";
 import { getInitTemplate } from "./templates.js";
 import { generateSecret, isLoopbackHost, startServer } from "./ws-server.js";
 
+// Debounce delay for file watch (ms)
+const WATCH_DEBOUNCE_MS = 200;
+
 // Read CLI version from package.json
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const pkgPath = resolve(__dirname, "../package.json");
@@ -147,17 +150,25 @@ program
         if (options.watch) {
           console.log(`Watching ${file} for changes...`);
 
+          let debounceTimer: ReturnType<typeof setTimeout> | null = null;
           watchFile(file, { interval: 300 }, () => {
-            try {
-              markdown = readFileSync(resolvedPath, "utf-8");
-              slides = parseMarkdown(markdown, { basePath });
-              console.log(
-                `File changed. Parsed ${slides.length} slides from ${file}`,
-              );
-              server.broadcast(slides);
-            } catch (error) {
-              console.error("Error reading file:", (error as Error).message);
+            // Debounce rapid file changes
+            if (debounceTimer) {
+              clearTimeout(debounceTimer);
             }
+            debounceTimer = setTimeout(() => {
+              debounceTimer = null;
+              try {
+                markdown = readFileSync(resolvedPath, "utf-8");
+                slides = parseMarkdown(markdown, { basePath });
+                console.log(
+                  `File changed. Parsed ${slides.length} slides from ${file}`,
+                );
+                server.broadcast(slides);
+              } catch (error) {
+                console.error("Error reading file:", (error as Error).message);
+              }
+            }, WATCH_DEBOUNCE_MS);
           });
         }
 

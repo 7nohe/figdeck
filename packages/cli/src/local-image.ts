@@ -1,6 +1,29 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { extname, isAbsolute, join, resolve } from "node:path";
 
+// Image cache: keyed by resolved path, stores mtime + size + result
+interface ImageCacheEntry {
+  mtimeMs: number;
+  size: number;
+  result: LocalImageResult;
+}
+
+const imageCache = new Map<string, ImageCacheEntry>();
+
+/**
+ * Clear the image cache. Useful for testing or when the cache becomes stale.
+ */
+export function clearImageCache(): void {
+  imageCache.clear();
+}
+
+/**
+ * Get the current size of the image cache (for testing/debugging).
+ */
+export function getImageCacheSize(): number {
+  return imageCache.size;
+}
+
 // Supported image extensions and their MIME types
 // Only formats supported by Figma's createImage API: PNG, JPEG, GIF
 // Note: WebP and SVG are NOT supported by Figma Slides
@@ -77,13 +100,23 @@ export function readLocalImage(
     return null;
   }
 
-  // Check file size
+  // Check file size and get stats for cache validation
   const stats = statSync(resolvedPath);
   if (stats.size > maxSize) {
     console.warn(
       `[figdeck] Image too large (${(stats.size / 1024 / 1024).toFixed(2)}MB > ${(maxSize / 1024 / 1024).toFixed(2)}MB limit): ${resolvedPath}`,
     );
     return null;
+  }
+
+  // Check cache: if mtime and size match, return cached result
+  const cached = imageCache.get(resolvedPath);
+  if (
+    cached &&
+    cached.mtimeMs === stats.mtimeMs &&
+    cached.size === stats.size
+  ) {
+    return cached.result;
   }
 
   // Check MIME type
@@ -96,7 +129,16 @@ export function readLocalImage(
   try {
     const buffer = readFileSync(resolvedPath);
     const dataBase64 = buffer.toString("base64");
-    return { dataBase64, mimeType };
+    const result = { dataBase64, mimeType };
+
+    // Store in cache
+    imageCache.set(resolvedPath, {
+      mtimeMs: stats.mtimeMs,
+      size: stats.size,
+      result,
+    });
+
+    return result;
   } catch (error) {
     console.warn(
       `[figdeck] Failed to read image: ${resolvedPath}`,

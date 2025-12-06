@@ -38,16 +38,63 @@ function getFontForStyle(
 }
 
 /**
- * Check if a URL is valid for hyperlinks
+ * Check if a URL is valid for hyperlinks.
+ * Note: Figma Plugin sandbox doesn't have the URL class, so we use regex.
  */
 export function isValidHyperlinkUrl(url?: string): boolean {
   if (!url) return false;
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "http:" || parsed.protocol === "https:";
-  } catch {
-    return false;
+  // Match http://, https://, mailto:, or tel: protocols
+  return /^(https?:\/\/|mailto:|tel:)/i.test(url);
+}
+
+/**
+ * Normalize a URL for use as a hyperlink.
+ * - If the URL already has a valid protocol, return as-is.
+ * - If the URL looks like a domain (contains a dot), prepend "https://".
+ * - Returns undefined if the URL cannot be normalized.
+ *
+ * Note: Figma Plugin sandbox doesn't have the URL class, so we use regex.
+ */
+export function normalizeHyperlinkUrl(url?: string): string | undefined {
+  if (!url) return undefined;
+
+  // Already has a valid protocol
+  if (/^(https?:\/\/|mailto:|tel:)/i.test(url)) {
+    return url;
   }
+
+  // Try adding https:// for URLs that look like domains
+  // e.g., "example.com", "www.example.com/path"
+  // Validation rules:
+  // - Must contain a dot (for domain separation)
+  // - No spaces allowed
+  // - Must start with alphanumeric character
+  // - Domain part (before any path) must end with alphanumeric character
+  // - Domain labels (dot-separated) must not start or end with hyphens (RFC 1035)
+  if (url.includes(".") && !url.includes(" ") && /^[a-zA-Z0-9]/.test(url)) {
+    const domainPart = url.split("/")[0];
+
+    // Check domain ends with alphanumeric
+    if (!/[a-zA-Z0-9]$/.test(domainPart)) {
+      return undefined;
+    }
+
+    // Check each domain label doesn't start/end with hyphen or be empty
+    const labels = domainPart.split(".");
+    for (const label of labels) {
+      if (
+        label.length === 0 ||
+        label.startsWith("-") ||
+        label.endsWith("-")
+      ) {
+        return undefined;
+      }
+    }
+
+    return `https://${url}`;
+  }
+
+  return undefined;
 }
 
 /**
@@ -133,33 +180,56 @@ export async function renderSpansToText(
     const fontSize = span.superscript ? Math.round(baseSize * 0.7) : baseSize;
     textNode.setRangeFontSize(start, end, fontSize);
 
-    // Determine fill color
+    // Determine fill color and text decoration
+    // Note: Figma only supports one decoration at a time (UNDERLINE or STRIKETHROUGH).
+    // When both href and strike are present, strikethrough takes precedence since it's
+    // an explicit formatting choice, but we still apply link color and hyperlink.
     let fill: Paint[];
     if (span.href) {
-      fill = [{ type: "SOLID", color: LINK_COLOR }];
+      // Apply link styling for valid URLs
+      const normalizedUrl = normalizeHyperlinkUrl(span.href);
+      if (normalizedUrl) {
+        fill = [{ type: "SOLID", color: LINK_COLOR }];
+        textNode.setRangeFills(start, end, fill);
+        // Apply strikethrough if set, otherwise underline for links
+        if (span.strike) {
+          textNode.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+        } else {
+          textNode.setRangeTextDecoration(start, end, "UNDERLINE");
+        }
+        // Try to set hyperlink (may fail in Figma Slides)
+        safeSetRangeHyperlink(textNode, start, end, {
+          type: "URL",
+          value: normalizedUrl,
+        });
+      } else {
+        // Invalid URL format - use default color, no underline
+        console.warn(
+          `[figdeck] Invalid URL format, skipping hyperlink: "${span.href}"`,
+        );
+        fill = baseFills || DEFAULT_TEXT_FILL;
+        textNode.setRangeFills(start, end, fill);
+        // Still apply strikethrough if set
+        if (span.strike) {
+          textNode.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+        }
+      }
     } else if (span.superscript) {
       // Muted gray for footnote references
       fill = [{ type: "SOLID", color: { r: 0.5, g: 0.5, b: 0.5 } }];
+      textNode.setRangeFills(start, end, fill);
+      if (span.strike) {
+        textNode.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+      }
     } else if (baseFills) {
-      fill = baseFills;
+      textNode.setRangeFills(start, end, baseFills);
+      if (span.strike) {
+        textNode.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+      }
     } else {
-      fill = DEFAULT_TEXT_FILL;
-    }
-    textNode.setRangeFills(start, end, fill);
-
-    // Strikethrough
-    if (span.strike) {
-      textNode.setRangeTextDecoration(start, end, "STRIKETHROUGH");
-    }
-
-    // Hyperlink (only if the URL is valid to avoid runtime errors)
-    if (span.href && isValidHyperlinkUrl(span.href)) {
-      const ok = safeSetRangeHyperlink(textNode, start, end, {
-        type: "URL",
-        value: span.href,
-      });
-      if (ok) {
-        textNode.setRangeTextDecoration(start, end, "UNDERLINE");
+      textNode.setRangeFills(start, end, DEFAULT_TEXT_FILL);
+      if (span.strike) {
+        textNode.setRangeTextDecoration(start, end, "STRIKETHROUGH");
       }
     }
 

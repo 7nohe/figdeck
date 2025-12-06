@@ -1,4 +1,5 @@
 import { base64ToUint8Array } from "./base64";
+import { createDefaultTextFill } from "./colors";
 import {
   FIGMA_BRAND_COLOR,
   FIGMA_CARD_BG,
@@ -11,6 +12,7 @@ import type { ResolvedFontName, ResolvedTextStyle } from "./styles";
 import { LAYOUT } from "./styles";
 import {
   isValidHyperlinkUrl,
+  normalizeHyperlinkUrl,
   renderSpansToText,
   renderSpansWithInlineCode,
   safeSetRangeHyperlink,
@@ -377,27 +379,48 @@ export async function renderBulletList(
             style: fontStyle,
           });
 
-          // Fill color
+          // Fill color and decoration - apply link styling for valid URLs
+          // Note: Figma only supports one decoration at a time (UNDERLINE or STRIKETHROUGH).
+          // When both href and strike are present, strikethrough takes precedence.
           if (span.href) {
-            bullets.setRangeFills(start, end, [
-              { type: "SOLID", color: { r: 0.1, g: 0.4, b: 0.9 } },
-            ]);
-            bullets.setRangeTextDecoration(start, end, "UNDERLINE");
-            try {
-              bullets.setRangeHyperlink(start, end, {
+            const normalizedUrl = normalizeHyperlinkUrl(span.href);
+            if (normalizedUrl) {
+              bullets.setRangeFills(start, end, [
+                { type: "SOLID", color: { r: 0.1, g: 0.4, b: 0.9 } },
+              ]);
+              // Apply strikethrough if set, otherwise underline for links
+              if (span.strike) {
+                bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+              } else {
+                bullets.setRangeTextDecoration(start, end, "UNDERLINE");
+              }
+              // Try to set hyperlink (may fail in Figma Slides)
+              safeSetRangeHyperlink(bullets, start, end, {
                 type: "URL",
-                value: span.href,
+                value: normalizedUrl,
               });
-            } catch {
-              // Ignore hyperlink errors
+            } else {
+              // Invalid URL format - use default color, no underline
+              bullets.setRangeFills(
+                start,
+                end,
+                style.fills || createDefaultTextFill(),
+              );
+              if (span.strike) {
+                bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+              }
             }
           } else if (style.fills) {
             bullets.setRangeFills(start, end, style.fills);
-          }
-
-          // Strikethrough
-          if (span.strike) {
-            bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+            if (span.strike) {
+              bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+            }
+          } else {
+            // No href, no style.fills - apply default fill
+            bullets.setRangeFills(start, end, createDefaultTextFill());
+            if (span.strike) {
+              bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+            }
           }
 
           spanIndex = end;
@@ -520,27 +543,48 @@ export async function renderBulletList(
           style: fontStyle,
         });
 
-        // Fill color
+        // Fill color and decoration - apply link styling for valid URLs
+        // Note: Figma only supports one decoration at a time (UNDERLINE or STRIKETHROUGH).
+        // When both href and strike are present, strikethrough takes precedence.
         if (span.href) {
-          bullets.setRangeFills(start, end, [
-            { type: "SOLID", color: { r: 0.1, g: 0.4, b: 0.9 } },
-          ]);
-          bullets.setRangeTextDecoration(start, end, "UNDERLINE");
-          try {
-            bullets.setRangeHyperlink(start, end, {
+          const normalizedUrl = normalizeHyperlinkUrl(span.href);
+          if (normalizedUrl) {
+            bullets.setRangeFills(start, end, [
+              { type: "SOLID", color: { r: 0.1, g: 0.4, b: 0.9 } },
+            ]);
+            // Apply strikethrough if set, otherwise underline for links
+            if (span.strike) {
+              bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+            } else {
+              bullets.setRangeTextDecoration(start, end, "UNDERLINE");
+            }
+            // Try to set hyperlink (may fail in Figma Slides)
+            safeSetRangeHyperlink(bullets, start, end, {
               type: "URL",
-              value: span.href,
+              value: normalizedUrl,
             });
-          } catch {
-            // Ignore hyperlink errors
+          } else {
+            // Invalid URL format - use default color, no underline
+            bullets.setRangeFills(
+              start,
+              end,
+              style.fills || createDefaultTextFill(),
+            );
+            if (span.strike) {
+              bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+            }
           }
         } else if (style.fills) {
           bullets.setRangeFills(start, end, style.fills);
-        }
-
-        // Strikethrough
-        if (span.strike) {
-          bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+          if (span.strike) {
+            bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+          }
+        } else {
+          // No href, no style.fills - apply default fill
+          bullets.setRangeFills(start, end, createDefaultTextFill());
+          if (span.strike) {
+            bullets.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+          }
         }
 
         spanIndex = end;

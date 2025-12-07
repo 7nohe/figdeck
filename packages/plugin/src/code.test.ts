@@ -85,4 +85,105 @@ describe("validateAndSanitizeSlides", () => {
     expect(bulletItems[0].childrenOrdered).toBe(true);
     expect(bulletItems[0].childrenStart).toBe(4);
   });
+
+  it("rejects figma blocks with invalid URLs", async () => {
+    const { validateAndSanitizeSlides } = await import("./code");
+
+    const result = validateAndSanitizeSlides([
+      {
+        blocks: [
+          {
+            kind: "figma",
+            link: { url: "https://evilfigma.com/file/abc/Name?node-id=1-2" },
+          },
+          { kind: "paragraph", text: "Valid content" },
+        ],
+      },
+    ]);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+
+    // The invalid figma block should be filtered out
+    expect(result.slides[0].blocks.length).toBe(1);
+    expect(result.slides[0].blocks[0].kind).toBe("paragraph");
+  });
+
+  it("accepts figma blocks with valid figma.com URLs", async () => {
+    const { validateAndSanitizeSlides } = await import("./code");
+
+    const result = validateAndSanitizeSlides([
+      {
+        blocks: [
+          {
+            kind: "figma",
+            link: { url: "https://www.figma.com/file/abc/Name?node-id=1-2" },
+          },
+        ],
+      },
+    ]);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+
+    expect(result.slides[0].blocks.length).toBe(1);
+    expect(result.slides[0].blocks[0].kind).toBe("figma");
+  });
+
+  it("limits TextSpan array length", async () => {
+    const { validateAndSanitizeSlides } = await import("./code");
+
+    // Create a block with excessive spans
+    const manySpans = Array.from({ length: 1000 }, (_, i) => ({
+      text: `span ${i}`,
+    }));
+
+    const result = validateAndSanitizeSlides([
+      {
+        blocks: [
+          {
+            kind: "paragraph",
+            text: "Test",
+            spans: manySpans,
+          },
+        ],
+      },
+    ]);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+
+    const block = result.slides[0].blocks[0];
+    if (block.kind !== "paragraph") return;
+
+    // Should be limited to MAX_SPANS_PER_ELEMENT (500)
+    expect(block.spans?.length).toBeLessThanOrEqual(500);
+  });
+
+  it("limits bullet items array length", async () => {
+    const { validateAndSanitizeSlides } = await import("./code");
+
+    // Create excessive bullet items
+    const manyItems = Array.from({ length: 200 }, (_, i) => `Item ${i}`);
+
+    const result = validateAndSanitizeSlides([
+      {
+        blocks: [
+          {
+            kind: "bullets",
+            items: manyItems,
+          },
+        ],
+      },
+    ]);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+
+    const block = result.slides[0].blocks[0];
+    if (block.kind !== "bullets") return;
+
+    // Should be limited to MAX_BULLET_ITEMS (100)
+    expect(block.items.length).toBeLessThanOrEqual(100);
+  });
 });

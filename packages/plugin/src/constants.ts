@@ -23,9 +23,9 @@ export const FIGMA_CARD_BG: RGB = { r: 0.96, g: 0.96, b: 0.98 };
 export const FIGMA_CARD_BORDER: RGB = { r: 0.85, g: 0.85, b: 0.9 };
 export const FIGMA_BRAND_COLOR: RGB = { r: 0.64, g: 0.33, b: 0.97 }; // Figma purple
 
-// Max size for cloned node preview
-export const MAX_PREVIEW_WIDTH = 400;
-export const MAX_PREVIEW_HEIGHT = 300;
+// Max size for cloned node preview (matches slide dimensions)
+export const MAX_PREVIEW_WIDTH = 1920;
+export const MAX_PREVIEW_HEIGHT = 1080;
 
 // Slide number defaults
 export const DEFAULT_SLIDE_NUMBER_SIZE = 14;

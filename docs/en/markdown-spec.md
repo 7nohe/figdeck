@@ -220,6 +220,52 @@ link=https://www.figma.com/file/xxx/name?node-id=1234-5678
 | `link` | Yes | Figma URL (with node-id parameter) |
 | `x` | - | Card X coordinate (auto-positioned if omitted) |
 | `y` | - | Card Y coordinate (auto-positioned if omitted) |
+| `hideLink` | - | Hide the clickable link label below preview (`true`) |
+| `text.*` | - | Text layer overrides (see below) |
+
+### Text Layer Overrides
+
+You can override text content in Figma components using `text.*` properties.
+The `*` is replaced with the layer name (case-insensitive).
+
+```markdown
+:::figma
+link=https://www.figma.com/file/xxx?node-id=1234-5678
+text.title=Cart Feature
+text.body=Use this for cart and confirmation flows.
+:::
+```
+
+**Rich text formatting** is supported within text overrides:
+
+```markdown
+:::figma
+link=https://www.figma.com/file/xxx?node-id=1234-5678
+text.description=This is **bold** and *italic* text with a [link](https://example.com).
+:::
+```
+
+**Multiline text** with bullet lists:
+
+```markdown
+:::figma
+link=https://www.figma.com/file/xxx?node-id=1234-5678
+text.content=
+  - Variation A
+  - Variation B
+  - Variation C
+:::
+```
+
+Supported formatting in text overrides:
+- **Bold**: `**text**`
+- **Italic**: `*text*`
+- **Strikethrough**: `~~text~~`
+- **Links**: `[text](url)`
+- **Bullet lists**: `- item`
+- **Blockquotes**: `> quote` (displayed as quoted italic text)
+
+**Note**: Code blocks are not supported in text overrides due to Figma text layer limitations.
 
 ### Position Specification Example
 
@@ -233,9 +279,10 @@ y=300
 
 ### Behavior
 
-- **Same file**: If `node-id` exists in the current file, clicking jumps directly to that node (`type: "NODE"` hyperlink)
-- **Other file**: For different files, opens as a URL link (`type: "URL"` hyperlink)
+- **Same file**: If `node-id` exists in the current file, the component is cloned as a preview with clickable link
+- **Other file**: For different files, shows a link card with URL hyperlink
 - **Node not found**: If the specified `node-id` is not found, a warning is shown and URL fallback is used
+- **Text overrides**: Text layers matching `text.*` layer names are updated with the specified content and formatting
 
 ### Supported URL Formats
 

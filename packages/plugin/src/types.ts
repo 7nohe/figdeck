@@ -241,6 +241,10 @@ export interface FigmaSelectionLink {
   fileKey?: string;
   x?: number;
   y?: number;
+  /** Text layer overrides: key is layer name, value is text with optional spans for rich formatting */
+  textOverrides?: Record<string, { text: string; spans?: TextSpan[] }>;
+  /** Hide the clickable link label below the preview */
+  hideLink?: boolean;
 }
 
 /** Image size specification (parsed from Marp-style alt text) */

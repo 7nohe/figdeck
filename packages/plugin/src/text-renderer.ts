@@ -236,8 +236,39 @@ export async function renderSpansToText(
 }
 
 /**
+ * Split spans by newline characters, returning an array of span arrays (one per line).
+ * Preserves all span properties when splitting.
+ */
+function splitSpansByNewline(spans: TextSpan[]): TextSpan[][] {
+  const lines: TextSpan[][] = [[]];
+
+  for (const span of spans) {
+    if (!span.text.includes("\n")) {
+      lines[lines.length - 1].push(span);
+      continue;
+    }
+
+    // Split this span by newlines
+    const parts = span.text.split("\n");
+    for (let i = 0; i < parts.length; i++) {
+      if (i > 0) {
+        // Start a new line
+        lines.push([]);
+      }
+      if (parts[i].length > 0) {
+        // Create a new span with the same properties but different text
+        lines[lines.length - 1].push({ ...span, text: parts[i] });
+      }
+    }
+  }
+
+  return lines;
+}
+
+/**
  * Render inline code spans with monospace font look (using Inter with background)
  * Since Figma doesn't support per-character background, we use a wrapper frame approach
+ * Supports multiline text by splitting on newline characters
  */
 export async function renderSpansWithInlineCode(
   spans: TextSpan[],
@@ -259,7 +290,94 @@ export async function renderSpansWithInlineCode(
     return textNode;
   }
 
-  // Complex case: has inline code, create a horizontal auto-layout frame
+  // Check if spans contain newlines
+  const hasNewlines = spans.some((s) => s.text.includes("\n"));
+
+  if (hasNewlines) {
+    // Multiline case: split by newlines and render each line in a VERTICAL frame
+    const lines = splitSpansByNewline(spans);
+
+    const outerFrame = figma.createFrame();
+    outerFrame.name = "Text with inline code (multiline)";
+    outerFrame.layoutMode = "VERTICAL";
+    outerFrame.primaryAxisSizingMode = "AUTO";
+    outerFrame.counterAxisSizingMode = "AUTO";
+    outerFrame.itemSpacing = 4; // Line spacing
+    outerFrame.fills = [];
+    if (x !== undefined) outerFrame.x = x;
+    if (y !== undefined) outerFrame.y = y;
+
+    for (const lineSpans of lines) {
+      if (lineSpans.length === 0) {
+        // Empty line - create a spacer or empty text node
+        const emptyLine = figma.createText();
+        const resolvedFont = font || DEFAULT_FONT;
+        await figma.loadFontAsync({
+          family: resolvedFont.family,
+          style: resolvedFont.regular,
+        });
+        emptyLine.fontName = {
+          family: resolvedFont.family,
+          style: resolvedFont.regular,
+        };
+        emptyLine.fontSize = baseSize;
+        emptyLine.characters = " ";
+        outerFrame.appendChild(emptyLine);
+        continue;
+      }
+
+      // Check if this line has inline code
+      const lineHasCode = lineSpans.some((s) => s.code);
+
+      if (!lineHasCode) {
+        // No inline code in this line - render as plain text
+        const textNode = await renderSpansToText(
+          lineSpans,
+          baseSize,
+          baseFills,
+          font,
+        );
+        outerFrame.appendChild(textNode);
+      } else {
+        // Has inline code - render with horizontal frame
+        const lineFrame = await renderSingleLineWithInlineCode(
+          lineSpans,
+          baseSize,
+          baseFills,
+          font,
+          codeFont,
+        );
+        outerFrame.appendChild(lineFrame);
+      }
+    }
+
+    return outerFrame;
+  }
+
+  // Single line with inline code
+  return renderSingleLineWithInlineCode(
+    spans,
+    baseSize,
+    baseFills,
+    font,
+    codeFont,
+    x,
+    y,
+  );
+}
+
+/**
+ * Render a single line of text with inline code spans
+ */
+async function renderSingleLineWithInlineCode(
+  spans: TextSpan[],
+  baseSize: number,
+  baseFills?: Paint[],
+  font?: ResolvedFontName,
+  codeFont?: ResolvedFontName,
+  x?: number,
+  y?: number,
+): Promise<FrameNode> {
   const frame = figma.createFrame();
   frame.name = "Text with inline code";
   frame.layoutMode = "HORIZONTAL";

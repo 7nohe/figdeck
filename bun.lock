@@ -10,12 +10,11 @@
     },
     "packages/cli": {
       "name": "figdeck",
-      "version": "1.2.1",
+      "version": "1.3.1",
       "bin": {
         "figdeck": "./bin/figdeck.js",
       },
       "dependencies": {
-        "@figdeck/shared": "workspace:*",
         "commander": "^12.1.0",
         "remark": "^15.0.1",
         "remark-frontmatter": "^5.0.0",
@@ -26,6 +25,7 @@
         "yaml": "^2.8.1",
       },
       "devDependencies": {
+        "@figdeck/shared": "workspace:*",
         "@types/bun": "^1.3.3",
         "@types/mdast": "^4.0.4",
         "@types/node": "^22.10.0",
@@ -36,7 +36,7 @@
     },
     "packages/plugin": {
       "name": "@figdeck/plugin",
-      "version": "1.2.1",
+      "version": "1.3.1",
       "dependencies": {
         "@figdeck/shared": "workspace:*",
         "highlight.js": "^11.11.1",

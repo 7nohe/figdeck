@@ -39,12 +39,6 @@ jobs:
       - name: Run tests
         run: bun test
 
-      - name: Publish @figdeck/shared to npm
-        run: bun publish --access public
-        working-directory: packages/shared
-        env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
-
       - name: Publish figdeck to npm
         run: bun publish --access public
         working-directory: packages/cli

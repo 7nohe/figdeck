@@ -7,6 +7,8 @@
 
 Convert Markdown to Figma Slides with CLI + Plugin
 
+[日本語](./README.ja.md)
+
 ## Overview
 
 figdeck is a tool that automatically generates Figma Slides from Markdown files. The CLI parses Markdown and communicates with the Figma Plugin via WebSocket to create slides.
@@ -25,8 +27,9 @@ Install the figdeck plugin from Figma Community:
 # Install globally
 npm install -g figdeck
 
-# Or use directly with npx
-npx figdeck your-slides.md
+# Or use directly with npx/bunx
+npx figdeck@latest your-slides.md
+bunx figdeck@latest your-slides.md
 ```
 
 ## Usage
@@ -35,10 +38,10 @@ npx figdeck your-slides.md
 
 ```bash
 # Create a template slides.md with all syntax examples
-npx figdeck init
+npx figdeck@latest init
 
 # Start the server
-npx figdeck slides.md
+npx figdeck@latest slides.md
 ```
 
 ### Method 1: WebSocket Connection (Live Reload Support)
@@ -48,13 +51,13 @@ npx figdeck slides.md
 
 ```bash
 # Start WebSocket server with CLI (watch mode enabled by default)
-npx figdeck your-slides.md
+npx figdeck@latest your-slides.md
 
 # Or explicitly use serve command
-npx figdeck serve your-slides.md
+npx figdeck@latest serve your-slides.md
 
 # Disable watch mode
-npx figdeck your-slides.md --no-watch
+npx figdeck@latest your-slides.md --no-watch
 ```
 
 1. Open the figdeck plugin in Figma Desktop
@@ -65,7 +68,7 @@ npx figdeck your-slides.md --no-watch
 
 ```bash
 # Output JSON from Markdown
-npx figdeck build your-slides.md -o slides.json
+npx figdeck@latest build your-slides.md -o slides.json
 ```
 
 1. Open the figdeck plugin in Figma

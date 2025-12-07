@@ -1,5 +1,5 @@
+import type { TitlePrefixConfig } from "@figdeck/shared";
 import initTemplate from "../templates/init.md";
-import type { TitlePrefixConfig } from "./types.js";
 
 /**
  * Template defaults configuration

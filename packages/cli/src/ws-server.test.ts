@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { PROTOCOL_VERSION } from "./types";
+import { PROTOCOL_VERSION } from "@figdeck/shared";
 import { generateSecret, isLoopbackHost } from "./ws-server";
 
 describe("isLoopbackHost", () => {

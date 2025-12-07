@@ -1,3 +1,4 @@
+import type { BulletItem, TextSpan } from "@figdeck/shared";
 import type {
   Blockquote,
   Content,
@@ -13,7 +14,6 @@ import type {
   TableRow,
   Text,
 } from "mdast";
-import type { BulletItem, TextSpan } from "./types.js";
 
 /**
  * Current inline formatting state during span extraction

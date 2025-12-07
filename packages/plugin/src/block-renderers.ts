@@ -1,3 +1,12 @@
+import type {
+  BulletItem,
+  FigmaSelectionLink,
+  FootnoteItem,
+  ImageSize,
+  TableAlignment,
+  TextSpan,
+} from "@figdeck/shared";
+import { BULLET_MARKERS } from "@figdeck/shared";
 import { base64ToUint8Array } from "./base64";
 import { createDefaultTextFill } from "./colors";
 import {
@@ -17,14 +26,6 @@ import {
   renderSpansWithInlineCode,
   safeSetRangeHyperlink,
 } from "./text-renderer";
-import type {
-  BulletItem,
-  FigmaSelectionLink,
-  FootnoteItem,
-  ImageSize,
-  TableAlignment,
-  TextSpan,
-} from "./types";
 
 /**
  * Result from a block renderer
@@ -113,9 +114,6 @@ export async function renderParagraph(
   body.y = y;
   return { node: body, height: body.height };
 }
-
-/** Bullet markers for different nesting levels */
-const BULLET_MARKERS = ["•", "◦", "▪", "–"];
 
 function applyBulletSpacing(node: TextNode, style: ResolvedTextStyle) {
   const spacing = style.spacing ?? LAYOUT.BULLET_ITEM_SPACING;

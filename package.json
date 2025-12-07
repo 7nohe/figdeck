@@ -5,7 +5,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "bun run --filter '*' build",
+    "build": "bun run --filter '@figdeck/shared' build && bun run --filter '!@figdeck/shared' build",
     "dev": "bun run --filter '@figdeck/cli' dev",
     "serve": "bun run packages/cli/dist/index.js serve",
     "lint": "biome lint .",

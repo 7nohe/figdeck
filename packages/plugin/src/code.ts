@@ -1,3 +1,19 @@
+import type {
+  BulletItem,
+  FigmaSelectionLink,
+  HorizontalAlign,
+  SlideBlock,
+  SlideContent,
+  SlideTransitionConfig,
+  TextSpan,
+  TitlePrefixConfig,
+  VerticalAlign,
+} from "@figdeck/shared";
+import {
+  isValidFigmaUrl,
+  TRANSITION_CURVE_TO_FIGMA,
+  TRANSITION_STYLE_TO_FIGMA,
+} from "@figdeck/shared";
 import {
   renderBlockquote,
   renderBulletList,
@@ -24,19 +40,6 @@ import {
   type ResolvedTextStyle,
   resolveSlideStyles,
 } from "./styles";
-import type {
-  BulletItem,
-  FigmaSelectionLink,
-  HorizontalAlign,
-  SlideBlock,
-  SlideContent,
-  SlideTransitionConfig,
-  SlideTransitionCurve,
-  SlideTransitionStyle,
-  TextSpan,
-  TitlePrefixConfig,
-  VerticalAlign,
-} from "./types";
 
 // Security limits
 const MAX_SLIDES = 100;
@@ -146,49 +149,6 @@ async function loadFontsForStyles(
 }
 
 /**
- * Map from kebab-case transition style to Figma API UPPER_SNAKE_CASE
- */
-const TRANSITION_STYLE_MAP: Record<SlideTransitionStyle, string> = {
-  none: "NONE",
-  dissolve: "DISSOLVE",
-  "smart-animate": "SMART_ANIMATE",
-  "slide-from-left": "SLIDE_FROM_LEFT",
-  "slide-from-right": "SLIDE_FROM_RIGHT",
-  "slide-from-top": "SLIDE_FROM_TOP",
-  "slide-from-bottom": "SLIDE_FROM_BOTTOM",
-  "push-from-left": "PUSH_FROM_LEFT",
-  "push-from-right": "PUSH_FROM_RIGHT",
-  "push-from-top": "PUSH_FROM_TOP",
-  "push-from-bottom": "PUSH_FROM_BOTTOM",
-  "move-from-left": "MOVE_FROM_LEFT",
-  "move-from-right": "MOVE_FROM_RIGHT",
-  "move-from-top": "MOVE_FROM_TOP",
-  "move-from-bottom": "MOVE_FROM_BOTTOM",
-  "slide-out-to-left": "SLIDE_OUT_TO_LEFT",
-  "slide-out-to-right": "SLIDE_OUT_TO_RIGHT",
-  "slide-out-to-top": "SLIDE_OUT_TO_TOP",
-  "slide-out-to-bottom": "SLIDE_OUT_TO_BOTTOM",
-  "move-out-to-left": "MOVE_OUT_TO_LEFT",
-  "move-out-to-right": "MOVE_OUT_TO_RIGHT",
-  "move-out-to-top": "MOVE_OUT_TO_TOP",
-  "move-out-to-bottom": "MOVE_OUT_TO_BOTTOM",
-};
-
-/**
- * Map from kebab-case easing curve to Figma API UPPER_SNAKE_CASE
- */
-const CURVE_MAP: Record<SlideTransitionCurve, string> = {
-  "ease-in": "EASE_IN",
-  "ease-out": "EASE_OUT",
-  "ease-in-and-out": "EASE_IN_AND_OUT",
-  linear: "LINEAR",
-  gentle: "GENTLE",
-  quick: "QUICK",
-  bouncy: "BOUNCY",
-  slow: "SLOW",
-};
-
-/**
  * Apply slide transition configuration to a SlideNode
  */
 function applySlideTransition(
@@ -197,7 +157,7 @@ function applySlideTransition(
 ): void {
   if (!config || !config.style) return;
 
-  const figmaStyle = TRANSITION_STYLE_MAP[config.style];
+  const figmaStyle = TRANSITION_STYLE_TO_FIGMA[config.style];
   if (!figmaStyle) return;
 
   // Normalize timing config
@@ -221,7 +181,7 @@ function applySlideTransition(
   const transition = {
     style: figmaStyle,
     duration: config.duration !== undefined ? config.duration : 0.3,
-    curve: config.curve ? CURVE_MAP[config.curve] : "EASE_OUT",
+    curve: config.curve ? TRANSITION_CURVE_TO_FIGMA[config.curve] : "EASE_OUT",
     timing: {
       type: timingType,
       delay: timingDelay,
@@ -780,20 +740,6 @@ function truncateString(str: string, maxLen: number): string {
     return `${str.slice(0, maxLen)}... (truncated)`;
   }
   return str;
-}
-
-/**
- * Validate a Figma URL's hostname is legitimate.
- * Must be exactly "figma.com" or a subdomain like "www.figma.com", "api.figma.com".
- * Uses regex-based extraction to work in Figma plugin sandbox where URL may not be available.
- */
-function isValidFigmaUrl(url: string): boolean {
-  // Extract hostname using regex (works in Figma sandbox)
-  const match = url.match(/^https?:\/\/([^/]+)/i);
-  if (!match) return false;
-
-  const hostname = match[1].toLowerCase();
-  return hostname === "figma.com" || hostname.endsWith(".figma.com");
 }
 
 function sanitizeTextSpans(spans: unknown): TextSpan[] | undefined {

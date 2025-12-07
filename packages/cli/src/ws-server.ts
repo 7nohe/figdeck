@@ -1,11 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { type WebSocket, WebSocketServer } from "ws";
 import {
   type GenerateSlidesMessage,
   type HelloMessage,
   PROTOCOL_VERSION,
   type SlideContent,
-} from "./types.js";
+} from "@figdeck/shared";
+import { type WebSocket, WebSocketServer } from "ws";
 
 const MAX_PAYLOAD_BYTES = 10 * 1024 * 1024; // 10 MB
 const AUTH_TIMEOUT_MS = 5000;

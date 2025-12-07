@@ -352,3 +352,11 @@ export interface AuthErrorMessage {
   type: "auth-error";
   message: string;
 }
+
+/**
+ * Generic plugin message (used by plugin UI)
+ */
+export interface PluginMessage {
+  type: string;
+  [key: string]: unknown;
+}

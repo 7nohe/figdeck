@@ -8,6 +8,14 @@ figdeck は Markdown ファイルから Figma Slides を自動生成するツー
 
 ## インストール
 
+### Figma Plugin
+
+Figma Community から figdeck プラグインをインストール：
+
+**[figdeck - Figma Community](https://www.figma.com/community/plugin/1577342026252824260/figdeck)**
+
+### CLI
+
 ```bash
 # グローバルインストール
 npm install -g figdeck
@@ -20,6 +28,9 @@ npx figdeck your-slides.md
 
 ### 方法 1: WebSocket 連携（ライブリロード対応）
 
+> [!NOTE]
+> WebSocket 接続には **Figma デスクトップアプリ** が必要です。Web ブラウザ版はセキュリティ制約により localhost に接続できません。
+
 ```bash
 # CLI で WebSocket サーバーを起動（ウォッチモードがデフォルトで有効）
 npx figdeck your-slides.md
@@ -31,18 +42,18 @@ npx figdeck serve your-slides.md
 npx figdeck your-slides.md --no-watch
 ```
 
-1. Figma でプラグインを開発モードで読み込み
+1. Figma デスクトップアプリで figdeck プラグインを開く
 2. Plugin の「WebSocket」タブで CLI に接続
 3. スライドが自動生成される
 
-### 方法 2: JSON インポート（CLI 不要）
+### 方法 2: JSON インポート（デスクトップ・Web 両対応）
 
 ```bash
 # Markdown から JSON を出力
 npx figdeck build your-slides.md -o slides.json
 ```
 
-1. Figma でプラグインを開発モードで読み込み
+1. Figma で figdeck プラグインを開く
 2. Plugin の「Import JSON」タブを選択
 3. JSON をペーストするか、ファイルを選択して読み込み
 4. 「Generate Slides」でスライドを生成

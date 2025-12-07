@@ -13,6 +13,14 @@ figdeck is a tool that automatically generates Figma Slides from Markdown files.
 
 ## Installation
 
+### Figma Plugin
+
+Install the figdeck plugin from Figma Community:
+
+**[figdeck - Figma Community](https://www.figma.com/community/plugin/1577342026252824260/figdeck)**
+
+### CLI
+
 ```bash
 # Install globally
 npm install -g figdeck
@@ -35,6 +43,9 @@ npx figdeck slides.md
 
 ### Method 1: WebSocket Connection (Live Reload Support)
 
+> [!NOTE]
+> WebSocket connection requires **Figma Desktop app**. The web browser version cannot connect to localhost due to security restrictions.
+
 ```bash
 # Start WebSocket server with CLI (watch mode enabled by default)
 npx figdeck your-slides.md
@@ -46,18 +57,18 @@ npx figdeck serve your-slides.md
 npx figdeck your-slides.md --no-watch
 ```
 
-1. Load the plugin in development mode in Figma
+1. Open the figdeck plugin in Figma Desktop
 2. Connect to CLI from the "WebSocket" tab in the Plugin
 3. Slides are automatically generated
 
-### Method 2: JSON Import (No CLI Required)
+### Method 2: JSON Import (Works on Desktop & Web)
 
 ```bash
 # Output JSON from Markdown
 npx figdeck build your-slides.md -o slides.json
 ```
 
-1. Load the plugin in development mode in Figma
+1. Open the figdeck plugin in Figma
 2. Select the "Import JSON" tab in the Plugin
 3. Paste JSON or select a file to load
 4. Click "Generate Slides" to create slides

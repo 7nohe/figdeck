@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
-import type { BulletItem } from "./types";
+import type { BulletItem } from "@figdeck/shared";
 
 // Minimal figma + __html__ stubs for importing the plugin entrypoint
 beforeEach(() => {

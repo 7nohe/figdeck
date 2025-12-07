@@ -16,6 +16,7 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@figdeck/shared": "workspace:*",
     "highlight.js": "^11.11.1"
   }
 }

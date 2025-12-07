@@ -1,0 +1,24 @@
+{
+  "name": "@figdeck/shared",
+  "version": "1.2.1",
+  "type": "module",
+  "description": "Shared types and utilities for figdeck CLI and plugin",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}

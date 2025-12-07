@@ -1,3 +1,8 @@
+import type {
+  BackgroundImage,
+  SlideBackground,
+  SlideNumberConfig,
+} from "@figdeck/shared";
 import { base64ToUint8Array } from "./base64";
 import { createGradientTransform, parseColor } from "./colors";
 import {
@@ -10,11 +15,6 @@ import {
 } from "./constants";
 import { djb2HashSampled } from "./hash";
 import { cloneNode, createNodeCache } from "./node-cache";
-import type {
-  BackgroundImage,
-  SlideBackground,
-  SlideNumberConfig,
-} from "./types";
 
 // Image cache: maps hash key (base64 hash or URL) to Figma imageHash
 const imageHashCache = new Map<string, string>();

@@ -1,11 +1,3 @@
-import { normalizeColor, parseGradient } from "./colors.js";
-import { parseFigmaUrl } from "./figma-block.js";
-import {
-  isRemoteUrl,
-  isSupportedImageFormat,
-  readLocalImage,
-} from "./local-image.js";
-import { getTemplateDefaults } from "./templates.js";
 import type {
   BackgroundImage,
   FontConfig,
@@ -23,7 +15,19 @@ import type {
   SlideTransitionTimingType,
   TitlePrefixConfig,
   VerticalAlign,
-} from "./types.js";
+} from "@figdeck/shared";
+import {
+  normalizeTransitionCurve,
+  normalizeTransitionStyle,
+} from "@figdeck/shared";
+import { normalizeColor, parseGradient } from "./colors.js";
+import { parseFigmaUrl } from "./figma-block.js";
+import {
+  isRemoteUrl,
+  isSupportedImageFormat,
+  readLocalImage,
+} from "./local-image.js";
+import { getTemplateDefaults } from "./templates.js";
 
 /**
  * Raw text style from YAML config
@@ -449,59 +453,13 @@ function parseVerticalAlign(
 }
 
 /**
- * Valid transition styles
- */
-const VALID_TRANSITION_STYLES: SlideTransitionStyle[] = [
-  "none",
-  "dissolve",
-  "smart-animate",
-  "slide-from-left",
-  "slide-from-right",
-  "slide-from-top",
-  "slide-from-bottom",
-  "push-from-left",
-  "push-from-right",
-  "push-from-top",
-  "push-from-bottom",
-  "move-from-left",
-  "move-from-right",
-  "move-from-top",
-  "move-from-bottom",
-  "slide-out-to-left",
-  "slide-out-to-right",
-  "slide-out-to-top",
-  "slide-out-to-bottom",
-  "move-out-to-left",
-  "move-out-to-right",
-  "move-out-to-top",
-  "move-out-to-bottom",
-];
-
-/**
- * Valid transition curves
- */
-const VALID_TRANSITION_CURVES: SlideTransitionCurve[] = [
-  "ease-in",
-  "ease-out",
-  "ease-in-and-out",
-  "linear",
-  "gentle",
-  "quick",
-  "bouncy",
-  "slow",
-];
-
-/**
  * Parse and validate transition style (kebab-case, also accepts underscore)
  */
 export function parseTransitionStyle(
   value: string | undefined,
 ): SlideTransitionStyle | undefined {
   if (!value) return undefined;
-  const normalized = value.toLowerCase().replace(/_/g, "-");
-  return VALID_TRANSITION_STYLES.includes(normalized as SlideTransitionStyle)
-    ? (normalized as SlideTransitionStyle)
-    : undefined;
+  return normalizeTransitionStyle(value);
 }
 
 /**
@@ -511,10 +469,7 @@ export function parseTransitionCurve(
   value: string | undefined,
 ): SlideTransitionCurve | undefined {
   if (!value) return undefined;
-  const normalized = value.toLowerCase().replace(/_/g, "-");
-  return VALID_TRANSITION_CURVES.includes(normalized as SlideTransitionCurve)
-    ? (normalized as SlideTransitionCurve)
-    : undefined;
+  return normalizeTransitionCurve(value);
 }
 
 /**

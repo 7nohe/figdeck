@@ -1,4 +1,4 @@
-import type { SlideNumberPosition } from "./types";
+import type { SlideNumberPosition } from "@figdeck/shared";
 
 // Default font sizes
 export const DEFAULT_H1_SIZE = 64;

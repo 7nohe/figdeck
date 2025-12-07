@@ -1,7 +1,7 @@
+import type { TextSpan } from "@figdeck/shared";
 import { createDefaultTextFill } from "./colors";
 import { INLINE_CODE_BG, LINK_COLOR } from "./constants";
 import type { ResolvedFontName } from "./styles";
-import type { TextSpan } from "./types";
 
 const DEFAULT_TEXT_FILL = createDefaultTextFill();
 

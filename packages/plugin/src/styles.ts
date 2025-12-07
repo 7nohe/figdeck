@@ -1,3 +1,4 @@
+import type { FontVariant, SlideStyles, TextStyle } from "@figdeck/shared";
 import { parseColor } from "./colors";
 import {
   DEFAULT_BULLET_SIZE,
@@ -8,7 +9,6 @@ import {
   DEFAULT_H4_SIZE,
   DEFAULT_PARAGRAPH_SIZE,
 } from "./constants";
-import type { FontVariant, SlideStyles, TextStyle } from "./types";
 
 /**
  * Default font family and style

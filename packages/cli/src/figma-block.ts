@@ -1,3 +1,9 @@
+import type { FigmaSelectionLink, TextSpan } from "@figdeck/shared";
+import {
+  BULLET_MARKERS,
+  isValidFigmaHostname,
+  parseFigmaUrl,
+} from "@figdeck/shared";
 import type {
   Blockquote,
   Heading,
@@ -11,46 +17,9 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { extractSpans, spansToText } from "./spans.js";
-import type { FigmaSelectionLink, TextSpan } from "./types.js";
 
-/**
- * Parse a Figma URL and extract fileKey and nodeId
- * Supports formats:
- * - https://www.figma.com/file/<fileKey>/<name>?node-id=<nodeId>
- * - https://www.figma.com/design/<fileKey>/<name>?node-id=<nodeId>
- * - https://www.figma.com/slides/<fileKey>/<name>?node-id=<nodeId>
- * - https://figma.com/file/<fileKey>?node-id=<nodeId>
- */
-export function isValidFigmaHostname(hostname: string): boolean {
-  return hostname === "figma.com" || hostname.endsWith(".figma.com");
-}
-
-export function parseFigmaUrl(url: string): {
-  fileKey?: string;
-  nodeId?: string;
-} {
-  try {
-    const parsed = new URL(url);
-    if (!isValidFigmaHostname(parsed.hostname)) {
-      return {};
-    }
-
-    // Extract fileKey from path: /file/<fileKey>/... or /design/<fileKey>/... or /slides/<fileKey>/...
-    const pathMatch = parsed.pathname.match(/^\/(file|design|slides)\/([^/]+)/);
-    const fileKey = pathMatch ? pathMatch[2] : undefined;
-
-    // Extract node-id from query params
-    const nodeIdParam = parsed.searchParams.get("node-id");
-    // URL-decode and normalize: 1%3A2 -> 1:2, 1234-5678 -> 1234:5678
-    const nodeId = nodeIdParam
-      ? decodeURIComponent(nodeIdParam).replace(/-/g, ":")
-      : undefined;
-
-    return { fileKey, nodeId };
-  } catch {
-    return {};
-  }
-}
+// Re-export for backward compatibility
+export { isValidFigmaHostname, parseFigmaUrl } from "@figdeck/shared";
 
 /**
  * Placeholder for a :::figma block during AST processing
@@ -62,9 +31,6 @@ export interface FigmaBlockPlaceholder {
 
 /** Remark processor for parsing markdown content */
 const markdownProcessor = unified().use(remarkParse).use(remarkGfm);
-
-/** Bullet markers for different nesting levels */
-const BULLET_MARKERS = ["•", "◦", "▪", "–"];
 
 /**
  * Extract plain text from a blockquote

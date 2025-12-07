@@ -1,4 +1,19 @@
 import type {
+  FootnoteItem,
+  HorizontalAlign,
+  ImageSize,
+  SlideBackground,
+  SlideBlock,
+  SlideContent,
+  SlideNumberConfig,
+  SlideStyles,
+  SlideTransitionConfig,
+  TableAlignment,
+  TextSpan,
+  TitlePrefixConfig,
+  VerticalAlign,
+} from "@figdeck/shared";
+import type {
   Blockquote,
   Code,
   Heading,
@@ -15,7 +30,6 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { parse as parseYaml } from "yaml";
-
 import {
   mergeSlideNumberConfig,
   mergeStyles,
@@ -37,21 +51,6 @@ import {
   extractTableRow,
   spansToText,
 } from "./spans.js";
-import type {
-  FootnoteItem,
-  HorizontalAlign,
-  ImageSize,
-  SlideBackground,
-  SlideBlock,
-  SlideContent,
-  SlideNumberConfig,
-  SlideStyles,
-  SlideTransitionConfig,
-  TableAlignment,
-  TextSpan,
-  TitlePrefixConfig,
-  VerticalAlign,
-} from "./types.js";
 
 // Processor instance for parsing markdown with frontmatter and GFM support
 const processor = unified()

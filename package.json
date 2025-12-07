@@ -17,8 +17,5 @@
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "typescript": "^5.3.3"
-  },
-  "dependencies": {
-    "remark-gfm": "^4.0.1"
   }
 }

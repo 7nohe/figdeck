@@ -1,5 +1,81 @@
 # Release Notes
 
+## [1.3.0] - 2025-12-07
+
+### New Features
+
+#### Rich Text Formatting in Figma Link Text Overrides
+Added support for rich text formatting in Figma link block text overrides.
+
+**Supported Formatting:**
+- `**bold**`
+- `*italic*`
+- `~~strikethrough~~`
+- `[links](url)`
+- Bullet lists
+- Blockquotes
+
+**Example:**
+```markdown
+:::figma
+link=https://www.figma.com/design/xxx?node-id=1234-5678
+text.title=Cart Feature
+text.body=Use this for **cart** and *confirmation* flows.
+text.list=
+  - Variation A
+  - Variation B
+:::
+```
+
+#### Bullet Item Spacing Customization
+Added ability to customize spacing between bullet list items using the `spacing` property.
+
+**Example:**
+```yaml
+---
+bullets:
+  size: 20
+  spacing: 12  # Gap between items in pixels
+---
+```
+
+#### Caching and Performance Optimizations
+Significantly improved slide generation performance.
+
+**Key Improvements:**
+- Added local image caching (avoids reloading the same images)
+- Added Figma node caching (improves efficiency during regeneration)
+- Cached syntax highlighting for code blocks
+- Hash-based change detection for differential updates
+
+#### Plugin UI Improvements
+Added a toggle to show/hide advanced connection options. By default, a simple connection screen is displayed, with the ability to expand advanced options (host, port, secret) as needed.
+
+### Fixes
+
+#### Resolved Hyperlink Rendering Issues
+Fixed an issue where hyperlinks were not rendering correctly in Figma Slides. Links within text are now properly recognized and clickable.
+
+### Improvements
+
+#### Enhanced Text Rendering
+Improved handling of multiline text spans and inline code.
+
+#### Introduction of Shared Package
+Extracted shared type definitions and utilities between CLI and Plugin into `@figdeck/shared` package. This reduces code duplication and improves maintainability.
+
+### Documentation
+- Added Figma plugin installation instructions to README
+- Added WebSocket connection requirements explanation
+- Added documentation for rich text formatting in Figma links
+- Added documentation for bullet item spacing customization
+
+### Tests
+- Added tests for Figma link rich text parsing
+- Added tests for hyperlink rendering
+- Added tests for local image caching
+- Added tests for hash functions
+
 ## [1.2.1] - 2025-12-05
 
 ### Improvements

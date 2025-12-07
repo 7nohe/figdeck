@@ -116,6 +116,23 @@ y=300
     expect(figmaBlocks[0].link.y).toBe(300);
   });
 
+  it("should continue parsing properties after blank lines", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+
+x=160
+y=300
+
+text.title=Hello
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks[0].link.x).toBe(160);
+    expect(figmaBlocks[0].link.y).toBe(300);
+    expect(figmaBlocks[0].link.textOverrides?.title?.text).toBe("Hello");
+  });
+
   it("should extract multiple figma blocks", () => {
     const markdown = `## Slide
 
@@ -234,5 +251,149 @@ not-a-valid-url
 
     const { figmaBlocks } = extractFigmaBlocks(markdown);
     expect(figmaBlocks).toHaveLength(0);
+  });
+});
+
+describe("extractFigmaBlocks textOverrides", () => {
+  it("should extract text.* properties as textOverrides with text and optional spans", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+text.title=Cart Feature
+text.body=Use this for cart and confirmation flows.
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    expect(figmaBlocks[0].link.textOverrides).toBeDefined();
+    expect(figmaBlocks[0].link.textOverrides?.title?.text).toBe("Cart Feature");
+    expect(figmaBlocks[0].link.textOverrides?.body?.text).toBe(
+      "Use this for cart and confirmation flows.",
+    );
+  });
+
+  it("should support multiline text.* values with indentation", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+text.description=
+  Line 1
+  Line 2
+  Line 3
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    // Each line becomes a separate paragraph, joined with double newlines
+    expect(figmaBlocks[0].link.textOverrides?.description?.text).toBe(
+      "Line 1\nLine 2\nLine 3",
+    );
+  });
+
+  it("should convert bullet lists in multiline text to plain text bullets", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+text.content=
+  - Variation A
+  - Variation B
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    const content = figmaBlocks[0].link.textOverrides?.content?.text;
+    expect(content).toContain("• Variation A");
+    expect(content).toContain("• Variation B");
+  });
+
+  it("should convert blockquotes in multiline text to quoted text", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+text.note=
+  > This is a note.
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    expect(figmaBlocks[0].link.textOverrides?.note?.text).toBe(
+      '"This is a note."',
+    );
+  });
+
+  it("should handle nested bullet lists with different markers", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+text.list=
+  - Level 0
+    - Level 1
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    const list = figmaBlocks[0].link.textOverrides?.list?.text;
+    expect(list).toContain("• Level 0");
+    expect(list).toContain("◦ Level 1");
+  });
+
+  it("should include spans for rich text formatting", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+text.formatted=This is **bold** and *italic*.
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    const formatted = figmaBlocks[0].link.textOverrides?.formatted;
+    expect(formatted?.text).toBe("This is bold and italic.");
+    expect(formatted?.spans).toBeDefined();
+    // Check that spans contain bold and italic formatting
+    const boldSpan = formatted?.spans?.find((s) => s.bold);
+    const italicSpan = formatted?.spans?.find((s) => s.italic);
+    expect(boldSpan?.text).toBe("bold");
+    expect(italicSpan?.text).toBe("italic");
+  });
+
+  it("should support hideLink option", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+hideLink=true
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    expect(figmaBlocks[0].link.hideLink).toBe(true);
+  });
+
+  it("should not set hideLink when not specified", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    expect(figmaBlocks[0].link.hideLink).toBeUndefined();
+  });
+
+  it("should preserve existing behavior for blocks without textOverrides", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/abc/Name?node-id=1-2
+x=100
+y=200
+:::`;
+
+    const { figmaBlocks } = extractFigmaBlocks(markdown);
+
+    expect(figmaBlocks).toHaveLength(1);
+    expect(figmaBlocks[0].link.url).toBe(
+      "https://www.figma.com/file/abc/Name?node-id=1-2",
+    );
+    expect(figmaBlocks[0].link.x).toBe(100);
+    expect(figmaBlocks[0].link.y).toBe(200);
+    expect(figmaBlocks[0].link.textOverrides).toBeUndefined();
   });
 });

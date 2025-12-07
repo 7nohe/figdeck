@@ -243,11 +243,27 @@ Embed references to Figma nodes:
 
 ```markdown
 :::figma
-https://www.figma.com/design/xxx?node-id=1234-5678
+link=https://www.figma.com/design/xxx?node-id=1234-5678
 x=160
 y=300
 :::
 ```
+
+With text layer overrides (supports rich formatting):
+
+```markdown
+:::figma
+link=https://www.figma.com/design/xxx?node-id=1234-5678
+text.title=Cart Feature
+text.body=Use this for **cart** and *confirmation* flows.
+text.list=
+  - Variation A
+  - Variation B
+hideLink=true
+:::
+```
+
+Supported text override formatting: **bold**, *italic*, ~~strikethrough~~, [links](url), bullet lists, blockquotes. Code blocks are NOT supported due to Figma text layer limitations.
 
 ## Package Structure
 

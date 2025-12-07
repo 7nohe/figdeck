@@ -26,6 +26,7 @@ import {
 } from "./styles";
 import type {
   BulletItem,
+  FigmaSelectionLink,
   HorizontalAlign,
   SlideBlock,
   SlideContent,
@@ -41,6 +42,8 @@ import type {
 const MAX_SLIDES = 100;
 const MAX_BLOCKS_PER_SLIDE = 50;
 const MAX_STRING_LENGTH = 100000;
+const MAX_SPANS_PER_ELEMENT = 500;
+const MAX_BULLET_ITEMS = 100;
 
 // Slide hash cache: maps slide index to { hash, nodeId } for incremental updates
 interface SlideHashEntry {
@@ -779,12 +782,28 @@ function truncateString(str: string, maxLen: number): string {
   return str;
 }
 
+/**
+ * Validate a Figma URL's hostname is legitimate.
+ * Must be exactly "figma.com" or a subdomain like "www.figma.com", "api.figma.com".
+ * Uses regex-based extraction to work in Figma plugin sandbox where URL may not be available.
+ */
+function isValidFigmaUrl(url: string): boolean {
+  // Extract hostname using regex (works in Figma sandbox)
+  const match = url.match(/^https?:\/\/([^/]+)/i);
+  if (!match) return false;
+
+  const hostname = match[1].toLowerCase();
+  return hostname === "figma.com" || hostname.endsWith(".figma.com");
+}
+
 function sanitizeTextSpans(spans: unknown): TextSpan[] | undefined {
   if (!Array.isArray(spans)) return undefined;
 
   const sanitizedSpans: TextSpan[] = [];
+  // Limit array length to prevent DoS
+  const limitedSpans = spans.slice(0, MAX_SPANS_PER_ELEMENT);
 
-  for (const span of spans) {
+  for (const span of limitedSpans) {
     if (!span || typeof span !== "object") continue;
 
     const { text, ...rest } = span as TextSpan & Record<string, unknown>;
@@ -845,19 +864,96 @@ function sanitizeBulletItem(item: unknown): BulletItem | null {
 }
 
 function sanitizeBulletItems(items: Array<unknown>): string[] | BulletItem[] {
-  const hasBulletObjects = items.some(
+  // Limit array length to prevent DoS
+  const limitedItems = items.slice(0, MAX_BULLET_ITEMS);
+
+  const hasBulletObjects = limitedItems.some(
     (item) => item !== null && typeof item === "object",
   );
 
   if (hasBulletObjects) {
-    return items
+    return limitedItems
       .map((item) => sanitizeBulletItem(item))
       .filter((item): item is BulletItem => item !== null);
   }
 
-  return items
+  return limitedItems
     .filter((item): item is string => typeof item === "string")
     .map((item) => truncateString(item, MAX_STRING_LENGTH));
+}
+
+/**
+ * Sanitize a FigmaSelectionLink, including URL validation.
+ */
+function sanitizeFigmaLink(link: unknown): FigmaSelectionLink | null {
+  if (!link || typeof link !== "object") return null;
+
+  const l = link as Record<string, unknown>;
+  if (typeof l.url !== "string") return null;
+
+  // Validate Figma URL hostname
+  if (!isValidFigmaUrl(l.url)) {
+    console.warn(`[figdeck] Rejected invalid Figma URL: ${l.url}`);
+    return null;
+  }
+
+  const sanitized: FigmaSelectionLink = {
+    url: truncateString(l.url, MAX_STRING_LENGTH),
+  };
+
+  if (typeof l.nodeId === "string") {
+    sanitized.nodeId = truncateString(l.nodeId, 100);
+  }
+  if (typeof l.fileKey === "string") {
+    sanitized.fileKey = truncateString(l.fileKey, 100);
+  }
+  if (typeof l.x === "number" && Number.isFinite(l.x)) {
+    sanitized.x = l.x;
+  }
+  if (typeof l.y === "number" && Number.isFinite(l.y)) {
+    sanitized.y = l.y;
+  }
+
+  // Sanitize textOverrides (Record<string, { text: string; spans?: TextSpan[] }>)
+  if (l.textOverrides && typeof l.textOverrides === "object") {
+    const overrides = l.textOverrides as Record<string, unknown>;
+    const sanitizedOverrides: Record<
+      string,
+      { text: string; spans?: TextSpan[] }
+    > = {};
+    let count = 0;
+    const MAX_TEXT_OVERRIDES = 50;
+    for (const [key, value] of Object.entries(overrides)) {
+      if (count >= MAX_TEXT_OVERRIDES) break;
+      if (typeof key === "string" && value && typeof value === "object") {
+        const override = value as { text?: unknown; spans?: unknown };
+        if (typeof override.text === "string") {
+          const sanitizedOverride: { text: string; spans?: TextSpan[] } = {
+            text: truncateString(override.text, MAX_STRING_LENGTH),
+          };
+          // Sanitize spans if present
+          if (Array.isArray(override.spans)) {
+            const sanitizedSpans = sanitizeTextSpans(override.spans);
+            if (sanitizedSpans && sanitizedSpans.length > 0) {
+              sanitizedOverride.spans = sanitizedSpans;
+            }
+          }
+          sanitizedOverrides[truncateString(key, 100)] = sanitizedOverride;
+          count++;
+        }
+      }
+    }
+    if (Object.keys(sanitizedOverrides).length > 0) {
+      sanitized.textOverrides = sanitizedOverrides;
+    }
+  }
+
+  // Sanitize hideLink boolean
+  if (typeof l.hideLink === "boolean") {
+    sanitized.hideLink = l.hideLink;
+  }
+
+  return sanitized;
 }
 
 export function validateAndSanitizeSlides(
@@ -905,8 +1001,23 @@ export function validateAndSanitizeSlides(
 
     // Sanitize text content in blocks
     if (Array.isArray(sanitizedSlide.blocks)) {
-      sanitizedSlide.blocks = sanitizedSlide.blocks.map((block) => {
+      const validBlocks: SlideBlock[] = [];
+
+      for (const block of sanitizedSlide.blocks) {
         const sanitizedBlock = Object.assign({}, block);
+
+        // Handle figma blocks with full sanitization including URL validation
+        if (sanitizedBlock.kind === "figma" && "link" in sanitizedBlock) {
+          const sanitizedLink = sanitizeFigmaLink(sanitizedBlock.link);
+          if (sanitizedLink === null) {
+            // Skip blocks with invalid Figma URLs
+            continue;
+          }
+          sanitizedBlock.link = sanitizedLink;
+          validBlocks.push(sanitizedBlock as SlideBlock);
+          continue;
+        }
+
         if (
           "text" in sanitizedBlock &&
           typeof sanitizedBlock.text === "string"
@@ -915,6 +1026,9 @@ export function validateAndSanitizeSlides(
             sanitizedBlock.text,
             MAX_STRING_LENGTH,
           );
+        }
+        if ("spans" in sanitizedBlock && sanitizedBlock.spans) {
+          sanitizedBlock.spans = sanitizeTextSpans(sanitizedBlock.spans);
         }
         if ("items" in sanitizedBlock && Array.isArray(sanitizedBlock.items)) {
           sanitizedBlock.items = sanitizeBulletItems(
@@ -930,8 +1044,10 @@ export function validateAndSanitizeSlides(
             MAX_STRING_LENGTH * 10,
           );
         }
-        return sanitizedBlock;
-      });
+        validBlocks.push(sanitizedBlock as SlideBlock);
+      }
+
+      sanitizedSlide.blocks = validBlocks;
     }
 
     sanitized.push(sanitizedSlide);

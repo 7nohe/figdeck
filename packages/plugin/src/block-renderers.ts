@@ -846,9 +846,161 @@ export function renderImagePlaceholder(
 }
 
 /**
+ * Find and update text layers within a cloned node by layer name.
+ * Searches recursively for text nodes with matching names (case-insensitive).
+ * Supports rich text formatting via TextSpan[].
+ */
+async function updateTextLayerByName(
+  node: SceneNode,
+  layerName: string,
+  override: { text: string; spans?: TextSpan[] },
+): Promise<boolean> {
+  const lowerName = layerName.toLowerCase().trim();
+
+  // Check if this node is a text node with matching name OR content
+  if (node.type === "TEXT") {
+    const textNode = node as TextNode;
+    const nodeName = node.name.toLowerCase().trim();
+    const nodeContent = textNode.characters.toLowerCase().trim();
+
+    // Match by layer name OR by text content (e.g., content="title" matches layerName="title")
+    if (nodeName === lowerName || nodeContent === lowerName) {
+      try {
+        // Get the base font from the text node
+        let baseFont: FontName;
+        if (textNode.fontName !== figma.mixed) {
+          baseFont = textNode.fontName;
+        } else {
+          // Use the font from the first character
+          const firstFont = textNode.getRangeFontName(0, 1);
+          baseFont =
+            firstFont !== figma.mixed
+              ? firstFont
+              : { family: "Inter", style: "Regular" };
+        }
+
+        // Load the base font and variants we might need
+        await figma.loadFontAsync(baseFont);
+
+        // Try to load bold and italic variants
+        const boldStyle = baseFont.style.includes("Italic")
+          ? "Bold Italic"
+          : "Bold";
+        const italicStyle = baseFont.style.includes("Bold")
+          ? "Bold Italic"
+          : "Italic";
+        const boldItalicStyle = "Bold Italic";
+
+        try {
+          await figma.loadFontAsync({
+            family: baseFont.family,
+            style: boldStyle,
+          });
+        } catch {
+          // Bold variant not available
+        }
+        try {
+          await figma.loadFontAsync({
+            family: baseFont.family,
+            style: italicStyle,
+          });
+        } catch {
+          // Italic variant not available
+        }
+        try {
+          await figma.loadFontAsync({
+            family: baseFont.family,
+            style: boldItalicStyle,
+          });
+        } catch {
+          // Bold Italic variant not available
+        }
+
+        // Set the text content
+        textNode.characters = override.text;
+
+        // Apply span formatting if provided
+        if (override.spans && override.spans.length > 0) {
+          let charIndex = 0;
+          for (const span of override.spans) {
+            const start = charIndex;
+            const end = charIndex + span.text.length;
+
+            if (end > textNode.characters.length) break;
+
+            // Determine font style based on bold/italic
+            let fontStyle = baseFont.style;
+            if (span.bold && span.italic) {
+              fontStyle = "Bold Italic";
+            } else if (span.bold) {
+              fontStyle = baseFont.style.includes("Italic")
+                ? "Bold Italic"
+                : "Bold";
+            } else if (span.italic) {
+              fontStyle = baseFont.style.includes("Bold")
+                ? "Bold Italic"
+                : "Italic";
+            }
+
+            // Try to apply font style
+            try {
+              textNode.setRangeFontName(start, end, {
+                family: baseFont.family,
+                style: fontStyle,
+              });
+            } catch {
+              // Font style not available, keep base font
+            }
+
+            // Apply strikethrough
+            if (span.strike) {
+              textNode.setRangeTextDecoration(start, end, "STRIKETHROUGH");
+            }
+
+            // Apply link styling
+            if (span.href) {
+              const normalizedUrl = normalizeHyperlinkUrl(span.href);
+              if (normalizedUrl) {
+                textNode.setRangeFills(start, end, [
+                  { type: "SOLID", color: { r: 0.1, g: 0.4, b: 0.9 } },
+                ]);
+                if (!span.strike) {
+                  textNode.setRangeTextDecoration(start, end, "UNDERLINE");
+                }
+                safeSetRangeHyperlink(textNode, start, end, {
+                  type: "URL",
+                  value: normalizedUrl,
+                });
+              }
+            }
+
+            charIndex = end;
+          }
+        }
+
+        return true;
+      } catch (_e) {
+        return false;
+      }
+    }
+  }
+
+  // Recursively search children
+  if ("children" in node) {
+    for (const child of (node as FrameNode).children) {
+      const found = await updateTextLayerByName(child, layerName, override);
+      if (found) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Render a Figma selection link
  * If the node exists in the same file, clone it as a preview
  * Otherwise, show a card with a link
+ * Supports text layer overrides in cloned components via textOverrides
  */
 export async function renderFigmaLink(
   link: FigmaSelectionLink,
@@ -868,6 +1020,15 @@ export async function renderFigmaLink(
       if (targetNode && "clone" in targetNode) {
         // Clone the node for preview
         const clonedNode = (targetNode as SceneNode).clone();
+
+        // Update text layers if textOverrides are provided
+        if (link.textOverrides) {
+          for (const [layerName, override] of Object.entries(
+            link.textOverrides,
+          )) {
+            await updateTextLayerByName(clonedNode, layerName, override);
+          }
+        }
 
         // Frame to hold the cloned preview
         const previewFrame = figma.createFrame();
@@ -911,6 +1072,13 @@ export async function renderFigmaLink(
         clonedNode.x = 0;
         clonedNode.y = 0;
         previewFrame.appendChild(clonedNode);
+
+        // When hideLink is true, return just the preview without wrapper
+        if (link.hideLink) {
+          if (x !== undefined) previewFrame.x = x;
+          if (y !== undefined) previewFrame.y = y;
+          return previewFrame;
+        }
 
         // Add a clickable label that jumps to the original node
         const linkLabel = figma.createText();
@@ -961,18 +1129,18 @@ export async function renderFigmaLink(
   const frame = figma.createFrame();
   frame.name = "Figma Link";
   frame.resize(320, 56);
+  frame.layoutMode = "HORIZONTAL";
+  frame.primaryAxisAlignItems = "CENTER";
+  frame.counterAxisAlignItems = "CENTER";
+  frame.itemSpacing = 12;
   frame.fills = [{ type: "SOLID", color: FIGMA_CARD_BG }];
   frame.strokes = [{ type: "SOLID", color: FIGMA_CARD_BORDER }];
   frame.strokeWeight = 1;
   frame.cornerRadius = 8;
-  frame.layoutMode = "HORIZONTAL";
-  frame.primaryAxisAlignItems = "CENTER";
-  frame.counterAxisAlignItems = "CENTER";
   frame.paddingLeft = 16;
   frame.paddingRight = 16;
   frame.paddingTop = 12;
   frame.paddingBottom = 12;
-  frame.itemSpacing = 12;
   if (x !== undefined) frame.x = x;
   if (y !== undefined) frame.y = y;
 
@@ -982,7 +1150,7 @@ export async function renderFigmaLink(
   icon.fontSize = 20;
   icon.characters = "◈";
   icon.fills = [{ type: "SOLID", color: FIGMA_BRAND_COLOR }];
-  frame.appendChild(icon);
+  // NOTE: Don't appendChild here - defer until we know the layout
 
   // Label text container
   const textContainer = figma.createFrame();
@@ -1033,6 +1201,9 @@ export async function renderFigmaLink(
   }
 
   textContainer.appendChild(label);
+
+  // Horizontal layout - append icon and text directly to frame
+  frame.appendChild(icon);
   frame.appendChild(textContainer);
 
   return frame;

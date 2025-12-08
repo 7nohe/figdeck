@@ -103,7 +103,7 @@ interface BulletItem {
   children?: BulletItem[];  // Nested bullet items
 }
 
-type SlideBlock =
+type SlideBlockItem =
   | { kind: "paragraph"; text: string; spans?: TextSpan[] }
   | { kind: "heading"; level: 3 | 4; text: string; spans?: TextSpan[] }
   | { kind: "bullets"; items: BulletItem[]; ordered?: boolean; start?: number }
@@ -112,6 +112,15 @@ type SlideBlock =
   | { kind: "blockquote"; text: string; spans?: TextSpan[] }
   | { kind: "table"; headers: TextSpan[][]; rows: TextSpan[][][]; align?: TableAlignment[] }
   | { kind: "figma"; link: FigmaSelectionLink }
+
+interface ColumnsBlock {
+  kind: "columns";
+  columns: SlideBlockItem[][];  // Array of columns, each containing blocks
+  gap?: number;                  // Gap between columns (default: 32, max: 200)
+  widths?: number[];             // Column widths in pixels
+}
+
+type SlideBlock = SlideBlockItem | ColumnsBlock
 
 interface TextSpan {
   text: string;
@@ -139,6 +148,7 @@ interface TextSpan {
 - Images `![alt](url)`: rendered with actual image data
 - Blockquotes `>`: styled with left border
 - Tables (GFM): rendered with headers and alignment
+- Columns: multi-column layouts (2-4 columns) via `:::columns` blocks
 
 ### Nested Bullet Lists
 ```markdown
@@ -169,6 +179,24 @@ Bullet markers change by nesting level:
 
 When x or y is specified, the image is placed at absolute coordinates instead of auto-layout flow.
 Percentages use slide dimensions (1920x1080): x:50% = 960px, y:50% = 540px.
+
+### Multi-Column Layouts
+```markdown
+:::columns [gap=32 width=1fr/2fr]
+:::column
+Left column content
+- Item 1
+- Item 2
+:::column
+Right column content
+:::
+```
+
+- 2-4 columns supported
+- `gap`: pixels between columns (default: 32, max: 200)
+- `width`: fr/percentage/px values separated by `/`
+- Each column can contain paragraphs, lists, code, images, tables, blockquotes, headings
+- Minimum column width: 320px (falls back to vertical stacking if below)
 
 ### Inline Formatting
 - `**bold**` or `__bold__`
@@ -286,6 +314,7 @@ Supported text override formatting: **bold**, *italic*, ~~strikethrough~~, [link
   - `transitions.md` - Slide transition animations
   - `images.md` - Image size and position specifications (Marp-style)
   - `bullets.md` - Nested bullet lists
+  - `columns.md` - Multi-column layouts (2-4 columns)
 
 ## Figma Plugin JavaScript Constraints
 

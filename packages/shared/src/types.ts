@@ -259,7 +259,10 @@ export interface ImagePosition {
   y?: number; // px (percentages are pre-converted based on SLIDE_HEIGHT)
 }
 
-export type SlideBlock =
+/**
+ * Individual slide block types (excluding columns to avoid circular reference)
+ */
+export type SlideBlockItem =
   | { kind: "paragraph"; text: string; spans?: TextSpan[] }
   | { kind: "heading"; level: 1 | 2 | 3 | 4; text: string; spans?: TextSpan[] }
   | {
@@ -290,6 +293,45 @@ export type SlideBlock =
     }
   | { kind: "figma"; link: FigmaSelectionLink }
   | { kind: "footnotes"; items: FootnoteItem[] };
+
+/**
+ * Column layout block for multi-column slide layouts (2-4 columns)
+ */
+export interface ColumnsBlock {
+  kind: "columns";
+  /** Array of columns, each containing an array of SlideBlockItems */
+  columns: SlideBlockItem[][];
+  /** Gap between columns in pixels (default: 32, clamped to 0-200) */
+  gap?: number;
+  /** Column widths in pixels (default: even split) */
+  widths?: number[];
+}
+
+export type SlideBlock = SlideBlockItem | ColumnsBlock;
+
+/**
+ * Default slide canvas dimensions and padding
+ */
+export const SLIDE_WIDTH = 1920;
+export const SLIDE_HEIGHT = 1080;
+export const CONTAINER_PADDING = 100;
+export const CONTENT_WIDTH = SLIDE_WIDTH - CONTAINER_PADDING * 2;
+
+/**
+ * Layout constants for column layouts
+ */
+export const LAYOUT = {
+  /** Default gap between columns in pixels */
+  COLUMN_GAP: 32,
+  /** Minimum width per column in pixels */
+  COLUMN_MIN_WIDTH: 320,
+  /** Maximum number of columns allowed */
+  MAX_COLUMNS: 4,
+  /** Minimum number of columns */
+  MIN_COLUMNS: 2,
+  /** Maximum gap between columns in pixels */
+  MAX_COLUMN_GAP: 200,
+} as const;
 
 export interface SlideContent {
   blocks: SlideBlock[];

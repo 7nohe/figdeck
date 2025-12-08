@@ -334,6 +334,137 @@ Alignment can also be specified:
 | Text | Text | Number |
 ```
 
+## Multi-Column Layouts
+
+Using `:::columns` blocks, you can create multi-column layouts (2-4 columns).
+
+### Basic Syntax
+
+```markdown
+:::columns
+:::column
+Left column content
+:::column
+Right column content
+:::
+```
+
+### Properties
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `gap` | 32 | Gap between columns in pixels (max: 200) |
+| `width` | even | Column widths (fr, %, or px values separated by `/`) |
+
+### Two-Column Layout
+
+```markdown
+:::columns
+:::column
+### Features
+
+- Fast rendering
+- Live preview
+- Easy to use
+
+:::column
+### Benefits
+
+- Save time
+- Consistent design
+- Version control friendly
+:::
+```
+
+### Three-Column Layout
+
+```markdown
+:::columns
+:::column
+**Step 1**
+
+Planning
+:::column
+**Step 2**
+
+Development
+:::column
+**Step 3**
+
+Deployment
+:::
+```
+
+### Four-Column Layout
+
+```markdown
+:::columns
+:::column
+Q1: $1.2M
+:::column
+Q2: $1.8M
+:::column
+Q3: $2.1M
+:::column
+Q4: $2.5M
+:::
+```
+
+### Custom Gap
+
+```markdown
+:::columns gap=64
+:::column
+More space
+:::column
+Between columns
+:::
+```
+
+### Custom Width Ratio
+
+Use `fr` (fractional units), `%` (percentage), or `px` (pixels):
+
+```markdown
+:::columns width=1fr/2fr
+:::column
+### Sidebar (1/3)
+
+Navigation
+:::column
+### Main Content (2/3)
+
+Primary content area
+:::
+```
+
+```markdown
+:::columns width=30%/70%
+:::column
+Sidebar
+:::column
+Main content
+:::
+```
+
+### Supported Content in Columns
+
+Each column can contain any of the following:
+
+- Paragraphs with inline formatting (**bold**, *italic*, `code`, [links](url))
+- Bullet lists (ordered and unordered)
+- Code blocks with syntax highlighting
+- Images (with size constraints)
+- Tables
+- Blockquotes
+- Headings (H3, H4)
+
+### Fallback Behavior
+
+- If fewer than 2 columns are defined, content renders linearly (no columns)
+- If more than 4 columns are defined, only the first 4 are used
+- If column widths are below minimum (320px), columns stack vertically
+
 ## Footnotes
 
 GFM footnote syntax is supported.

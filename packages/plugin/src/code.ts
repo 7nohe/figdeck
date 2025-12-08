@@ -515,6 +515,28 @@ async function fillSlide(
       continue;
     }
 
+    // Handle image blocks with custom position separately
+    if (
+      block.kind === "image" &&
+      block.position &&
+      (block.position.x !== undefined || block.position.y !== undefined)
+    ) {
+      const imageNode = await renderImage({
+        url: block.url,
+        alt: block.alt,
+        mimeType: block.mimeType,
+        dataBase64: block.dataBase64,
+        source: block.source,
+        size: block.size,
+      });
+      absoluteNodes.push({
+        node: imageNode,
+        x: block.position.x ?? 0,
+        y: block.position.y ?? 0,
+      });
+      continue;
+    }
+
     // Determine the style for this block kind
     const blockStyle = getStyleForBlock(block.kind, styles);
 

@@ -108,7 +108,7 @@ type SlideBlock =
   | { kind: "heading"; level: 3 | 4; text: string; spans?: TextSpan[] }
   | { kind: "bullets"; items: BulletItem[]; ordered?: boolean; start?: number }
   | { kind: "code"; language?: string; code: string }
-  | { kind: "image"; url: string; alt?: string; size?: { width?: number; height?: number } }
+  | { kind: "image"; url: string; alt?: string; size?: { width?: number; height?: number }; position?: { x?: number; y?: number } }
   | { kind: "blockquote"; text: string; spans?: TextSpan[] }
   | { kind: "table"; headers: TextSpan[][]; rows: TextSpan[][][]; align?: TableAlignment[] }
   | { kind: "figma"; link: FigmaSelectionLink }
@@ -155,14 +155,20 @@ Bullet markers change by nesting level:
 - Level 2: `▪` (U+25AA)
 - Level 3+: `–` (U+2013)
 
-### Image Size (Marp-style)
+### Image Size and Position (Marp-style)
 ```markdown
 ![w:400](./image.png)           # Width 400px (height auto)
 ![h:300](./image.png)           # Height 300px (width auto)
 ![w:400 h:300](./image.png)     # Fixed size 400x300px
 ![w:50%](./image.png)           # 50% of slide width (960px)
 ![w:400 Logo](./image.png)      # Size + alt text
+![x:100 y:200](./image.png)     # Absolute position (100px, 200px)
+![x:50% y:50%](./image.png)     # Percentage position (center of slide)
+![w:300 x:100 y:200](./image.png)  # Size + position combined
 ```
+
+When x or y is specified, the image is placed at absolute coordinates instead of auto-layout flow.
+Percentages use slide dimensions (1920x1080): x:50% = 960px, y:50% = 540px.
 
 ### Inline Formatting
 - `**bold**` or `__bold__`
@@ -278,7 +284,7 @@ Supported text override formatting: **bold**, *italic*, ~~strikethrough~~, [link
   - `backgrounds.md` - Background styles
   - `rich-formatting.md` - Inline formatting
   - `transitions.md` - Slide transition animations
-  - `images.md` - Image size specifications (Marp-style)
+  - `images.md` - Image size and position specifications (Marp-style)
   - `bullets.md` - Nested bullet lists
 
 ## Figma Plugin JavaScript Constraints

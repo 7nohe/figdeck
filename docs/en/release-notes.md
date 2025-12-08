@@ -1,5 +1,76 @@
 # Release Notes
 
+## [1.4.0] - 2025-12-08
+
+### New Features
+
+#### Multi-Column Layouts
+Added support for multi-column layouts using `:::columns` syntax. Create 2-4 column layouts with customizable gap and width ratios.
+
+**Key Features:**
+- Support for 2-4 columns
+- Custom gap between columns (default: 32px, max: 200px)
+- Flexible width ratios using `fr`, percentage, or pixel values
+- Full content support within columns (paragraphs, lists, code, images, tables, blockquotes, headings)
+- Automatic fallback to vertical stacking when columns are too narrow (min: 320px)
+
+**Basic Example:**
+```markdown
+:::columns
+:::column
+### Left Column
+
+- Item 1
+- Item 2
+
+:::column
+### Right Column
+
+- Item A
+- Item B
+:::
+```
+
+**With Options:**
+```markdown
+:::columns gap=64 width=1fr/2fr
+:::column
+### Sidebar
+
+Navigation content.
+
+:::column
+### Main Content
+
+This column takes up twice the width.
+:::
+```
+
+See `examples/columns.md` for more examples.
+
+#### Absolute Position Support for Images
+Added support for absolute positioning of images using `x` and `y` parameters in Marp-style syntax.
+
+**Supported Formats:**
+- `![x:100 y:200](./image.png)` - Position at 100px, 200px
+- `![x:50% y:50%](./image.png)` - Position at center of slide (percentage of 1920x1080)
+- `![w:300 x:100 y:200](./image.png)` - Size + position combined
+
+When `x` or `y` is specified, the image is placed at absolute coordinates instead of auto-layout flow.
+
+See `examples/images.md` for details.
+
+### Documentation
+- Added comprehensive documentation for multi-column layouts (English and Japanese)
+- Added documentation for image absolute positioning
+- Updated `CLAUDE.md` with new features
+
+### Tests
+- Added comprehensive tests for multi-column layout parsing
+- Added tests for image absolute positioning
+
+---
+
 ## [1.3.0] - 2025-12-07
 
 ### New Features

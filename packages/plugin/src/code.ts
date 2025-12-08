@@ -1,8 +1,10 @@
 import type {
   BulletItem,
+  ColumnsBlock,
   FigmaSelectionLink,
   HorizontalAlign,
   SlideBlock,
+  SlideBlockItem,
   SlideContent,
   SlideTransitionConfig,
   TextSpan,
@@ -11,6 +13,7 @@ import type {
 } from "@figdeck/shared";
 import {
   isValidFigmaUrl,
+  LAYOUT as SHARED_LAYOUT,
   TRANSITION_CURVE_TO_FIGMA,
   TRANSITION_STYLE_TO_FIGMA,
 } from "@figdeck/shared";
@@ -243,10 +246,10 @@ function createContentContainer(
 }
 
 /**
- * Render a single block and return the node (for container-based layout)
+ * Render a single SlideBlockItem (non-columns block) to a node
  */
-async function renderBlockToNode(
-  block: SlideBlock,
+async function renderBlockItemToNode(
+  block: SlideBlockItem,
   styles: ReturnType<typeof resolveSlideStyles>,
 ): Promise<SceneNode | null> {
   const codeFont = styles.code.font;
@@ -360,17 +363,141 @@ async function renderBlockToNode(
     }
 
     case "figma": {
-      // Figma blocks with custom position are handled separately
       const node = await renderFigmaLink(block.link, 0, 0);
       return node;
     }
 
     default: {
       const unknownBlock = block as { kind: string };
-      console.warn(`[figdeck] Unknown block kind: ${unknownBlock.kind}`);
+      console.warn(`[figdeck] Unknown block item kind: ${unknownBlock.kind}`);
       return null;
     }
   }
+}
+
+/**
+ * Render a columns block as a horizontal auto-layout frame
+ */
+async function renderColumnsBlock(
+  block: ColumnsBlock,
+  styles: ReturnType<typeof resolveSlideStyles>,
+  availableWidth: number,
+): Promise<FrameNode | null> {
+  const columnCount = block.columns.length;
+  if (columnCount < SHARED_LAYOUT.MIN_COLUMNS) {
+    console.warn(
+      `[figdeck] Columns block has ${columnCount} columns, minimum is ${SHARED_LAYOUT.MIN_COLUMNS}`,
+    );
+    return null;
+  }
+
+  const gap = Math.min(
+    block.gap ?? SHARED_LAYOUT.COLUMN_GAP,
+    SHARED_LAYOUT.MAX_COLUMN_GAP,
+  );
+
+  // Calculate column widths
+  let widths: number[];
+  if (block.widths && block.widths.length === columnCount) {
+    widths = block.widths;
+  } else {
+    // Even split: (availableWidth - totalGap) / columnCount
+    const totalGap = gap * (columnCount - 1);
+    const columnWidth = Math.floor((availableWidth - totalGap) / columnCount);
+    widths = Array(columnCount).fill(columnWidth);
+  }
+
+  // Check minimum width constraint
+  const minWidth = SHARED_LAYOUT.COLUMN_MIN_WIDTH;
+  const belowMinimum = widths.some((w) => w < minWidth);
+  if (belowMinimum) {
+    console.warn(
+      `[figdeck] Column width below minimum (${minWidth}px), stacking vertically`,
+    );
+    // Fallback: render columns stacked vertically
+    const stackFrame = figma.createFrame();
+    stackFrame.name = "Columns (stacked fallback)";
+    stackFrame.layoutMode = "VERTICAL";
+    stackFrame.primaryAxisSizingMode = "AUTO";
+    stackFrame.counterAxisSizingMode = "FIXED";
+    stackFrame.resize(availableWidth, 100);
+    stackFrame.itemSpacing = LAYOUT.BLOCK_GAP;
+    stackFrame.fills = [];
+
+    for (const column of block.columns) {
+      for (const item of column) {
+        const node = await renderBlockItemToNode(item, styles);
+        if (node) {
+          stackFrame.appendChild(node);
+        }
+      }
+    }
+
+    return stackFrame;
+  }
+
+  // Create horizontal container for columns
+  const columnsFrame = figma.createFrame();
+  columnsFrame.name = "Columns";
+  columnsFrame.layoutMode = "HORIZONTAL";
+  columnsFrame.primaryAxisSizingMode = "FIXED";
+  columnsFrame.counterAxisSizingMode = "AUTO";
+  columnsFrame.resize(availableWidth, 100);
+  columnsFrame.itemSpacing = gap;
+  columnsFrame.fills = [];
+  columnsFrame.primaryAxisAlignItems = "MIN";
+  columnsFrame.counterAxisAlignItems = "MIN";
+
+  // Render each column
+  for (let i = 0; i < columnCount; i++) {
+    const columnBlocks = block.columns[i];
+    const columnWidth = widths[i];
+
+    // Create vertical frame for column content
+    const columnFrame = figma.createFrame();
+    columnFrame.name = `Column ${i + 1}`;
+    columnFrame.layoutMode = "VERTICAL";
+    columnFrame.primaryAxisSizingMode = "AUTO";
+    columnFrame.counterAxisSizingMode = "FIXED";
+    columnFrame.resize(columnWidth, 100);
+    columnFrame.itemSpacing = LAYOUT.BLOCK_GAP;
+    columnFrame.fills = [];
+
+    // Render each block in the column
+    for (const item of columnBlocks) {
+      const node = await renderBlockItemToNode(item, styles);
+      if (node) {
+        columnFrame.appendChild(node);
+        // Constrain node width to column width
+        if ("resize" in node && node.width > columnWidth) {
+          const aspectRatio = node.height / node.width;
+          node.resize(columnWidth, columnWidth * aspectRatio);
+        }
+      }
+    }
+
+    columnsFrame.appendChild(columnFrame);
+  }
+
+  return columnsFrame;
+}
+
+/**
+ * Render a single block and return the node (for container-based layout)
+ */
+async function renderBlockToNode(
+  block: SlideBlock,
+  styles: ReturnType<typeof resolveSlideStyles>,
+  availableWidth?: number,
+): Promise<SceneNode | null> {
+  // Handle columns block specially
+  if (block.kind === "columns") {
+    const width = availableWidth ?? LAYOUT.CONTENT_WIDTH;
+    return renderColumnsBlock(block, styles, width);
+  }
+
+  // For non-columns blocks, delegate to renderBlockItemToNode
+  return renderBlockItemToNode(block as SlideBlockItem, styles);
 }
 
 /**
@@ -545,7 +672,11 @@ async function fillSlide(
       blockStyle &&
       (blockStyle.x !== undefined || blockStyle.y !== undefined)
     ) {
-      const blockNode = await renderBlockToNode(block, styles);
+      const blockNode = await renderBlockToNode(
+        block,
+        styles,
+        LAYOUT.CONTENT_WIDTH,
+      );
       if (blockNode) {
         absoluteNodes.push({
           node: blockNode,
@@ -583,7 +714,11 @@ async function fillSlide(
       firstTitleRendered = true;
     }
 
-    const blockNode = await renderBlockToNode(block, styles);
+    const blockNode = await renderBlockToNode(
+      block,
+      styles,
+      LAYOUT.CONTENT_WIDTH,
+    );
     if (blockNode) {
       container.appendChild(blockNode);
     }
@@ -982,6 +1117,73 @@ export function validateAndSanitizeSlides(
             continue;
           }
           sanitizedBlock.link = sanitizedLink;
+          validBlocks.push(sanitizedBlock as SlideBlock);
+          continue;
+        }
+
+        // Handle columns blocks with nested block sanitization
+        if (sanitizedBlock.kind === "columns" && "columns" in sanitizedBlock) {
+          const columnsBlock = sanitizedBlock as unknown as ColumnsBlock;
+          if (Array.isArray(columnsBlock.columns)) {
+            const sanitizedColumns: SlideBlockItem[][] = [];
+            for (const column of columnsBlock.columns) {
+              if (!Array.isArray(column)) continue;
+              const sanitizedColumn: SlideBlockItem[] = [];
+              for (const item of column) {
+                const sanitizedItem = Object.assign({}, item);
+                if (
+                  "text" in sanitizedItem &&
+                  typeof sanitizedItem.text === "string"
+                ) {
+                  sanitizedItem.text = truncateString(
+                    sanitizedItem.text,
+                    MAX_STRING_LENGTH,
+                  );
+                }
+                if ("spans" in sanitizedItem && sanitizedItem.spans) {
+                  sanitizedItem.spans = sanitizeTextSpans(sanitizedItem.spans);
+                }
+                if (
+                  "items" in sanitizedItem &&
+                  Array.isArray(sanitizedItem.items)
+                ) {
+                  sanitizedItem.items = sanitizeBulletItems(
+                    sanitizedItem.items as Array<unknown>,
+                  );
+                }
+                if (
+                  "code" in sanitizedItem &&
+                  typeof sanitizedItem.code === "string"
+                ) {
+                  sanitizedItem.code = truncateString(
+                    sanitizedItem.code,
+                    MAX_STRING_LENGTH * 10,
+                  );
+                }
+                sanitizedColumn.push(sanitizedItem as SlideBlockItem);
+              }
+              sanitizedColumns.push(sanitizedColumn);
+            }
+            columnsBlock.columns = sanitizedColumns;
+            // Clamp gap and widths
+            if (
+              typeof columnsBlock.gap === "number" &&
+              Number.isFinite(columnsBlock.gap)
+            ) {
+              columnsBlock.gap = Math.min(
+                Math.max(0, columnsBlock.gap),
+                SHARED_LAYOUT.MAX_COLUMN_GAP,
+              );
+            }
+            if (Array.isArray(columnsBlock.widths)) {
+              columnsBlock.widths = columnsBlock.widths
+                .filter(
+                  (w): w is number =>
+                    typeof w === "number" && Number.isFinite(w),
+                )
+                .map((w) => Math.max(0, w));
+            }
+          }
           validBlocks.push(sanitizedBlock as SlideBlock);
           continue;
         }

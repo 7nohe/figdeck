@@ -1,18 +1,21 @@
-import type {
-  FootnoteItem,
-  HorizontalAlign,
-  ImagePosition,
-  ImageSize,
-  SlideBackground,
-  SlideBlock,
-  SlideContent,
-  SlideNumberConfig,
-  SlideStyles,
-  SlideTransitionConfig,
-  TableAlignment,
-  TextSpan,
-  TitlePrefixConfig,
-  VerticalAlign,
+import {
+  type FootnoteItem,
+  type HorizontalAlign,
+  type ImagePosition,
+  type ImageSize,
+  SLIDE_HEIGHT,
+  SLIDE_WIDTH,
+  type SlideBackground,
+  type SlideBlock,
+  type SlideBlockItem,
+  type SlideContent,
+  type SlideNumberConfig,
+  type SlideStyles,
+  type SlideTransitionConfig,
+  type TableAlignment,
+  type TextSpan,
+  type TitlePrefixConfig,
+  type VerticalAlign,
 } from "@figdeck/shared";
 import type {
   Blockquote,
@@ -31,6 +34,12 @@ import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { parse as parseYaml } from "yaml";
+import {
+  type ColumnsBlockPlaceholder,
+  createColumnsBlock,
+  extractColumnsBlocks,
+  matchColumnsPlaceholder,
+} from "./columns-block.js";
 import {
   mergeSlideNumberConfig,
   mergeStyles,
@@ -58,10 +67,6 @@ const processor = unified()
   .use(remarkParse)
   .use(remarkFrontmatter, ["yaml"])
   .use(remarkGfm);
-
-// Slide dimensions for percentage calculations
-const SLIDE_WIDTH = 1920;
-const SLIDE_HEIGHT = 1080;
 
 /**
  * Parse Marp-style size and position specifications from image alt text.
@@ -243,12 +248,14 @@ function processHeading(heading: Heading, builder: SlideBuilder): void {
 }
 
 /**
- * Process a paragraph node - may be image, figma placeholder, or regular text
+ * Process a paragraph node - may be image, figma placeholder, columns placeholder, or regular text
  */
 function processParagraph(
   para: Paragraph,
   builder: SlideBuilder,
   figmaBlocks: FigmaBlockPlaceholder[],
+  columnsBlocks: ColumnsBlockPlaceholder[],
+  parseColumnContent: (content: string) => SlideBlockItem[],
 ): void {
   // Check if paragraph contains only an image
   if (para.children.length === 1 && para.children[0].type === "image") {
@@ -312,6 +319,20 @@ function processParagraph(
     const figmaBlock = figmaBlocks[figmaIndex];
     if (figmaBlock) {
       builder.blocks.push({ kind: "figma", link: figmaBlock.link });
+    }
+    return;
+  }
+
+  // Check if paragraph is a columns block placeholder
+  const columnsIndex = matchColumnsPlaceholder(text);
+  if (columnsIndex !== null) {
+    const columnsPlaceholder = columnsBlocks[columnsIndex];
+    if (columnsPlaceholder) {
+      const columnsBlock = createColumnsBlock(
+        columnsPlaceholder,
+        parseColumnContent,
+      );
+      builder.blocks.push(columnsBlock);
     }
     return;
   }
@@ -417,6 +438,70 @@ function processFootnoteDefinition(
 }
 
 /**
+ * Parse column content into SlideBlockItems (reusable parser for columns)
+ */
+function parseColumnContentToBlocks(
+  content: string,
+  figmaBlocks: FigmaBlockPlaceholder[],
+  columnsBlocks: ColumnsBlockPlaceholder[],
+  basePath?: string,
+): SlideBlockItem[] {
+  const tree = processor.parse(content) as Root;
+  const builder: SlideBuilder = {
+    blocks: [],
+    basePath,
+    footnoteDefinitions: new Map(),
+  };
+
+  // Recursive parseColumnContent for nested columns (though we discourage deep nesting)
+  const parseColumnContent = (nestedContent: string): SlideBlockItem[] => {
+    return parseColumnContentToBlocks(
+      nestedContent,
+      figmaBlocks,
+      columnsBlocks,
+      basePath,
+    );
+  };
+
+  for (const node of tree.children) {
+    switch (node.type) {
+      case "heading":
+        processHeading(node as Heading, builder);
+        break;
+      case "paragraph":
+        processParagraph(
+          node as Paragraph,
+          builder,
+          figmaBlocks,
+          columnsBlocks,
+          parseColumnContent,
+        );
+        break;
+      case "list":
+        processList(node as List, builder);
+        break;
+      case "code":
+        processCode(node as Code, builder);
+        break;
+      case "blockquote":
+        processBlockquote(node as Blockquote, builder);
+        break;
+      case "table":
+        processTable(node as Table, builder);
+        break;
+      case "footnoteDefinition":
+        processFootnoteDefinition(node as FootnoteDefinitionNode, builder);
+        break;
+    }
+  }
+
+  // Filter out columns blocks from the result (only SlideBlockItem allowed)
+  return builder.blocks.filter(
+    (block): block is SlideBlockItem => block.kind !== "columns",
+  );
+}
+
+/**
  * Parse a single slide's markdown content (may include frontmatter)
  */
 function parseSlideMarkdown(
@@ -429,6 +514,7 @@ function parseSlideMarkdown(
   defaultValign: VerticalAlign | undefined,
   defaultTransition: SlideTransitionConfig | undefined,
   figmaBlocks: FigmaBlockPlaceholder[],
+  columnsBlocks: ColumnsBlockPlaceholder[],
   basePath?: string,
 ): SlideContent | null {
   let slideBackground: SlideBackground | null = null;
@@ -462,6 +548,16 @@ function parseSlideMarkdown(
     footnoteDefinitions: new Map(),
   };
 
+  // Create parseColumnContent function for this slide context
+  const parseColumnContent = (content: string): SlideBlockItem[] => {
+    return parseColumnContentToBlocks(
+      content,
+      figmaBlocks,
+      columnsBlocks,
+      basePath,
+    );
+  };
+
   // Process each AST node
   for (const node of tree.children) {
     switch (node.type) {
@@ -469,7 +565,13 @@ function parseSlideMarkdown(
         processHeading(node as Heading, builder);
         break;
       case "paragraph":
-        processParagraph(node as Paragraph, builder, figmaBlocks);
+        processParagraph(
+          node as Paragraph,
+          builder,
+          figmaBlocks,
+          columnsBlocks,
+          parseColumnContent,
+        );
         break;
       case "list":
         processList(node as List, builder);
@@ -638,8 +740,14 @@ export function parseMarkdown(
 ): SlideContent[] {
   const { basePath } = options;
 
-  // First, extract :::figma blocks and replace with placeholders
-  const { processedMarkdown, figmaBlocks } = extractFigmaBlocks(markdown);
+  // First, extract :::columns blocks and replace with placeholders
+  // This must happen before :::figma extraction to handle columns containing figma blocks
+  const { processedMarkdown: columnsProcessed, columnsBlocks } =
+    extractColumnsBlocks(markdown);
+
+  // Then, extract :::figma blocks and replace with placeholders
+  const { processedMarkdown, figmaBlocks } =
+    extractFigmaBlocks(columnsProcessed);
 
   let globalDefaultBackground: SlideBackground | null = null;
   let globalDefaultStyles: SlideStyles = {};
@@ -696,6 +804,7 @@ export function parseMarkdown(
       globalDefaultValign,
       globalDefaultTransition,
       figmaBlocks,
+      columnsBlocks,
       basePath,
     );
     if (slide) {

@@ -1,4 +1,12 @@
-import type { FontVariant, SlideStyles, TextStyle } from "@figdeck/shared";
+import {
+  CONTAINER_PADDING,
+  CONTENT_WIDTH,
+  type FontVariant,
+  SLIDE_HEIGHT,
+  SLIDE_WIDTH,
+  type SlideStyles,
+  type TextStyle,
+} from "@figdeck/shared";
 import { parseColor } from "./colors";
 import {
   DEFAULT_BULLET_SIZE,
@@ -187,6 +195,8 @@ export function collectFontNames(
   return Array.from(fontSet.values());
 }
 
+const BLOCK_GAP = 24;
+
 /**
  * Map an arbitrary font style string to a safe fallback style available in Inter
  */
@@ -275,5 +285,13 @@ export const LAYOUT = {
   /** Indent per nesting level for bullet lists */
   BULLET_INDENT: 24,
   /** Padding inside content container */
-  CONTAINER_PADDING: 100,
+  CONTAINER_PADDING,
+  /** Gap between blocks in auto-layout container */
+  BLOCK_GAP,
+  /** Default slide width */
+  SLIDE_WIDTH,
+  /** Default slide height */
+  SLIDE_HEIGHT,
+  /** Content width (slide width minus container padding on both sides) */
+  CONTENT_WIDTH,
 } as const;

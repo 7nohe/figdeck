@@ -1331,3 +1331,325 @@ describe("parseImageAlt", () => {
     });
   });
 });
+
+describe("columns blocks", () => {
+  it("should parse basic 2-column layout", () => {
+    const result = parseMarkdown(`## Two Columns
+
+:::columns
+:::column
+Left content
+
+- Item 1
+- Item 2
+:::column
+Right content
+
+Some paragraph.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(2); // heading + columns
+
+    const columnsBlock = blocks[1];
+    expect(columnsBlock.kind).toBe("columns");
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns).toHaveLength(2);
+      // Left column should have paragraph + bullets
+      expect(columnsBlock.columns[0]).toHaveLength(2);
+      expect(columnsBlock.columns[0][0].kind).toBe("paragraph");
+      expect(columnsBlock.columns[0][1].kind).toBe("bullets");
+      // Right column should have paragraph + paragraph
+      expect(columnsBlock.columns[1]).toHaveLength(2);
+      expect(columnsBlock.columns[1][0].kind).toBe("paragraph");
+      expect(columnsBlock.columns[1][1].kind).toBe("paragraph");
+    }
+  });
+
+  it("should parse 3-column layout", () => {
+    const result = parseMarkdown(`## Three Columns
+
+:::columns
+:::column
+Column 1
+:::column
+Column 2
+:::column
+Column 3
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    expect(columnsBlock.kind).toBe("columns");
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns).toHaveLength(3);
+    }
+  });
+
+  it("should parse 4-column layout", () => {
+    const result = parseMarkdown(`## Four Columns
+
+:::columns
+:::column
+A
+:::column
+B
+:::column
+C
+:::column
+D
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns).toHaveLength(4);
+    }
+  });
+
+  it("should parse gap attribute", () => {
+    const result = parseMarkdown(`## With Gap
+
+:::columns gap=64
+:::column
+Left
+:::column
+Right
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.gap).toBe(64);
+    }
+  });
+
+  it("should clamp gap to maximum", () => {
+    const result = parseMarkdown(`## Max Gap
+
+:::columns gap=500
+:::column
+Left
+:::column
+Right
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.gap).toBe(200); // MAX_COLUMN_GAP
+    }
+  });
+
+  it("should parse fr width specification", () => {
+    const result = parseMarkdown(`## FR Widths
+
+:::columns width=1fr/2fr
+:::column
+Narrow
+:::column
+Wide
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.widths).toBeDefined();
+      expect(columnsBlock.widths).toHaveLength(2);
+      // 1fr/2fr with default gap=32, available width = 1600 - 32 = 1568
+      // 1fr = 1568 / 3 ≈ 523, 2fr = 1568 * 2/3 ≈ 1045
+      if (columnsBlock.widths) {
+        expect(columnsBlock.widths[0]).toBeLessThan(columnsBlock.widths[1]);
+      }
+    }
+  });
+
+  it("should fallback with mismatched width count", () => {
+    const result = parseMarkdown(`## Mismatched Widths
+
+:::columns width=1fr/2fr/3fr
+:::column
+Left
+:::column
+Right
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      // Width count (3) doesn't match column count (2), should fallback to undefined
+      expect(columnsBlock.widths).toBeUndefined();
+    }
+  });
+
+  it("should handle columns with code blocks", () => {
+    const result = parseMarkdown(`## Code Columns
+
+:::columns
+:::column
+\`\`\`js
+const a = 1;
+\`\`\`
+:::column
+\`\`\`ts
+const b: number = 2;
+\`\`\`
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns[0][0].kind).toBe("code");
+      expect(columnsBlock.columns[1][0].kind).toBe("code");
+    }
+  });
+
+  it("should handle columns with headings", () => {
+    const result = parseMarkdown(`## Main Title
+
+:::columns
+:::column
+### Left Section
+
+Content
+:::column
+### Right Section
+
+More content
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns[0][0].kind).toBe("heading");
+      if (columnsBlock.columns[0][0].kind === "heading") {
+        expect(columnsBlock.columns[0][0].level).toBe(3);
+      }
+    }
+  });
+
+  it("should handle columns with images", () => {
+    const result = parseMarkdown(`## Images
+
+:::columns
+:::column
+![w:400](https://example.com/img1.png)
+:::column
+![w:400](https://example.com/img2.png)
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns[0][0].kind).toBe("image");
+      expect(columnsBlock.columns[1][0].kind).toBe("image");
+    }
+  });
+
+  it("should handle columns with blockquotes", () => {
+    const result = parseMarkdown(`## Quotes
+
+:::columns
+:::column
+> First quote
+:::column
+> Second quote
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns[0][0].kind).toBe("blockquote");
+      expect(columnsBlock.columns[1][0].kind).toBe("blockquote");
+    }
+  });
+
+  it("should handle columns with tables", () => {
+    const result = parseMarkdown(`## Tables
+
+:::columns
+:::column
+| A | B |
+|---|---|
+| 1 | 2 |
+:::column
+| C | D |
+|---|---|
+| 3 | 4 |
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      expect(columnsBlock.columns[0][0].kind).toBe("table");
+      expect(columnsBlock.columns[1][0].kind).toBe("table");
+    }
+  });
+
+  it("should preserve inline formatting in columns", () => {
+    const result = parseMarkdown(`## Formatted
+
+:::columns
+:::column
+This has **bold** and *italic*.
+:::column
+This has \`code\` and [links](https://example.com).
+:::`);
+
+    expect(result).toHaveLength(1);
+    const columnsBlock = result[0].blocks[1];
+    if (columnsBlock.kind === "columns") {
+      const leftPara = columnsBlock.columns[0][0];
+      if (leftPara.kind === "paragraph" && leftPara.spans) {
+        expect(leftPara.spans).toContainEqual({ text: "bold", bold: true });
+        expect(leftPara.spans).toContainEqual({ text: "italic", italic: true });
+      }
+    }
+  });
+
+  it("should render content linearly when fewer than 2 columns", () => {
+    const result = parseMarkdown(`## Single Column
+
+:::columns
+:::column
+Only one column
+:::`);
+
+    expect(result).toHaveLength(1);
+    // With < 2 columns, content should be rendered linearly (fallback)
+    // The blocks array should not contain a columns block
+    const blocks = result[0].blocks;
+    const hasColumnsBlock = blocks.some((b) => b.kind === "columns");
+    expect(hasColumnsBlock).toBe(false);
+  });
+
+  it("should handle multiple columns blocks in one slide", () => {
+    const result = parseMarkdown(`## Multiple Columns Blocks
+
+:::columns
+:::column
+First left
+:::column
+First right
+:::
+
+Middle content
+
+:::columns
+:::column
+Second left
+:::column
+Second right
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    // heading + columns + paragraph + columns = 4 blocks
+    expect(blocks).toHaveLength(4);
+    expect(blocks[0].kind).toBe("heading");
+    expect(blocks[1].kind).toBe("columns");
+    expect(blocks[2].kind).toBe("paragraph");
+    expect(blocks[3].kind).toBe("columns");
+  });
+});

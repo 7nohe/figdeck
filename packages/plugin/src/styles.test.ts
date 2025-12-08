@@ -161,6 +161,14 @@ describe("LAYOUT constants", () => {
     expect(LAYOUT.TITLE_SPACING).toBe(40);
     expect(LAYOUT.BLOCK_SPACING).toBe(30);
     expect(LAYOUT.BULLET_ITEM_SPACING).toBe(8);
+    expect(LAYOUT.BLOCK_GAP).toBe(24);
+  });
+
+  it("should expose slide dimensions and content width", () => {
+    expect(LAYOUT.SLIDE_WIDTH).toBe(1920);
+    expect(LAYOUT.SLIDE_HEIGHT).toBe(1080);
+    expect(LAYOUT.CONTAINER_PADDING).toBe(100);
+    expect(LAYOUT.CONTENT_WIDTH).toBe(1720);
   });
 });
 

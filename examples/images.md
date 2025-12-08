@@ -1,6 +1,6 @@
-# Image Size Examples
+# Image Size and Position Examples
 
-Demonstrates Marp-style image size specifications.
+Demonstrates Marp-style image size and position specifications.
 
 ---
 
@@ -41,3 +41,29 @@ Fixed size 500x300px (may not preserve aspect ratio).
 ![w:300 Company Logo](./images/sample.jpg)
 
 Size specification combined with descriptive alt text.
+
+---
+
+## Absolute Position (x/y)
+
+![w:300 x:100 y:300](./images/sample.jpg)
+
+Place image at absolute position (100px, 200px) on the slide.
+
+---
+
+## Percentage Position
+
+![w:200 x:50% y:50%](./images/sample.jpg)
+
+Center image on slide using percentage (50% of 1920 = 960px, 50% of 1080 = 540px).
+
+---
+
+## Overlay Layout
+
+![w:100% h:100%](./images/sample.jpg)
+
+![w:300 x:160 y:640 Product](./images/sample.jpg)
+
+Full-bleed background with positioned overlay image.

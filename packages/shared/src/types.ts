@@ -253,6 +253,12 @@ export interface ImageSize {
   height?: number; // px
 }
 
+/** Image position specification for absolute placement (parsed from Marp-style alt text) */
+export interface ImagePosition {
+  x?: number; // px (percentages are pre-converted based on SLIDE_WIDTH)
+  y?: number; // px (percentages are pre-converted based on SLIDE_HEIGHT)
+}
+
 export type SlideBlock =
   | { kind: "paragraph"; text: string; spans?: TextSpan[] }
   | { kind: "heading"; level: 1 | 2 | 3 | 4; text: string; spans?: TextSpan[] }
@@ -273,6 +279,7 @@ export type SlideBlock =
       dataBase64?: string;
       source?: "local" | "remote";
       size?: ImageSize;
+      position?: ImagePosition;
     }
   | { kind: "blockquote"; text: string; spans?: TextSpan[] }
   | {

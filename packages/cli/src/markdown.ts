@@ -1,6 +1,7 @@
 import type {
   FootnoteItem,
   HorizontalAlign,
+  ImagePosition,
   ImageSize,
   SlideBackground,
   SlideBlock,
@@ -60,27 +61,35 @@ const processor = unified()
 
 // Slide dimensions for percentage calculations
 const SLIDE_WIDTH = 1920;
+const SLIDE_HEIGHT = 1080;
 
 /**
- * Parse Marp-style size specifications from image alt text.
+ * Parse Marp-style size and position specifications from image alt text.
  *
  * Supported patterns:
  * - "w:400" → { width: 400 }
  * - "h:300" → { height: 300 }
  * - "w:400 h:300" → { width: 400, height: 300 }
  * - "w:50%" → { width: 960 } (percentage of slide width)
- * - "w:400 説明文" → { width: 400 }, cleanAlt: "説明文"
+ * - "x:100" → { x: 100 } (absolute position in px)
+ * - "y:200" → { y: 200 } (absolute position in px)
+ * - "x:50%" → { x: 960 } (percentage of slide width)
+ * - "y:50%" → { y: 540 } (percentage of slide height)
+ * - "w:400 x:100 y:200 説明文" → size + position + cleanAlt
  *
- * @returns Object with cleanAlt (alt text without size specs) and optional size
+ * @returns Object with cleanAlt (alt text without specs), optional size, and optional position
  */
 export function parseImageAlt(alt: string): {
   cleanAlt: string;
   size?: ImageSize;
+  position?: ImagePosition;
 } {
   if (!alt) return { cleanAlt: "" };
 
   let width: number | undefined;
   let height: number | undefined;
+  let x: number | undefined;
+  let y: number | undefined;
   let remaining = alt;
 
   // Parse w:number or w:number%
@@ -101,19 +110,49 @@ export function parseImageAlt(alt: string): {
     if (value > 0) {
       height =
         heightMatch[2] === "%"
-          ? Math.round((value / 100) * SLIDE_WIDTH)
+          ? Math.round((value / 100) * SLIDE_HEIGHT)
           : value;
     }
     remaining = remaining.replace(/h:\d+%?\s*/, "");
   }
 
-  const cleanAlt = remaining.trim();
-
-  if (width !== undefined || height !== undefined) {
-    return { cleanAlt, size: { width, height } };
+  // Parse x:number or x:number%
+  const xMatch = remaining.match(/x:(\d+)(%?)/);
+  if (xMatch) {
+    const value = Number.parseInt(xMatch[1], 10);
+    if (Number.isFinite(value)) {
+      x = xMatch[2] === "%" ? Math.round((value / 100) * SLIDE_WIDTH) : value;
+    }
+    remaining = remaining.replace(/x:\d+%?\s*/, "");
   }
 
-  return { cleanAlt };
+  // Parse y:number or y:number%
+  const yMatch = remaining.match(/y:(\d+)(%?)/);
+  if (yMatch) {
+    const value = Number.parseInt(yMatch[1], 10);
+    if (Number.isFinite(value)) {
+      y = yMatch[2] === "%" ? Math.round((value / 100) * SLIDE_HEIGHT) : value;
+    }
+    remaining = remaining.replace(/y:\d+%?\s*/, "");
+  }
+
+  const cleanAlt = remaining.trim();
+
+  const result: {
+    cleanAlt: string;
+    size?: ImageSize;
+    position?: ImagePosition;
+  } = { cleanAlt };
+
+  if (width !== undefined || height !== undefined) {
+    result.size = { width, height };
+  }
+
+  if (x !== undefined || y !== undefined) {
+    result.position = { x, y };
+  }
+
+  return result;
 }
 
 /**
@@ -214,7 +253,7 @@ function processParagraph(
   // Check if paragraph contains only an image
   if (para.children.length === 1 && para.children[0].type === "image") {
     const imgNode = para.children[0] as Image;
-    const { cleanAlt, size } = parseImageAlt(imgNode.alt || "");
+    const { cleanAlt, size, position } = parseImageAlt(imgNode.alt || "");
 
     // Determine if this is a local or remote image
     if (isRemoteUrl(imgNode.url)) {
@@ -225,6 +264,7 @@ function processParagraph(
         alt: cleanAlt || undefined,
         source: "remote",
         size,
+        position,
       });
     } else if (builder.basePath) {
       // Local image - attempt to read and encode
@@ -238,6 +278,7 @@ function processParagraph(
           dataBase64: localImage.dataBase64,
           mimeType: localImage.mimeType,
           size,
+          position,
         });
       } else {
         // Failed to read - fallback to placeholder behavior
@@ -247,6 +288,7 @@ function processParagraph(
           alt: cleanAlt || undefined,
           source: "local",
           size,
+          position,
         });
       }
     } else {
@@ -256,6 +298,7 @@ function processParagraph(
         url: imgNode.url,
         alt: cleanAlt || undefined,
         size,
+        position,
       });
     }
     return;

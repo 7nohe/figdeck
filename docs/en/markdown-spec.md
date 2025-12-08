@@ -195,6 +195,29 @@ You can specify image dimensions using Marp-compatible syntax in the alt text:
 - Percentage: Calculated based on slide width (1920px)
 - No size specified: Default max constraints apply (400x300px)
 
+### Image Position (Absolute Placement)
+
+You can specify absolute x/y coordinates to place images at specific positions on the slide:
+
+```markdown
+![x:100 y:200](./image.png)           # Position at (100px, 200px)
+![x:50% y:50%](./image.png)           # Center of slide (percentage)
+![w:300 x:100 y:200](./image.png)     # Size + position combined
+![w:300 x:100 y:200 Product](./image.png)  # Size + position + alt text
+```
+
+**Behavior**:
+- When `x:` or `y:` is specified, the image is placed at absolute coordinates instead of auto-layout flow
+- If only `x:` is specified, `y` defaults to 0 (and vice versa)
+- Percentage: `x:` is calculated based on slide width (1920px), `y:` is calculated based on slide height (1080px)
+- Example: `x:50%` = 960px, `y:50%` = 540px
+
+**Use cases**:
+- Overlay images on backgrounds
+- Side-by-side layouts
+- Precise logo or icon placement
+- Complex multi-image compositions
+
 ### Fallback
 
 If image loading fails (file not found, network error, etc.), a placeholder is displayed.

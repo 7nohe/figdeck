@@ -1211,7 +1211,7 @@ describe("parseImageAlt", () => {
     const result = parseImageAlt("h:25%");
     expect(result).toEqual({
       cleanAlt: "",
-      size: { width: undefined, height: 480 },
+      size: { width: undefined, height: 270 },
     });
   });
 
@@ -1252,6 +1252,82 @@ describe("parseImageAlt", () => {
     expect(result).toEqual({
       cleanAlt: "logo image",
       size: { width: 200, height: undefined },
+    });
+  });
+
+  // Position parsing tests
+  it("should parse x position only", () => {
+    const result = parseImageAlt("x:100");
+    expect(result).toEqual({
+      cleanAlt: "",
+      position: { x: 100, y: undefined },
+    });
+  });
+
+  it("should parse y position only", () => {
+    const result = parseImageAlt("y:200");
+    expect(result).toEqual({
+      cleanAlt: "",
+      position: { x: undefined, y: 200 },
+    });
+  });
+
+  it("should parse both x and y positions", () => {
+    const result = parseImageAlt("x:100 y:200");
+    expect(result).toEqual({
+      cleanAlt: "",
+      position: { x: 100, y: 200 },
+    });
+  });
+
+  it("should parse percentage x position (based on SLIDE_WIDTH 1920)", () => {
+    const result = parseImageAlt("x:50%");
+    expect(result).toEqual({
+      cleanAlt: "",
+      position: { x: 960, y: undefined },
+    });
+  });
+
+  it("should parse percentage y position (based on SLIDE_HEIGHT 1080)", () => {
+    const result = parseImageAlt("y:50%");
+    expect(result).toEqual({
+      cleanAlt: "",
+      position: { x: undefined, y: 540 },
+    });
+  });
+
+  it("should parse size and position together", () => {
+    const result = parseImageAlt("w:400 h:300 x:100 y:200");
+    expect(result).toEqual({
+      cleanAlt: "",
+      size: { width: 400, height: 300 },
+      position: { x: 100, y: 200 },
+    });
+  });
+
+  it("should parse size, position and alt text", () => {
+    const result = parseImageAlt("w:400 x:100 y:200 Product shot");
+    expect(result).toEqual({
+      cleanAlt: "Product shot",
+      size: { width: 400, height: undefined },
+      position: { x: 100, y: 200 },
+    });
+  });
+
+  it("should handle tokens in any order", () => {
+    const result = parseImageAlt("y:200 w:400 x:100 h:300 説明");
+    expect(result).toEqual({
+      cleanAlt: "説明",
+      size: { width: 400, height: 300 },
+      position: { x: 100, y: 200 },
+    });
+  });
+
+  it("should handle x:0 and y:0 as valid positions", () => {
+    const result = parseImageAlt("x:0 y:0");
+    expect(result).toEqual({
+      cleanAlt: "",
+      position: { x: 0, y: 0 },
     });
   });
 });

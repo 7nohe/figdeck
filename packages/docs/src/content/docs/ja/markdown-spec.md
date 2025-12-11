@@ -20,11 +20,88 @@ figdeck が対応する Markdown 記法の仕様です。
 内容
 ```
 
+## YAML Frontmatter
+
+YAML frontmatter を使用してスライドの設定を行えます。設定には2種類あります：
+
+### グローバル設定
+
+ファイルの先頭（コンテンツの前）に配置した設定は、**すべてのスライド**にデフォルトとして適用されます。
+
+```markdown
+---
+background: "#1a1a2e"
+color: "#ffffff"
+transition: dissolve
+---
+
+# 最初のスライド
+
+---
+
+## 2番目のスライド
+```
+
+この例では、すべてのスライドにダークな背景、白いテキスト、dissolve トランジションが適用されます。
+
+### スライドごとの設定
+
+スライド区切り（`---`）の直後に配置した設定は、**そのスライドのみ**に適用され、グローバル設定を上書きします。
+
+```markdown
+---
+background: "#1a1a2e"
+transition: dissolve
+---
+
+# 最初のスライド
+
+グローバル設定を使用（ダーク背景、dissolve）
+
+---
+background: "#ffffff"
+color: "#000000"
+transition: slide-from-right
+---
+
+## 2番目のスライド
+
+このスライドは白い背景、黒いテキスト、右からスライドイン
+
+---
+
+## 3番目のスライド
+
+グローバル設定に戻る（ダーク背景、dissolve）
+```
+
+### 利用可能な設定
+
+| 設定 | 説明 |
+|------|------|
+| `background` | 背景色（16進数） |
+| `gradient` | グラデーション背景 |
+| `backgroundImage` | 背景画像（ローカルパスまたはURL） |
+| `template` | Figma ペイントスタイル名 |
+| `color` | ベーステキスト色 |
+| `headings` | 見出しスタイル（h1, h2, h3, h4） |
+| `paragraphs` | 段落スタイル |
+| `bullets` | 箇条書きスタイル |
+| `code` | コードブロックスタイル |
+| `fonts` | カスタムフォント設定 |
+| `align` | 水平方向の配置（left, center, right） |
+| `valign` | 垂直方向の配置（top, middle, bottom） |
+| `transition` | スライドトランジションアニメーション |
+| `slideNumber` | スライド番号設定 |
+| `titlePrefix` | タイトルプレフィックスコンポーネント |
+
+各設定の詳細は、以下の各セクションを参照してください。
+
 ## 見出し
 
 ### H1 (`#`) - タイトルスライド
 
-`#` で始まる見出しはタイトルスライド（`type: "title"`）として扱われます。
+`#` で始まる見出しはタイトルスライドを作成します。
 フォントサイズは 64px で大きく表示されます。
 
 ```markdown
@@ -33,7 +110,7 @@ figdeck が対応する Markdown 記法の仕様です。
 
 ### H2 (`##`) - コンテンツスライド
 
-`##` で始まる見出しはコンテンツスライド（`type: "content"`）として扱われます。
+`##` で始まる見出しはコンテンツスライドを作成します。
 フォントサイズは 48px です。
 
 ```markdown
@@ -42,11 +119,11 @@ figdeck が対応する Markdown 記法の仕様です。
 
 ### H3 以下 (`###`, `####`, ...)
 
-H3 以下の見出しは本文（`body`）として扱われます。
+H3 以下の見出しはスライド内のサブ見出しとして表示されます。
 
 ## 本文
 
-段落テキストは本文（`body` 配列）に追加されます。
+段落テキストはスライド上の本文コンテンツとして表示されます。
 複数の段落は改行で区切られて表示されます。
 
 ```markdown
@@ -59,7 +136,7 @@ H3 以下の見出しは本文（`body`）として扱われます。
 
 ## 箇条書き
 
-リスト（`-`, `*`, `+` または数字）は箇条書き（`bullets` 配列）として扱われます。
+リスト（`-`, `*`, `+` または数字）は箇条書きとして表示されます。
 
 ### 順序なしリスト
 
@@ -706,21 +783,6 @@ console.log(message);
 ```
 
 対応言語: TypeScript, JavaScript, Python, Bash, JSON, CSS, HTML, XML, Go, Rust, SQL
-
-## SlideContent 型
-
-パースされた結果は以下の型に変換されます：
-
-```typescript
-interface SlideContent {
-  type: "title" | "content";
-  title?: string;      // 見出しテキスト
-  body?: string[];     // 本文テキスト配列
-  bullets?: string[];  // 箇条書き配列
-  align?: HorizontalAlign;   // 水平方向配置: "left" | "center" | "right"
-  valign?: VerticalAlign;    // 垂直方向配置: "top" | "middle" | "bottom"
-}
-```
 
 ## 完全な例
 

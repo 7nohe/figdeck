@@ -20,11 +20,88 @@ Content
 Content
 ```
 
+## YAML Frontmatter
+
+YAML frontmatter allows you to configure slide settings. There are two types of configurations:
+
+### Global Settings
+
+Settings at the very beginning of the file (before any content) apply to **all slides** as defaults.
+
+```markdown
+---
+background: "#1a1a2e"
+color: "#ffffff"
+transition: dissolve
+---
+
+# First Slide
+
+---
+
+## Second Slide
+```
+
+In this example, all slides will have the dark background, white text, and dissolve transition.
+
+### Per-Slide Settings
+
+Settings placed immediately after a slide separator (`---`) apply only to **that specific slide**, overriding any global settings.
+
+```markdown
+---
+background: "#1a1a2e"
+transition: dissolve
+---
+
+# First Slide
+
+Uses global settings (dark background, dissolve)
+
+---
+background: "#ffffff"
+color: "#000000"
+transition: slide-from-right
+---
+
+## Second Slide
+
+This slide has white background, black text, and slides from right
+
+---
+
+## Third Slide
+
+Back to global settings (dark background, dissolve)
+```
+
+### Available Settings
+
+| Setting | Description |
+|---------|-------------|
+| `background` | Background color (hex) |
+| `gradient` | Gradient background |
+| `backgroundImage` | Background image (local path or URL) |
+| `template` | Figma paint style name |
+| `color` | Base text color |
+| `headings` | Heading styles (h1, h2, h3, h4) |
+| `paragraphs` | Paragraph styles |
+| `bullets` | Bullet point styles |
+| `code` | Code block styles |
+| `fonts` | Custom font configuration |
+| `align` | Horizontal alignment (left, center, right) |
+| `valign` | Vertical alignment (top, middle, bottom) |
+| `transition` | Slide transition animation |
+| `slideNumber` | Slide number configuration |
+| `titlePrefix` | Title prefix component |
+
+See specific sections below for detailed configuration options.
+
 ## Headings
 
 ### H1 (`#`) - Title Slide
 
-Headings starting with `#` are treated as title slides (`type: "title"`).
+Headings starting with `#` create title slides.
 Font size is 64px and displayed large.
 
 ```markdown
@@ -33,7 +110,7 @@ Font size is 64px and displayed large.
 
 ### H2 (`##`) - Content Slide
 
-Headings starting with `##` are treated as content slides (`type: "content"`).
+Headings starting with `##` create content slides.
 Font size is 48px.
 
 ```markdown
@@ -42,11 +119,11 @@ Font size is 48px.
 
 ### H3 and below (`###`, `####`, ...)
 
-Headings H3 and below are treated as body text (`body`).
+Headings H3 and below are displayed as sub-headings within the slide content.
 
 ## Body Text
 
-Paragraph text is added to the body (`body` array).
+Paragraph text is displayed as body content on the slide.
 Multiple paragraphs are displayed separated by line breaks.
 
 ```markdown
@@ -59,7 +136,7 @@ This is also added to the body.
 
 ## Bullet Points
 
-Lists (`-`, `*`, `+` or numbers) are treated as bullet points (`bullets` array).
+Lists (`-`, `*`, `+` or numbers) are displayed as bullet points.
 
 ### Unordered List
 
@@ -706,21 +783,6 @@ console.log(message);
 ```
 
 Supported languages: TypeScript, JavaScript, Python, Bash, JSON, CSS, HTML, XML, Go, Rust, SQL
-
-## SlideContent Type
-
-Parsed results are converted to the following type:
-
-```typescript
-interface SlideContent {
-  type: "title" | "content";
-  title?: string;      // Heading text
-  body?: string[];     // Body text array
-  bullets?: string[];  // Bullet points array
-  align?: HorizontalAlign;   // Horizontal alignment: "left" | "center" | "right"
-  valign?: VerticalAlign;    // Vertical alignment: "top" | "middle" | "bottom"
-}
-```
 
 ## Complete Example
 

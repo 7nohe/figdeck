@@ -3,7 +3,31 @@ title: Installation
 description: How to install figdeck
 ---
 
-import { Tabs, TabItem } from '@astrojs/starlight/components';
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+
+## Prerequisites
+
+Before installing figdeck, make sure you have the following:
+
+### Figma Desktop App
+
+<Aside type="caution">
+figdeck only works with the **Figma Desktop App**. The browser version of Figma does not support WebSocket connections required by the plugin.
+</Aside>
+
+Download from: [figma.com/downloads](https://www.figma.com/downloads/)
+
+### Node.js
+
+Node.js 20 or later is required to run the CLI.
+
+Download from: [nodejs.org](https://nodejs.org/)
+
+You can verify your installation by running:
+
+```bash
+node --version
+```
 
 ## Figma Plugin
 

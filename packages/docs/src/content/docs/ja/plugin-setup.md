@@ -14,9 +14,19 @@ Figma Community から figdeck プラグインをインストールします：
 
 ## プラグインの使い方
 
-### 1. CLI を起動
+### 1. サンプルスライドを作成
 
-まず、Markdown ファイルを指定して figdeck CLI サーバーを起動します：
+まず、`init` コマンドでサンプルの Markdown ファイルを生成します：
+
+```bash
+figdeck init
+```
+
+これにより、利用可能なすべての機能を示すサンプルコンテンツを含む `slides.md` ファイルが作成されます。
+
+### 2. CLI を起動
+
+Markdown ファイルを指定して figdeck CLI サーバーを起動します：
 
 ```bash
 figdeck serve slides.md
@@ -30,13 +40,13 @@ WebSocket server started on ws://127.0.0.1:4141
 Waiting for Figma plugin to connect...
 ```
 
-### 2. Figma Slides を開く
+### 3. Figma Slides を開く
 
-1. Figma Desktop アプリまたはブラウザで Figma を開く
+1. Figma Desktop アプリを開く
 2. 新しい Figma Slides ドキュメントを作成（または既存のものを開く）
 3. メニュー → Plugins → figdeck を選択
 
-### 3. CLI に接続
+### 4. CLI に接続
 
 プラグインを起動すると、`localhost:4141` で実行中の CLI に自動的に接続を試みます。
 

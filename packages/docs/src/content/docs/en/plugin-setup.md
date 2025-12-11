@@ -14,9 +14,19 @@ Install the figdeck plugin from Figma Community:
 
 ## Using the Plugin
 
-### 1. Start the CLI
+### 1. Create a Sample Slide
 
-First, start the figdeck CLI server with your Markdown file:
+First, generate a sample Markdown file using the `init` command:
+
+```bash
+figdeck init
+```
+
+This creates a `slides.md` file with example content demonstrating all available features.
+
+### 2. Start the CLI
+
+Start the figdeck CLI server with your Markdown file:
 
 ```bash
 figdeck serve slides.md
@@ -30,13 +40,13 @@ WebSocket server started on ws://127.0.0.1:4141
 Waiting for Figma plugin to connect...
 ```
 
-### 2. Open Figma Slides
+### 3. Open Figma Slides
 
-1. Open Figma Desktop app or Figma in your browser
+1. Open the Figma Desktop app
 2. Create a new Figma Slides document (or open an existing one)
 3. Go to Menu → Plugins → figdeck
 
-### 3. Connect to CLI
+### 4. Connect to CLI
 
 When you launch the plugin, it will automatically attempt to connect to the CLI running on `localhost:4141`.
 

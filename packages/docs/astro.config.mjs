@@ -8,7 +8,46 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'figdeck',
+			description: 'Convert Markdown files into Figma Slides with a CLI + Figma Plugin',
+			favicon: '/favicon.svg',
 			customCss: ['./src/styles/custom.css'],
+			head: [
+				{
+					tag: 'meta',
+					attrs: {
+						property: 'og:image',
+						content: 'https://figdeck.vercel.app/og-image.png',
+					},
+				},
+				{
+					tag: 'meta',
+					attrs: {
+						property: 'og:image:width',
+						content: '1200',
+					},
+				},
+				{
+					tag: 'meta',
+					attrs: {
+						property: 'og:image:height',
+						content: '630',
+					},
+				},
+				{
+					tag: 'meta',
+					attrs: {
+						name: 'twitter:card',
+						content: 'summary_large_image',
+					},
+				},
+				{
+					tag: 'meta',
+					attrs: {
+						name: 'twitter:image',
+						content: 'https://figdeck.vercel.app/og-image.png',
+					},
+				},
+			],
 			defaultLocale: 'en',
 			locales: {
 				en: {

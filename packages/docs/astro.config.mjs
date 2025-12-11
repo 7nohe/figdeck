@@ -1,14 +1,15 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import { SITE } from './src/consts';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://figdeck.vercel.app',
+	site: SITE.url,
 	integrations: [
 		starlight({
-			title: 'figdeck',
-			description: 'Convert Markdown files into Figma Slides with a CLI + Figma Plugin',
+			title: SITE.title,
+			description: SITE.description,
 			favicon: '/favicon.svg',
 			customCss: ['./src/styles/custom.css'],
 			head: [
@@ -16,21 +17,21 @@ export default defineConfig({
 					tag: 'meta',
 					attrs: {
 						property: 'og:image',
-						content: 'https://figdeck.vercel.app/og-image.png',
+						content: SITE.ogImage,
 					},
 				},
 				{
 					tag: 'meta',
 					attrs: {
 						property: 'og:image:width',
-						content: '1200',
+						content: String(SITE.ogImageWidth),
 					},
 				},
 				{
 					tag: 'meta',
 					attrs: {
 						property: 'og:image:height',
-						content: '630',
+						content: String(SITE.ogImageHeight),
 					},
 				},
 				{
@@ -44,7 +45,7 @@ export default defineConfig({
 					tag: 'meta',
 					attrs: {
 						name: 'twitter:image',
-						content: 'https://figdeck.vercel.app/og-image.png',
+						content: SITE.ogImage,
 					},
 				},
 			],

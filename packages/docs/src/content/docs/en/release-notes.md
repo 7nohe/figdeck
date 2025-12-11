@@ -1,4 +1,6 @@
-# Release Notes
+---
+title: Release Notes
+---
 
 ## [1.4.0] - 2025-12-08
 

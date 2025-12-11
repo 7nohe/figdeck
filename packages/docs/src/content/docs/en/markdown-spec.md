@@ -1,4 +1,6 @@
-# Markdown Specification
+---
+title: Markdown Specification
+---
 
 This document describes the Markdown syntax supported by figdeck.
 

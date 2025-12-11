@@ -178,18 +178,18 @@ Options:
 figdeck/
 ├── packages/
 │   ├── cli/          # CLI パッケージ
-│   └── plugin/       # Figma Plugin
+│   ├── plugin/       # Figma Plugin
+│   └── docs/         # ドキュメントサイト
 ├── examples/         # サンプル Markdown
-├── docs/             # ドキュメント
 └── README.md
 ```
 
 ## ドキュメント
 
-- [Markdown 仕様](docs/ja/markdown-spec.md) - 対応する Markdown 記法
-- [API リファレンス](docs/ja/api-reference.md) - CLI コマンドと型定義
-- [アーキテクチャ](docs/ja/architecture.md) - システム構成とデータフロー
-- [Plugin セットアップ](docs/ja/plugin-setup.md) - Figma Plugin のインストール手順
+- [Markdown 仕様](packages/docs/src/content/docs/ja/markdown-spec.md) - 対応する Markdown 記法
+- [API リファレンス](packages/docs/src/content/docs/ja/api-reference.md) - CLI コマンドと型定義
+- [アーキテクチャ](packages/docs/src/content/docs/ja/architecture.md) - システム構成とデータフロー
+- [Plugin セットアップ](packages/docs/src/content/docs/ja/plugin-setup.md) - Figma Plugin のインストール手順
 
 ## 開発
 

@@ -368,7 +368,7 @@ When modifying files, always consider backward compatibility:
 
 Always keep documentation in sync with code changes:
 
-- Update relevant markdown files in `docs/` when features change
+- Update relevant markdown files in `packages/docs/src/content/docs/` when features change
 - Update `CLAUDE.md` when architecture or commands change
 - Update example files in `examples/` when syntax changes
 - Update type definitions and comments when APIs change

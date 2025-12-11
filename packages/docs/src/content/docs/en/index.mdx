@@ -1,0 +1,69 @@
+---
+title: Overview
+description: Overview of figdeck
+template: splash
+hero:
+  title: "Create Beautiful Slides from Markdown"
+  tagline: "Markdown-powered slides with live preview in Figma"
+  image:
+    alt: figdeck logo
+    html: '<svg width="800" height="450" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg" style="display: block; width: 100%; max-width: 800px; height: auto;"><path d="M1126.99 565.865C1116.23 532.007 1151.29 501.76 1183.17 517.394L1533.41 689.109C1566.76 705.461 1562.16 754.409 1526.35 764.259L1395.39 800.283C1383.17 803.643 1373.24 812.554 1368.58 824.342L1321.83 942.496C1307.88 977.775 1257.4 976.034 1245.9 939.877L1126.99 565.865Z" fill="#5665FC"/><path d="M1451.95 112C1506.52 112 1550.76 156.266 1550.76 210.87V634.6C1550.76 642.4 1544.44 648.724 1536.65 648.724C1528.85 648.724 1522.53 642.4 1522.53 634.6V210.87C1522.53 171.867 1490.93 140.249 1451.95 140.249H461.812C422.832 140.249 391.232 171.867 391.232 210.87V767.772C391.232 806.775 422.832 838.393 461.812 838.393H1163.58C1171.38 838.393 1177.7 844.717 1177.7 852.518C1177.7 859.619 1172.46 865.491 1165.64 866.488L1165.69 866.642H461.812C407.24 866.642 363 822.376 363 767.772V210.87C363 156.266 407.24 112 461.812 112H1451.95Z" fill="#5665FC"/></svg>'
+  actions:
+    - text: Get started
+      icon: right-arrow
+      link: /en/getting-started/installation/
+    - text: View on GitHub
+      icon: external
+      variant: minimal
+      link: https://github.com/7nohe/figdeck
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+figdeck is a tool that automatically generates Figma Slides from Markdown files. The CLI parses Markdown and communicates with the Figma Plugin via WebSocket to create slides.
+
+## Features
+
+<CardGrid stagger>
+	<Card title="Markdown to Slides" icon="document">
+		Write your slides in simple Markdown. No need to learn complex tools or design software.
+	</Card>
+	<Card title="Live Preview" icon="rocket">
+		Changes are reflected instantly in Figma via WebSocket. See your slides update in real-time as you edit.
+	</Card>
+	<Card title="Figma Integration" icon="puzzle">
+		Uses native Figma Slides features. Leverage the full power of Figma's design capabilities.
+	</Card>
+	<Card title="Customizable" icon="setting">
+		Control styling via frontmatter and custom themes. Make your slides match your brand.
+	</Card>
+	<Card title="Developer Friendly" icon="laptop">
+		Integrates with your existing Git workflow. Version control your slides like code.
+	</Card>
+</CardGrid>
+
+## How it works
+
+<CardGrid>
+	<Card title="1. Write Markdown" icon="pencil">
+		Create a `slides.md` file using the supported syntax.
+	</Card>
+	<Card title="2. Run CLI" icon="rocket">
+		Start the `figdeck serve` command to watch for changes.
+	</Card>
+	<Card title="3. Connect Plugin" icon="puzzle">
+		Open the figdeck plugin in Figma and connect.
+	</Card>
+	<Card title="4. Generate" icon="approve-check">
+		Slides are generated and updated in real-time.
+	</Card>
+</CardGrid>
+
+## Get Started
+
+<CardGrid>
+	<LinkCard title="Installation" href="/en/getting-started/installation/" icon="rocket" />
+	<LinkCard title="Plugin Setup" href="/en/plugin-setup/" icon="puzzle" />
+	<LinkCard title="Markdown Syntax" href="/en/markdown-spec/" icon="document" />
+	<LinkCard title="API Reference" href="/en/api-reference/" icon="document" />
+</CardGrid>

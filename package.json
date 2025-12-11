@@ -12,7 +12,10 @@
     "format": "biome format --write .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "typecheck": "bun run --filter '*' typecheck"
+    "typecheck": "bun run --filter '*' typecheck",
+    "docs:dev": "bun run --filter '@figdeck/docs' dev",
+    "docs:build": "bun run --filter '@figdeck/docs' build",
+    "docs:preview": "bun run --filter '@figdeck/docs' preview"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",

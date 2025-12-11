@@ -1,4 +1,6 @@
-# Markdown 仕様
+---
+title: Markdown 仕様
+---
 
 figdeck が対応する Markdown 記法の仕様です。
 

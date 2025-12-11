@@ -209,18 +209,18 @@ Options:
 figdeck/
 ├── packages/
 │   ├── cli/          # CLI package
-│   └── plugin/       # Figma Plugin
+│   ├── plugin/       # Figma Plugin
+│   └── docs/         # Documentation site
 ├── examples/         # Sample Markdown files
-├── docs/             # Documentation
 └── README.md
 ```
 
 ## Documentation
 
-- [Markdown Specification](docs/en/markdown-spec.md) - Supported Markdown syntax
-- [API Reference](docs/en/api-reference.md) - CLI commands and type definitions
-- [Architecture](docs/en/architecture.md) - System architecture and data flow
-- [Plugin Setup](docs/en/plugin-setup.md) - Figma Plugin installation guide
+- [Markdown Specification](packages/docs/src/content/docs/en/markdown-spec.md) - Supported Markdown syntax
+- [API Reference](packages/docs/src/content/docs/en/api-reference.md) - CLI commands and type definitions
+- [Architecture](packages/docs/src/content/docs/en/architecture.md) - System architecture and data flow
+- [Plugin Setup](packages/docs/src/content/docs/en/plugin-setup.md) - Figma Plugin installation guide
 
 ## Development
 

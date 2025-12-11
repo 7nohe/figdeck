@@ -1,0 +1,7 @@
+/* Custom theme colors to match logo */
+:root {
+	/* Primary accent color matching logo (#5665FC) */
+	--sl-color-accent-low: #5665FC;
+	--sl-color-accent: #5665FC;
+	--sl-color-accent-high: #4A5AE8;
+}

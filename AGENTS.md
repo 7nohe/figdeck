@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Modules
-- Root uses Bun workspaces. Code lives under `packages/` with `cli` (Markdown → Figma Slides CLI, WebSocket server) and `plugin` (Figma plugin bundle with `code.ts` + `ui.html`). Tests sit in `packages/cli/src/*.test.ts`. Reference Markdown samples in `examples/`, extra docs in `docs/`. Build outputs land in each package’s `dist/`.
+- Root uses Bun workspaces. Code lives under `packages/` with `cli` (Markdown → Figma Slides CLI, WebSocket server) and `plugin` (Figma plugin bundle with `code.ts` + `ui.html`). Tests sit in `packages/cli/src/*.test.ts`. Reference Markdown samples in `examples/`, docs source in `packages/docs/src/content/docs/`. Build outputs land in each package’s `dist/`.
 
 ## Build, Test, and Development Commands
 - Install deps: `bun install`.

@@ -25,7 +25,7 @@ More text`;
 A helpful tip.
 :::`;
 
-    const { processedMarkdown, calloutBlocks } = extractCalloutBlocks(markdown);
+    const { calloutBlocks } = extractCalloutBlocks(markdown);
 
     expect(calloutBlocks).toHaveLength(1);
     expect(calloutBlocks[0].type).toBe("tip");
@@ -37,7 +37,7 @@ A helpful tip.
 Be careful with this.
 :::`;
 
-    const { processedMarkdown, calloutBlocks } = extractCalloutBlocks(markdown);
+    const { calloutBlocks } = extractCalloutBlocks(markdown);
 
     expect(calloutBlocks).toHaveLength(1);
     expect(calloutBlocks[0].type).toBe("warning");
@@ -49,7 +49,7 @@ Be careful with this.
 This action is irreversible.
 :::`;
 
-    const { processedMarkdown, calloutBlocks } = extractCalloutBlocks(markdown);
+    const { calloutBlocks } = extractCalloutBlocks(markdown);
 
     expect(calloutBlocks).toHaveLength(1);
     expect(calloutBlocks[0].type).toBe("caution");
@@ -89,9 +89,12 @@ First note.
 Second tip.
 :::`;
 
-    const { processedMarkdown, calloutBlocks } = extractCalloutBlocks(markdown, {
-      startIndex: 5,
-    });
+    const { processedMarkdown, calloutBlocks } = extractCalloutBlocks(
+      markdown,
+      {
+        startIndex: 5,
+      },
+    );
 
     expect(calloutBlocks).toHaveLength(2);
     expect(calloutBlocks[0].id).toBe("FIGDECK_CALLOUT_BLOCK_5_PLACEHOLDER");

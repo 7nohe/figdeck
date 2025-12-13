@@ -1768,7 +1768,7 @@ This has **bold** and *italic* text.
     expect(blocks[1].kind).toBe("callout");
     if (blocks[1].kind === "callout") {
       expect(blocks[1].spans).toBeDefined();
-      const spans = blocks[1].spans!;
+      const spans = blocks[1].spans ?? [];
       const boldSpan = spans.find((s) => s.bold);
       const italicSpan = spans.find((s) => s.italic);
       expect(boldSpan?.text).toBe("bold");

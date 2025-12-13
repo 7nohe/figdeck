@@ -14,6 +14,10 @@ Install the figdeck plugin from Figma Community:
 
 ## Using the Plugin
 
+:::caution
+The plugin requires **Figma Desktop app**. The browser version cannot connect to the CLI via WebSocket.
+:::
+
 ### 1. Create a Sample Slide
 
 First, generate a sample Markdown file using the `init` command:
@@ -94,6 +98,10 @@ Authentication secret: abc123xyz...
 1. **Verify Figma Slides document**: Make sure you're running the plugin in a Figma Slides document (not a regular Figma file)
 2. **Check plugin console**: Open the plugin console to see error messages (Figma → Plugins → Development → Open Console)
 3. **Verify Markdown file**: Ensure your Markdown file is valid and contains slide separators (`---`)
+
+:::tip
+After updating the plugin, reload it by closing and reopening the plugin window to ensure you're using the latest version.
+:::
 
 ### Connection Timeout
 

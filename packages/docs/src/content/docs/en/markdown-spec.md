@@ -229,6 +229,44 @@ Displayed with a gray border on the left and slightly muted color.
 > It can span multiple lines.
 ```
 
+## Callouts
+
+Callouts are styled message blocks for notes, tips, warnings, and cautions.
+Use the `:::note`, `:::tip`, `:::warning`, or `:::caution` directive syntax:
+
+```markdown
+:::note
+This is a note with important information.
+:::
+
+:::tip
+A helpful tip for users.
+:::
+
+:::warning
+Be careful with this feature.
+:::
+
+:::caution
+This action is irreversible!
+:::
+```
+
+Each callout type is displayed with a distinct color:
+- **Note** (blue): General information or context
+- **Tip** (green): Helpful suggestions or best practices
+- **Warning** (orange): Important information to be aware of
+- **Caution** (red): Critical warnings about potential issues
+
+Callouts support **inline formatting** including bold, italic, links, and inline code:
+
+```markdown
+:::tip
+Use `console.log()` for **debugging** purposes.
+Check the [documentation](https://example.com) for more details.
+:::
+```
+
 ## Images
 
 Images can be inserted using `![alt](url)` format.
@@ -251,7 +289,11 @@ Remote URLs (starting with `http://` or `https://`) are fetched by the plugin an
 Local file paths (without URL scheme) are automatically detected by the CLI, read, base64 encoded, and sent to the plugin.
 Paths are resolved relative to the Markdown file.
 
-**Supported formats**: `.jpg`, `.jpeg`, `.png`, `.gif` (WebP/SVG are not supported by Figma Slides and will be skipped)
+**Supported formats**: `.jpg`, `.jpeg`, `.png`, `.gif`
+
+:::caution
+WebP and SVG formats are not supported by Figma Slides and will be skipped.
+:::
 
 **Size limit**: Default is 5MB. Files exceeding this are skipped with a warning.
 
@@ -306,6 +348,10 @@ The alt text or URL is shown as a label.
 
 Using `:::figma` blocks, you can embed link cards to Figma nodes in slides.
 For nodes in the same file, clicking jumps directly to that node.
+
+:::note
+The `:::` syntax is reserved for figdeck directives (`figma`, `columns`). Other directive names are ignored.
+:::
 
 ### Basic Syntax
 

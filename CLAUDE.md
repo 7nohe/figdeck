@@ -149,6 +149,7 @@ interface TextSpan {
 - Blockquotes `>`: styled with left border
 - Tables (GFM): rendered with headers and alignment
 - Columns: multi-column layouts (2-4 columns) via `:::columns` blocks
+- Callouts: styled message boxes via `:::note`, `:::tip`, `:::warning`, `:::caution`
 
 ### Nested Bullet Lists
 ```markdown
@@ -195,8 +196,35 @@ Right column content
 - 2-4 columns supported
 - `gap`: pixels between columns (default: 32, max: 200)
 - `width`: fr/percentage/px values separated by `/`
-- Each column can contain paragraphs, lists, code, images, tables, blockquotes, headings
+- Each column can contain paragraphs, lists, code, images, tables, blockquotes, headings, callouts
 - Minimum column width: 320px (falls back to vertical stacking if below)
+
+### Callouts
+```markdown
+:::note
+This is a note with helpful information.
+:::
+
+:::tip
+A helpful tip for users.
+:::
+
+:::warning
+Be careful with this feature.
+:::
+
+:::caution
+This action is irreversible!
+:::
+```
+
+Callout types and colors:
+- **note** (blue): General information
+- **tip** (green): Helpful suggestions
+- **warning** (orange): Important warnings
+- **caution** (red): Critical warnings
+
+Supports inline formatting (bold, italic, links, code).
 
 ### Inline Formatting
 - `**bold**` or `__bold__`
@@ -315,6 +343,7 @@ Supported text override formatting: **bold**, *italic*, ~~strikethrough~~, [link
   - `images.md` - Image size and position specifications (Marp-style)
   - `bullets.md` - Nested bullet lists
   - `columns.md` - Multi-column layouts (2-4 columns)
+  - `callouts.md` - Note, tip, warning, caution callout blocks
 
 ## Figma Plugin JavaScript Constraints
 

@@ -216,12 +216,15 @@ function formatListToSpans(
  * ```
  * :::
  */
-export function extractFigmaBlocks(markdown: string): {
+export function extractFigmaBlocks(
+  markdown: string,
+  options: { startIndex?: number } = {},
+): {
   processedMarkdown: string;
   figmaBlocks: FigmaBlockPlaceholder[];
 } {
   const figmaBlocks: FigmaBlockPlaceholder[] = [];
-  let blockId = 0;
+  let nextIndex = options.startIndex ?? 0;
 
   // Match :::figma ... ::: blocks
   const figmaBlockRegex = /^:::figma\s*\n([\s\S]*?)\n:::\s*$/gm;
@@ -355,7 +358,7 @@ export function extractFigmaBlocks(markdown: string): {
         hideLink: props.hideLink === "true" ? true : undefined,
       };
 
-      const id = `FIGDECK_FIGMA_BLOCK_${blockId++}_PLACEHOLDER`;
+      const id = `FIGDECK_FIGMA_BLOCK_${nextIndex++}_PLACEHOLDER`;
       figmaBlocks.push({ id, link });
 
       // Return a placeholder paragraph that we can identify after parsing

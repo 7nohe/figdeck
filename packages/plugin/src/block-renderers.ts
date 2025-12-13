@@ -28,6 +28,116 @@ import {
 } from "./text-renderer";
 
 /**
+ * GitHub Alert types
+ */
+export type AlertType = "NOTE" | "TIP" | "IMPORTANT" | "WARNING" | "CAUTION";
+
+/**
+ * Parsed GitHub Alert from blockquote
+ */
+export interface ParsedAlert {
+  type: AlertType;
+  bodySpans: TextSpan[];
+}
+
+/**
+ * Color configuration for each alert type
+ */
+const ALERT_COLORS: Record<AlertType, { accent: RGB; label: RGB }> = {
+  NOTE: {
+    accent: { r: 0.2, g: 0.52, b: 0.89 }, // Blue
+    label: { r: 0.2, g: 0.52, b: 0.89 },
+  },
+  TIP: {
+    accent: { r: 0.13, g: 0.59, b: 0.33 }, // Green
+    label: { r: 0.13, g: 0.59, b: 0.33 },
+  },
+  IMPORTANT: {
+    accent: { r: 0.54, g: 0.31, b: 0.76 }, // Purple
+    label: { r: 0.54, g: 0.31, b: 0.76 },
+  },
+  WARNING: {
+    accent: { r: 0.81, g: 0.53, b: 0.13 }, // Orange
+    label: { r: 0.81, g: 0.53, b: 0.13 },
+  },
+  CAUTION: {
+    accent: { r: 0.84, g: 0.24, b: 0.24 }, // Red
+    label: { r: 0.84, g: 0.24, b: 0.24 },
+  },
+};
+
+/**
+ * Regex to detect GitHub Alert marker at the start of blockquote content
+ * Matches: [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]
+ */
+const ALERT_MARKER_REGEX = /^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*/i;
+
+/**
+ * Parse a blockquote to detect if it's a GitHub Alert
+ * Returns parsed alert info or null if not an alert
+ */
+export function parseGitHubAlert(spans: TextSpan[]): ParsedAlert | null {
+  if (!spans || spans.length === 0) return null;
+
+  // Get the full text to check for alert marker
+  const fullText = spans.map((s) => s.text).join("");
+  const match = fullText.match(ALERT_MARKER_REGEX);
+
+  if (!match) return null;
+
+  const alertType = match[1].toUpperCase() as AlertType;
+  const markerLength = match[0].length;
+
+  // Strip the marker from spans to get body spans
+  const bodySpans = stripMarkerFromSpans(spans, markerLength);
+
+  return {
+    type: alertType,
+    bodySpans,
+  };
+}
+
+/**
+ * Strip the marker text from the beginning of spans
+ */
+function stripMarkerFromSpans(
+  spans: TextSpan[],
+  markerLength: number,
+): TextSpan[] {
+  const result: TextSpan[] = [];
+  let remainingToStrip = markerLength;
+
+  for (const span of spans) {
+    if (remainingToStrip >= span.text.length) {
+      // This entire span is part of the marker, skip it
+      remainingToStrip -= span.text.length;
+    } else if (remainingToStrip > 0) {
+      // Part of this span is the marker, keep the rest
+      result.push({
+        ...span,
+        text: span.text.slice(remainingToStrip),
+      });
+      remainingToStrip = 0;
+    } else {
+      // Keep this span as-is
+      result.push(span);
+    }
+  }
+
+  // Remove empty spans and trim leading whitespace from first span
+  const filtered = result.filter((s) => s.text.length > 0);
+  if (filtered.length > 0) {
+    const firstSpan = filtered[0];
+    const trimmed = firstSpan.text.replace(/^\s+/, "");
+    if (trimmed !== firstSpan.text) {
+      filtered[0] = { ...firstSpan, text: trimmed };
+    }
+  }
+
+  return filtered;
+}
+
+/**
  * Result from a block renderer
  */
 export interface BlockRenderResult {
@@ -675,6 +785,110 @@ export async function renderBlockquote(
 
   // Adjust border height to match content
   border.resize(4, textNode.height);
+
+  return frame;
+}
+
+/**
+ * Callout layout constants
+ */
+const CALLOUT_LAYOUT = {
+  PADDING: 16,
+  ACCENT_WIDTH: 4,
+  LABEL_GAP: 8,
+  BORDER_RADIUS: 6,
+  BG_OPACITY: 0.08,
+} as const;
+
+/**
+ * Render a GitHub Alert callout block
+ * Displays with accent color, label header, and body text
+ */
+export async function renderCallout(
+  alert: ParsedAlert,
+  baseSize: number,
+  baseFills?: Paint[],
+  x?: number,
+  y?: number,
+  font?: ResolvedFontName,
+  codeFont?: ResolvedFontName,
+): Promise<FrameNode> {
+  const colors = ALERT_COLORS[alert.type];
+
+  // Main frame container
+  const frame = figma.createFrame();
+  frame.name = `Callout (${alert.type})`;
+  frame.layoutMode = "HORIZONTAL";
+  frame.primaryAxisSizingMode = "AUTO";
+  frame.counterAxisSizingMode = "AUTO";
+  frame.itemSpacing = 0;
+  frame.fills = [
+    {
+      type: "SOLID",
+      color: colors.accent,
+      opacity: CALLOUT_LAYOUT.BG_OPACITY,
+    },
+  ];
+  frame.cornerRadius = CALLOUT_LAYOUT.BORDER_RADIUS;
+  if (x !== undefined) frame.x = x;
+  if (y !== undefined) frame.y = y;
+
+  // Left accent bar
+  const accent = figma.createRectangle();
+  accent.name = "accent";
+  accent.resize(CALLOUT_LAYOUT.ACCENT_WIDTH, 100); // Height adjusted later
+  accent.fills = [{ type: "SOLID", color: colors.accent }];
+  accent.topLeftRadius = CALLOUT_LAYOUT.BORDER_RADIUS;
+  accent.bottomLeftRadius = CALLOUT_LAYOUT.BORDER_RADIUS;
+  frame.appendChild(accent);
+
+  // Content container (label + body)
+  const contentFrame = figma.createFrame();
+  contentFrame.name = "content";
+  contentFrame.layoutMode = "VERTICAL";
+  contentFrame.primaryAxisSizingMode = "AUTO";
+  contentFrame.counterAxisSizingMode = "AUTO";
+  contentFrame.itemSpacing = CALLOUT_LAYOUT.LABEL_GAP;
+  contentFrame.paddingLeft = CALLOUT_LAYOUT.PADDING;
+  contentFrame.paddingRight = CALLOUT_LAYOUT.PADDING;
+  contentFrame.paddingTop = CALLOUT_LAYOUT.PADDING;
+  contentFrame.paddingBottom = CALLOUT_LAYOUT.PADDING;
+  contentFrame.fills = [];
+  frame.appendChild(contentFrame);
+
+  // Label header (e.g., "NOTE", "WARNING")
+  const labelFont = font || {
+    family: "Inter",
+    regular: "Regular",
+    bold: "Bold",
+    italic: "Italic",
+    boldItalic: "Bold Italic",
+  };
+
+  const label = figma.createText();
+  label.fontName = { family: labelFont.family, style: labelFont.bold };
+  label.fontSize = baseSize * 0.9;
+  label.characters = alert.type;
+  label.fills = [{ type: "SOLID", color: colors.label }];
+  contentFrame.appendChild(label);
+
+  // Body text
+  if (alert.bodySpans.length > 0) {
+    const bodyFills: Paint[] = baseFills || createDefaultTextFill();
+    const bodyNode = await renderSpansWithInlineCode(
+      alert.bodySpans,
+      baseSize * 0.95,
+      bodyFills,
+      undefined,
+      undefined,
+      font,
+      codeFont,
+    );
+    contentFrame.appendChild(bodyNode);
+  }
+
+  // Adjust accent bar height to match content
+  accent.resize(CALLOUT_LAYOUT.ACCENT_WIDTH, contentFrame.height);
 
   return frame;
 }

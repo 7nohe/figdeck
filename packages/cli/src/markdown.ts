@@ -35,6 +35,11 @@ import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { parse as parseYaml } from "yaml";
 import {
+  type CalloutBlockPlaceholder,
+  extractCalloutBlocks,
+  matchCalloutPlaceholder,
+} from "./callout-block.js";
+import {
   type ColumnsBlockPlaceholder,
   createColumnsBlock,
   extractColumnsBlocks,
@@ -248,13 +253,14 @@ function processHeading(heading: Heading, builder: SlideBuilder): void {
 }
 
 /**
- * Process a paragraph node - may be image, figma placeholder, columns placeholder, or regular text
+ * Process a paragraph node - may be image, figma placeholder, columns placeholder, callout placeholder, or regular text
  */
 function processParagraph(
   para: Paragraph,
   builder: SlideBuilder,
   figmaBlocks: FigmaBlockPlaceholder[],
   columnsBlocks: ColumnsBlockPlaceholder[],
+  calloutBlocks: CalloutBlockPlaceholder[],
   parseColumnContent: (content: string) => SlideBlockItem[],
 ): void {
   // Check if paragraph contains only an image
@@ -333,6 +339,21 @@ function processParagraph(
         parseColumnContent,
       );
       builder.blocks.push(columnsBlock);
+    }
+    return;
+  }
+
+  // Check if paragraph is a callout block placeholder
+  const calloutIndex = matchCalloutPlaceholder(text);
+  if (calloutIndex !== null) {
+    const calloutBlock = calloutBlocks[calloutIndex];
+    if (calloutBlock) {
+      builder.blocks.push({
+        kind: "callout",
+        type: calloutBlock.type,
+        text: calloutBlock.content,
+        spans: calloutBlock.spans,
+      });
     }
     return;
   }
@@ -444,9 +465,27 @@ function parseColumnContentToBlocks(
   content: string,
   figmaBlocks: FigmaBlockPlaceholder[],
   columnsBlocks: ColumnsBlockPlaceholder[],
+  calloutBlocks: CalloutBlockPlaceholder[],
   basePath?: string,
 ): SlideBlockItem[] {
-  const tree = processor.parse(content) as Root;
+  // Extract figma and callout blocks from column content
+  // (since columns are extracted before figma/callout extraction on main markdown)
+  const {
+    processedMarkdown: figmaProcessedContent,
+    figmaBlocks: localFigmaBlocks,
+  } = extractFigmaBlocks(content, { startIndex: figmaBlocks.length });
+  const {
+    processedMarkdown: processedContent,
+    calloutBlocks: localCalloutBlocks,
+  } = extractCalloutBlocks(figmaProcessedContent, {
+    startIndex: calloutBlocks.length,
+  });
+
+  // Merge local blocks with global blocks for matching
+  const allFigmaBlocks = [...figmaBlocks, ...localFigmaBlocks];
+  const allCalloutBlocks = [...calloutBlocks, ...localCalloutBlocks];
+
+  const tree = processor.parse(processedContent) as Root;
   const builder: SlideBuilder = {
     blocks: [],
     basePath,
@@ -457,8 +496,9 @@ function parseColumnContentToBlocks(
   const parseColumnContent = (nestedContent: string): SlideBlockItem[] => {
     return parseColumnContentToBlocks(
       nestedContent,
-      figmaBlocks,
+      allFigmaBlocks,
       columnsBlocks,
+      allCalloutBlocks,
       basePath,
     );
   };
@@ -472,8 +512,9 @@ function parseColumnContentToBlocks(
         processParagraph(
           node as Paragraph,
           builder,
-          figmaBlocks,
+          allFigmaBlocks,
           columnsBlocks,
+          allCalloutBlocks,
           parseColumnContent,
         );
         break;
@@ -515,6 +556,7 @@ function parseSlideMarkdown(
   defaultTransition: SlideTransitionConfig | undefined,
   figmaBlocks: FigmaBlockPlaceholder[],
   columnsBlocks: ColumnsBlockPlaceholder[],
+  calloutBlocks: CalloutBlockPlaceholder[],
   basePath?: string,
 ): SlideContent | null {
   let slideBackground: SlideBackground | null = null;
@@ -554,6 +596,7 @@ function parseSlideMarkdown(
       content,
       figmaBlocks,
       columnsBlocks,
+      calloutBlocks,
       basePath,
     );
   };
@@ -570,6 +613,7 @@ function parseSlideMarkdown(
           builder,
           figmaBlocks,
           columnsBlocks,
+          calloutBlocks,
           parseColumnContent,
         );
         break;
@@ -746,8 +790,12 @@ export function parseMarkdown(
     extractColumnsBlocks(markdown);
 
   // Then, extract :::figma blocks and replace with placeholders
-  const { processedMarkdown, figmaBlocks } =
+  const { processedMarkdown: figmaProcessed, figmaBlocks } =
     extractFigmaBlocks(columnsProcessed);
+
+  // Then, extract :::note/tip/warning/caution callout blocks
+  const { processedMarkdown, calloutBlocks } =
+    extractCalloutBlocks(figmaProcessed);
 
   let globalDefaultBackground: SlideBackground | null = null;
   let globalDefaultStyles: SlideStyles = {};
@@ -805,6 +853,7 @@ export function parseMarkdown(
       globalDefaultTransition,
       figmaBlocks,
       columnsBlocks,
+      calloutBlocks,
       basePath,
     );
     if (slide) {

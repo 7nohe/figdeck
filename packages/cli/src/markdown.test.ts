@@ -1652,4 +1652,211 @@ Second right
     expect(blocks[2].kind).toBe("paragraph");
     expect(blocks[3].kind).toBe("columns");
   });
+
+  it("should not collide figma placeholders between global and columns", () => {
+    const result = parseMarkdown(`## Slide
+
+:::figma
+link=https://www.figma.com/file/outside/Name?node-id=1-2
+:::
+
+:::columns
+:::column
+:::figma
+link=https://www.figma.com/file/inside/Name?node-id=3-4
+:::
+:::column
+Regular text.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(3); // heading + figma + columns
+
+    expect(blocks[1].kind).toBe("figma");
+    if (blocks[1].kind === "figma") {
+      expect(blocks[1].link.fileKey).toBe("outside");
+    }
+
+    expect(blocks[2].kind).toBe("columns");
+    if (blocks[2].kind === "columns") {
+      const leftColumn = blocks[2].columns[0];
+      expect(leftColumn[0].kind).toBe("figma");
+      if (leftColumn[0].kind === "figma") {
+        expect(leftColumn[0].link.fileKey).toBe("inside");
+      }
+    }
+  });
+});
+
+describe("Callout blocks", () => {
+  it("should parse :::note block", () => {
+    const result = parseMarkdown(`## Slide
+
+:::note
+This is a note.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(2); // heading + callout
+    expect(blocks[1].kind).toBe("callout");
+    if (blocks[1].kind === "callout") {
+      expect(blocks[1].type).toBe("note");
+      expect(blocks[1].text).toBe("This is a note.");
+    }
+  });
+
+  it("should parse :::tip block", () => {
+    const result = parseMarkdown(`## Slide
+
+:::tip
+A helpful tip.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1].kind).toBe("callout");
+    if (blocks[1].kind === "callout") {
+      expect(blocks[1].type).toBe("tip");
+    }
+  });
+
+  it("should parse :::warning block", () => {
+    const result = parseMarkdown(`## Slide
+
+:::warning
+Be careful!
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1].kind).toBe("callout");
+    if (blocks[1].kind === "callout") {
+      expect(blocks[1].type).toBe("warning");
+    }
+  });
+
+  it("should parse :::caution block", () => {
+    const result = parseMarkdown(`## Slide
+
+:::caution
+This is irreversible.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1].kind).toBe("callout");
+    if (blocks[1].kind === "callout") {
+      expect(blocks[1].type).toBe("caution");
+    }
+  });
+
+  it("should preserve inline formatting in callout blocks", () => {
+    const result = parseMarkdown(`## Slide
+
+:::note
+This has **bold** and *italic* text.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(2);
+    expect(blocks[1].kind).toBe("callout");
+    if (blocks[1].kind === "callout") {
+      expect(blocks[1].spans).toBeDefined();
+      const spans = blocks[1].spans ?? [];
+      const boldSpan = spans.find((s) => s.bold);
+      const italicSpan = spans.find((s) => s.italic);
+      expect(boldSpan?.text).toBe("bold");
+      expect(italicSpan?.text).toBe("italic");
+    }
+  });
+
+  it("should parse multiple callout blocks in same slide", () => {
+    const result = parseMarkdown(`## Slide
+
+:::note
+A note.
+:::
+
+:::tip
+A tip.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(3); // heading + 2 callouts
+    expect(blocks[1].kind).toBe("callout");
+    expect(blocks[2].kind).toBe("callout");
+    if (blocks[1].kind === "callout" && blocks[2].kind === "callout") {
+      expect(blocks[1].type).toBe("note");
+      expect(blocks[2].type).toBe("tip");
+    }
+  });
+
+  it("should work with callout inside columns", () => {
+    const result = parseMarkdown(`## Slide
+
+:::columns
+:::column
+:::note
+Note in column.
+:::
+:::column
+Regular text.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(2); // heading + columns
+    expect(blocks[1].kind).toBe("columns");
+    if (blocks[1].kind === "columns") {
+      const leftColumn = blocks[1].columns[0];
+      expect(leftColumn[0].kind).toBe("callout");
+      if (leftColumn[0].kind === "callout") {
+        expect(leftColumn[0].type).toBe("note");
+      }
+    }
+  });
+
+  it("should not collide callout placeholders between global and columns", () => {
+    const result = parseMarkdown(`## Slide
+
+:::note
+Outside note.
+:::
+
+:::columns
+:::column
+:::tip
+Tip in column.
+:::
+:::column
+Regular text.
+:::`);
+
+    expect(result).toHaveLength(1);
+    const blocks = result[0].blocks;
+    expect(blocks).toHaveLength(3); // heading + callout + columns
+
+    expect(blocks[1].kind).toBe("callout");
+    if (blocks[1].kind === "callout") {
+      expect(blocks[1].type).toBe("note");
+      expect(blocks[1].text).toBe("Outside note.");
+    }
+
+    expect(blocks[2].kind).toBe("columns");
+    if (blocks[2].kind === "columns") {
+      const leftColumn = blocks[2].columns[0];
+      expect(leftColumn[0].kind).toBe("callout");
+      if (leftColumn[0].kind === "callout") {
+        expect(leftColumn[0].type).toBe("tip");
+        expect(leftColumn[0].text).toBe("Tip in column.");
+      }
+    }
+  });
 });

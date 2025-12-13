@@ -26,12 +26,18 @@ figdeck your-slides.md
 figdeck serve your-slides.md
 ```
 
+> [!NOTE]
+> The server binds to `127.0.0.1` (localhost only) by default. Use `--allow-remote` to accept external connections.
+
 Options:
 - `--host <host>` - Host to bind (default: 127.0.0.1)
 - `--port <port>` - Port to bind (default: 4141)
 - `--no-watch` - Disable file watching
 - `--allow-remote` - Allow non-loopback hosts
 - `--secret <secret>` - Authentication secret
+
+> [!WARNING]
+> When using `--allow-remote`, port `4141` is exposed to your network. Use `--secret` for authentication.
 
 ### build (JSON output)
 

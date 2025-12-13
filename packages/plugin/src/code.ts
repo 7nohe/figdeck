@@ -1,5 +1,6 @@
 import type {
   BulletItem,
+  CalloutType,
   ColumnsBlock,
   FigmaSelectionLink,
   HorizontalAlign,
@@ -18,8 +19,10 @@ import {
   TRANSITION_STYLE_TO_FIGMA,
 } from "@figdeck/shared";
 import {
+  type AlertType,
   renderBlockquote,
   renderBulletList,
+  renderCallout,
   renderCodeBlock,
   renderFigmaLink,
   renderFootnotes,
@@ -69,6 +72,19 @@ function computeSlideHash(slide: SlideContent): string {
 
 // Default spacing between prefix component and title text
 const DEFAULT_PREFIX_SPACING = 16;
+
+/**
+ * Map CLI's CalloutType (lowercase) to Plugin's AlertType (uppercase)
+ */
+function calloutTypeToAlertType(type: CalloutType): AlertType {
+  const mapping: Record<CalloutType, AlertType> = {
+    note: "NOTE",
+    tip: "TIP",
+    warning: "WARNING",
+    caution: "CAUTION",
+  };
+  return mapping[type];
+}
 
 // Back-pressure: track in-flight generateSlides and pending payload
 let isGenerating = false;
@@ -320,8 +336,24 @@ async function renderBlockItemToNode(
     }
 
     case "blockquote": {
+      const spans = block.spans || [{ text: block.text }];
       const node = await renderBlockquote(
-        block.spans || [{ text: block.text }],
+        spans,
+        styles.paragraph.fontSize,
+        styles.paragraph.fills,
+        0,
+        0,
+        styles.paragraph.font,
+        codeFont,
+      );
+      return node;
+    }
+
+    case "callout": {
+      const spans = block.spans || [{ text: block.text }];
+      const alertType = calloutTypeToAlertType(block.type);
+      const node = await renderCallout(
+        { type: alertType, bodySpans: spans },
         styles.paragraph.fontSize,
         styles.paragraph.fills,
         0,

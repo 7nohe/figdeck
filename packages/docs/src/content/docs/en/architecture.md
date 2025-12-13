@@ -41,6 +41,10 @@ For one-time generation or when you can't use WebSocket:
 3. **Import JSON**: Use the "Import JSON" tab to paste or select the JSON file
 4. **Generate**: Click to create slides
 
+:::tip
+JSON Import mode works in the browser version of Figma and is useful for offline or CI/CD scenarios.
+:::
+
 **Benefits:**
 - Works without CLI running
 - Can share JSON files with others

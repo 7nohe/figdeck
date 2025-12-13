@@ -169,8 +169,13 @@ Options:
   --host <host>      WebSocket ホスト (default: "localhost")
   -p, --port <port>  WebSocket ポート (default: "4141")
   --no-watch         ファイル変更の監視を無効化（デフォルトは有効）
+  --allow-remote     非ローカルホストからの接続を許可
+  --secret <secret>  リモート接続の認証シークレット
   -h, --help         ヘルプ表示
 ```
+
+> [!WARNING]
+> `--allow-remote` を使用すると、ポート `4141` がネットワークに公開されます。`--secret` を使用して認証を有効にしてください。
 
 ## プロジェクト構成
 

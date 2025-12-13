@@ -14,6 +14,10 @@ Figma Community から figdeck プラグインをインストールします：
 
 ## プラグインの使い方
 
+:::caution
+プラグインには **Figma Desktop アプリ** が必要です。ブラウザ版では CLI への WebSocket 接続ができません。
+:::
+
 ### 1. サンプルスライドを作成
 
 まず、`init` コマンドでサンプルの Markdown ファイルを生成します：
@@ -94,6 +98,10 @@ Authentication secret: abc123xyz...
 1. **Figma Slides ドキュメントを確認**: 通常の Figma ファイルではなく、Figma Slides ドキュメントで実行しているか確認
 2. **プラグインコンソールを確認**: エラーメッセージを確認するためプラグインコンソールを開く（Figma → Plugins → Development → Open Console）
 3. **Markdown ファイルを確認**: Markdown ファイルが有効で、スライド区切り（`---`）が含まれているか確認
+
+:::tip
+プラグイン更新後は、プラグインウィンドウを閉じて再度開くことで最新版が適用されます。
+:::
 
 ### 接続タイムアウト
 

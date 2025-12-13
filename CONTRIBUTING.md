@@ -53,6 +53,37 @@ bun run packages/cli/dist/index.js build examples/sample.md -o out.json
 4. Ensure build passes (`bun run build`)
 5. Open a PR
 
+## Documentation Style
+
+### GitHub Alerts
+
+Use [GitHub Alerts](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) for important callouts in documentation.
+
+**Allowed types:**
+
+| Type | Use case |
+|------|----------|
+| `NOTE` | Helpful information, tips |
+| `TIP` | Best practices, recommendations |
+| `IMPORTANT` | Key information users should know |
+| `WARNING` | Potential issues, deprecated features |
+| `CAUTION` | Destructive actions, security concerns |
+
+**Syntax:**
+
+```markdown
+> [!NOTE]
+> Helpful information that users should know.
+```
+
+**Authoring rules:**
+
+- Keep alert body ≤2 sentences; start with an action or outcome ("Ensure …", "Use …")
+- Do not nest alerts inside lists; place directly before/after the relevant paragraph
+- Use code formatting for commands/ports (`bun run build`, `4141`)
+- Avoid stacking multiple alerts consecutively
+- Localize alerts one-to-one between `en/` and `ja/` docs
+
 ---
 
 # Releasing

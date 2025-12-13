@@ -233,6 +233,11 @@ export interface SlideTransitionConfig {
 }
 
 /**
+ * Callout/alert types for :::note, :::tip, :::warning, :::caution blocks
+ */
+export type CalloutType = "note" | "tip" | "warning" | "caution";
+
+/**
  * Figma selection link extracted from :::figma block
  */
 export interface FigmaSelectionLink {
@@ -292,7 +297,8 @@ export type SlideBlockItem =
       align?: TableAlignment[];
     }
   | { kind: "figma"; link: FigmaSelectionLink }
-  | { kind: "footnotes"; items: FootnoteItem[] };
+  | { kind: "footnotes"; items: FootnoteItem[] }
+  | { kind: "callout"; type: CalloutType; text: string; spans?: TextSpan[] };
 
 /**
  * Column layout block for multi-column slide layouts (2-4 columns)

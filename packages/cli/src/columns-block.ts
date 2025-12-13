@@ -197,13 +197,34 @@ export function extractColumnsBlocks(markdown: string): {
       const blockLines: string[] = [];
       i++; // Move past :::columns
 
-      // Collect all lines until we find a standalone ::: (not :::column or :::columns)
+      // Collect all lines until we find a standalone ::: (not another directive)
+      // Track nesting depth for nested directive blocks (figma, note, tip, warning, caution)
+      let nestedDepth = 0;
       while (i < lines.length) {
         const currentLine = lines[i];
-        // Check for closing ::: (standalone, not followed by column/columns)
-        if (/^:::(?!\s*column)/.test(currentLine.trim())) {
+        const trimmedLine = currentLine.trim();
+
+        // Check for opening nested directive blocks
+        if (/^:::(figma|note|tip|warning|caution)\s*$/.test(trimmedLine)) {
+          nestedDepth++;
+          blockLines.push(currentLine);
+          i++;
+          continue;
+        }
+
+        // Check for closing ::: - could be for nested block or columns
+        if (/^:::(?!\s*column)/.test(trimmedLine)) {
+          if (nestedDepth > 0) {
+            // This closes a nested directive, not the columns block
+            nestedDepth--;
+            blockLines.push(currentLine);
+            i++;
+            continue;
+          }
+          // This is the actual closing ::: for columns
           break;
         }
+
         blockLines.push(currentLine);
         i++;
       }

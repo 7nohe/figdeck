@@ -116,6 +116,26 @@ y=300
     expect(figmaBlocks[0].link.y).toBe(300);
   });
 
+  it("should support startIndex option", () => {
+    const markdown = `:::figma
+link=https://www.figma.com/file/a/A?node-id=1-1
+:::
+
+:::figma
+link=https://www.figma.com/file/b/B?node-id=2-2
+:::`;
+
+    const { processedMarkdown, figmaBlocks } = extractFigmaBlocks(markdown, {
+      startIndex: 7,
+    });
+
+    expect(figmaBlocks).toHaveLength(2);
+    expect(figmaBlocks[0].id).toBe("FIGDECK_FIGMA_BLOCK_7_PLACEHOLDER");
+    expect(figmaBlocks[1].id).toBe("FIGDECK_FIGMA_BLOCK_8_PLACEHOLDER");
+    expect(processedMarkdown).toContain("FIGDECK_FIGMA_BLOCK_7_PLACEHOLDER");
+    expect(processedMarkdown).toContain("FIGDECK_FIGMA_BLOCK_8_PLACEHOLDER");
+  });
+
   it("should continue parsing properties after blank lines", () => {
     const markdown = `:::figma
 link=https://www.figma.com/file/abc/Name?node-id=1-2

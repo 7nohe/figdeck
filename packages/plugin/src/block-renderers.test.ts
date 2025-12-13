@@ -109,7 +109,9 @@ beforeEach(() => {
 
 // Now import the modules
 import {
+  parseGitHubAlert,
   renderBulletList,
+  renderCallout,
   renderCodeBlock,
   renderHeading,
   renderParagraph,
@@ -684,5 +686,192 @@ describe("renderCodeBlock", () => {
     );
 
     expect(result.node).toBeDefined();
+  });
+});
+
+describe("parseGitHubAlert", () => {
+  it("should parse NOTE alert", () => {
+    const spans = [{ text: "[!NOTE]\nThis is a note." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("NOTE");
+    expect(result?.bodySpans[0].text).toBe("This is a note.");
+  });
+
+  it("should parse TIP alert", () => {
+    const spans = [{ text: "[!TIP]\nThis is a tip." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("TIP");
+  });
+
+  it("should parse IMPORTANT alert", () => {
+    const spans = [{ text: "[!IMPORTANT]\nImportant info." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("IMPORTANT");
+  });
+
+  it("should parse WARNING alert", () => {
+    const spans = [{ text: "[!WARNING]\nWarning message." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("WARNING");
+  });
+
+  it("should parse CAUTION alert", () => {
+    const spans = [{ text: "[!CAUTION]\nCaution message." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("CAUTION");
+  });
+
+  it("should be case-insensitive", () => {
+    const spans = [{ text: "[!note]\nLowercase note." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("NOTE");
+  });
+
+  it("should return null for non-alert blockquote", () => {
+    const spans = [{ text: "This is a regular quote." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).toBeNull();
+  });
+
+  it("should return null for empty spans", () => {
+    const result = parseGitHubAlert([]);
+
+    expect(result).toBeNull();
+  });
+
+  it("should strip marker from body spans", () => {
+    const spans = [
+      { text: "[!NOTE] " },
+      { text: "Bold text", bold: true },
+      { text: " normal" },
+    ];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("NOTE");
+    // Marker should be stripped, formatting preserved
+    expect(result?.bodySpans.some((s) => s.bold === true)).toBe(true);
+  });
+
+  it("should handle marker with leading whitespace", () => {
+    const spans = [{ text: "  [!TIP]\nTip content." }];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.type).toBe("TIP");
+  });
+
+  it("should preserve formatting in body spans", () => {
+    const spans = [
+      { text: "[!WARNING]\n" },
+      { text: "Important ", bold: true },
+      { text: "link", href: "https://example.com" },
+    ];
+    const result = parseGitHubAlert(spans);
+
+    expect(result).not.toBeNull();
+    expect(result?.bodySpans.some((s) => s.bold)).toBe(true);
+    expect(
+      result?.bodySpans.some((s) => s.href === "https://example.com"),
+    ).toBe(true);
+  });
+});
+
+describe("renderCallout", () => {
+  it("should render NOTE callout", async () => {
+    const alert = {
+      type: "NOTE" as const,
+      bodySpans: [{ text: "This is a note." }],
+    };
+
+    const result = await renderCallout(alert, 16);
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe("Callout (NOTE)");
+    expect(result.type).toBe("FRAME");
+  });
+
+  it("should render WARNING callout", async () => {
+    const alert = {
+      type: "WARNING" as const,
+      bodySpans: [{ text: "Warning message." }],
+    };
+
+    const result = await renderCallout(alert, 16);
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe("Callout (WARNING)");
+  });
+
+  it("should render CAUTION callout", async () => {
+    const alert = {
+      type: "CAUTION" as const,
+      bodySpans: [{ text: "Dangerous action." }],
+    };
+
+    const result = await renderCallout(alert, 16);
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe("Callout (CAUTION)");
+  });
+
+  it("should position callout at specified coordinates", async () => {
+    const alert = {
+      type: "TIP" as const,
+      bodySpans: [{ text: "Tip content." }],
+    };
+
+    const result = await renderCallout(alert, 16, undefined, 100, 200);
+
+    expect(result.x).toBe(100);
+    expect(result.y).toBe(200);
+  });
+
+  it("should render callout with empty body", async () => {
+    const alert = {
+      type: "IMPORTANT" as const,
+      bodySpans: [],
+    };
+
+    const result = await renderCallout(alert, 16);
+
+    expect(result).toBeDefined();
+    expect(result.name).toBe("Callout (IMPORTANT)");
+  });
+
+  it("should apply horizontal layout", async () => {
+    const alert = {
+      type: "NOTE" as const,
+      bodySpans: [{ text: "Content" }],
+    };
+
+    const result = await renderCallout(alert, 16);
+
+    expect(result.layoutMode).toBe("HORIZONTAL");
+  });
+
+  it("should create accent bar and content frame", async () => {
+    const alert = {
+      type: "TIP" as const,
+      bodySpans: [{ text: "Tip" }],
+    };
+
+    const result = await renderCallout(alert, 16);
+
+    // Should have accent bar and content frame as children
+    expect(result.children.length).toBe(2);
   });
 });

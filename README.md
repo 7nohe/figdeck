@@ -200,8 +200,13 @@ Options:
   --host <host>      WebSocket host (default: "localhost")
   -p, --port <port>  WebSocket port (default: "4141")
   --no-watch         Disable file watching (enabled by default)
+  --allow-remote     Allow connections from non-loopback hosts
+  --secret <secret>  Authentication secret for remote connections
   -h, --help         Show help
 ```
+
+> [!WARNING]
+> When using `--allow-remote`, port `4141` is exposed to your network. Use `--secret` to require authentication.
 
 ## Project Structure
 

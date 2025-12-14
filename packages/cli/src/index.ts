@@ -1,9 +1,21 @@
-import { existsSync, readFileSync, watchFile, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  watchFile,
+  writeFileSync,
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import { parseMarkdown } from "./markdown.js";
-import { getInitTemplate } from "./templates.js";
+import {
+  getAgentsTemplate,
+  getClaudeTemplate,
+  getCopilotTemplate,
+  getCursorTemplate,
+  getInitTemplate,
+} from "./templates.js";
 import { generateSecret, isLoopbackHost, startServer } from "./ws-server.js";
 
 // Debounce delay for file watch (ms)
@@ -22,33 +34,173 @@ program
   .description("Convert Markdown to Figma Slides")
   .version(CLI_VERSION);
 
-// init: create template slides.md
+// Valid AI rules targets
+const AI_RULES_TARGETS = ["agents", "claude", "cursor", "copilot"] as const;
+type AiRulesTarget = (typeof AI_RULES_TARGETS)[number];
+
+type FileToWrite = {
+  absPath: string;
+  content: string;
+  displayPath: string;
+};
+
+const AI_RULES_FILES: Record<
+  AiRulesTarget,
+  {
+    displayPath: string;
+    pathParts: string[];
+    template: () => string;
+  }
+> = {
+  agents: {
+    displayPath: "AGENTS.md",
+    pathParts: ["AGENTS.md"],
+    template: getAgentsTemplate,
+  },
+  claude: {
+    displayPath: ".claude/rules/figdeck.md",
+    pathParts: [".claude", "rules", "figdeck.md"],
+    template: getClaudeTemplate,
+  },
+  cursor: {
+    displayPath: ".cursor/rules/figdeck.mdc",
+    pathParts: [".cursor", "rules", "figdeck.mdc"],
+    template: getCursorTemplate,
+  },
+  copilot: {
+    displayPath: ".github/instructions/figdeck.instructions.md",
+    pathParts: [".github", "instructions", "figdeck.instructions.md"],
+    template: getCopilotTemplate,
+  },
+};
+
+function parseAiRulesTargets(
+  aiRules: boolean | string | undefined,
+): { targets: AiRulesTarget[]; invalidTargets: string[] } {
+  if (aiRules === true || aiRules === "all") {
+    return { targets: [...AI_RULES_TARGETS], invalidTargets: [] };
+  }
+  if (typeof aiRules !== "string") {
+    return { targets: [], invalidTargets: [] };
+  }
+
+  const raw = aiRules
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const invalidTargets = raw.filter(
+    (t) => !AI_RULES_TARGETS.includes(t as AiRulesTarget),
+  );
+  if (invalidTargets.length) {
+    return { targets: [], invalidTargets };
+  }
+
+  const targets = Array.from(new Set(raw)) as AiRulesTarget[];
+  return { targets, invalidTargets: [] };
+}
+
+// init: create template slides.md and optional AI rules files
 program
   .command("init")
-  .description("Create a template slides.md file")
+  .description("Create a template slides.md file and optional AI agent rules")
   .option("-o, --out <path>", "Output file path", "slides.md")
-  .option("-f, --force", "Overwrite existing file")
-  .action((options: { out: string; force?: boolean }) => {
-    try {
-      const outputPath = resolve(options.out);
+  .option("-f, --force", "Overwrite existing files")
+  .option(
+    "--ai-rules [targets]",
+    "Generate AI agent rules (agents,claude,cursor,copilot or all)",
+  )
+  .option("--no-slides", "Skip generating slides.md")
+  .action(
+    (options: {
+      out: string;
+      force?: boolean;
+      aiRules?: boolean | string;
+      slides: boolean;
+    }) => {
+      try {
+        const outputPath = resolve(options.out);
+        const outputDir = dirname(outputPath);
+        const slidesPath = options.out;
 
-      if (!options.force && existsSync(outputPath)) {
-        console.error(`Error: File already exists: ${options.out}`);
-        console.error("Use --force to overwrite.");
+        // Parse --ai-rules targets
+        const { targets, invalidTargets } = parseAiRulesTargets(options.aiRules);
+        if (invalidTargets.length) {
+          console.error(
+            `Error: Invalid --ai-rules targets: ${invalidTargets.join(", ")}`,
+          );
+          console.error(`Valid targets: ${AI_RULES_TARGETS.join(", ")}, all`);
+          process.exit(1);
+        }
+
+        // Format template by replacing {{slidesPath}} placeholder
+        const format = (content: string) =>
+          content.replaceAll("{{slidesPath}}", slidesPath);
+
+        // Build list of files to write
+        const filesToWrite: FileToWrite[] = [];
+
+        if (options.slides !== false) {
+          filesToWrite.push({
+            absPath: outputPath,
+            content: getInitTemplate(),
+            displayPath: options.out,
+          });
+        }
+        for (const target of targets) {
+          const file = AI_RULES_FILES[target];
+          filesToWrite.push({
+            absPath: join(outputDir, ...file.pathParts),
+            content: format(file.template()),
+            displayPath: file.displayPath,
+          });
+        }
+
+        if (filesToWrite.length === 0) {
+          console.error("Error: No files to generate.");
+          console.error(
+            "Use --ai-rules to generate AI agent rules, or remove --no-slides.",
+          );
+          process.exit(1);
+        }
+
+        // Check for existing files
+        const existing = filesToWrite.filter((f) => existsSync(f.absPath));
+        if (existing.length && !options.force) {
+          console.error("Error: The following files already exist:");
+          for (const f of existing) {
+            console.error(`  - ${f.displayPath}`);
+          }
+          console.error("\nTo resolve:");
+          console.error("  - Use --force to overwrite existing files");
+          if (existing.some((f) => f.displayPath === options.out)) {
+            console.error("  - Use --no-slides to skip slides.md generation");
+          }
+          process.exit(1);
+        }
+
+        // Create necessary directories
+        for (const f of filesToWrite) {
+          mkdirSync(dirname(f.absPath), { recursive: true });
+        }
+
+        // Write all files
+        for (const f of filesToWrite) {
+          writeFileSync(f.absPath, f.content, "utf-8");
+          console.log(`Created ${f.displayPath}`);
+        }
+
+        // Show next steps if slides.md was generated
+        if (options.slides !== false) {
+          console.log(`\nNext steps:`);
+          console.log(`  1. Run: figdeck serve ${options.out}`);
+          console.log(`  2. Connect the Figma plugin to generate slides`);
+        }
+      } catch (error) {
+        console.error("Error:", (error as Error).message);
         process.exit(1);
       }
-
-      const template = getInitTemplate();
-      writeFileSync(outputPath, template, "utf-8");
-      console.log(`Created ${options.out}`);
-      console.log(`\nNext steps:`);
-      console.log(`  1. Run: figdeck serve ${options.out}`);
-      console.log(`  2. Connect the Figma plugin to generate slides`);
-    } catch (error) {
-      console.error("Error:", (error as Error).message);
-      process.exit(1);
-    }
-  });
+    },
+  );
 
 // build: one-shot parse and output JSON
 program

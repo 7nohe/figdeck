@@ -8,7 +8,7 @@ title: API Reference
 
 #### `init` - Create Template
 
-Creates a template `slides.md` with examples of all supported Markdown syntax.
+Creates a template `slides.md` with examples of all supported Markdown syntax. Optionally generates AI agent rule files for various coding assistants.
 
 ```bash
 figdeck init [options]
@@ -17,8 +17,19 @@ figdeck init [options]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `-o, --out <path>` | Output file path | `slides.md` |
-| `-f, --force` | Overwrite existing file | - |
+| `-f, --force` | Overwrite existing files | - |
+| `--ai-rules [targets]` | Generate AI agent rules (agents,claude,cursor,copilot or all) | - |
+| `--no-slides` | Skip generating slides.md | - |
 | `-h, --help` | Show help | - |
+
+**AI Rules Targets:**
+
+| Target | Generated File | Tool |
+|--------|----------------|------|
+| `agents` | `AGENTS.md` | Codex CLI, Cursor (AGENTS.md) |
+| `claude` | `.claude/rules/figdeck.md` | Claude Code |
+| `cursor` | `.cursor/rules/figdeck.mdc` | Cursor |
+| `copilot` | `.github/instructions/figdeck.instructions.md` | GitHub Copilot |
 
 **Examples:**
 
@@ -29,8 +40,17 @@ figdeck init
 # Create with custom filename
 figdeck init -o presentation.md
 
-# Overwrite existing file
+# Overwrite existing files
 figdeck init --force
+
+# Generate all AI agent rules
+figdeck init --ai-rules all
+
+# Generate specific rules only
+figdeck init --ai-rules claude,cursor
+
+# Add rules to existing project (keep existing slides.md)
+figdeck init --ai-rules all --no-slides
 ```
 
 #### `build` - JSON Output

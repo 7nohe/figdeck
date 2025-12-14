@@ -150,6 +150,42 @@ color: "#ffffff"
 
 ## CLI コマンド
 
+### `init` - テンプレート作成
+
+```bash
+figdeck init [options]
+
+Options:
+  -o, --out <path>       出力ファイルパス (default: "slides.md")
+  -f, --force            既存ファイルを上書き
+  --ai-rules [targets]   AI エージェントルールを生成 (agents,claude,cursor,copilot または all)
+  --no-slides            slides.md の生成をスキップ
+  -h, --help             ヘルプ表示
+```
+
+サポートされている全ての Markdown 記法の例を含む `slides.md` テンプレートを作成します。
+
+オプションで AI エージェントルールファイルを生成できます：
+
+```bash
+# 全ての AI エージェントルールを生成
+figdeck init --ai-rules all
+
+# 特定のルールのみ生成
+figdeck init --ai-rules claude,cursor
+
+# 既存プロジェクトにルールを追加（slides.md はそのまま）
+figdeck init --ai-rules all --no-slides
+```
+
+生成されるファイル：
+| ターゲット | ファイル | 対象ツール |
+|------------|----------|------------|
+| `agents` | `AGENTS.md` | Codex CLI, Cursor (AGENTS.md) |
+| `claude` | `.claude/rules/figdeck.md` | Claude Code |
+| `cursor` | `.cursor/rules/figdeck.mdc` | Cursor |
+| `copilot` | `.github/instructions/figdeck.instructions.md` | GitHub Copilot |
+
 ### `build` - JSON 出力
 
 ```bash

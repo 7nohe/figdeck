@@ -1,0 +1,6 @@
+# AGENTS.md
+
+This repository is a **figdeck (Markdown → Figma Slides)** slide deck.
+AI agents should edit `{{slidesPath}}` using **only Markdown syntax that figdeck supports**.
+
+{{aiRulesBody}}

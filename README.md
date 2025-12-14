@@ -174,12 +174,35 @@ Per-slide frontmatter > Global frontmatter
 figdeck init [options]
 
 Options:
-  -o, --out <path>  Output file path (default: "slides.md")
-  -f, --force       Overwrite existing file
-  -h, --help        Show help
+  -o, --out <path>       Output file path (default: "slides.md")
+  -f, --force            Overwrite existing files
+  --ai-rules [targets]   Generate AI agent rules (agents,claude,cursor,copilot or all)
+  --no-slides            Skip generating slides.md
+  -h, --help             Show help
 ```
 
 Creates a template `slides.md` with examples of all supported Markdown syntax.
+
+Optionally generate AI agent rule files with `--ai-rules`:
+
+```bash
+# Generate all AI agent rules
+figdeck init --ai-rules all
+
+# Generate specific rules only
+figdeck init --ai-rules claude,cursor
+
+# Add rules to existing project (keep existing slides.md)
+figdeck init --ai-rules all --no-slides
+```
+
+Generated files:
+| Target | File | Tool |
+|--------|------|------|
+| `agents` | `AGENTS.md` | Codex CLI, Cursor (AGENTS.md) |
+| `claude` | `.claude/rules/figdeck.md` | Claude Code |
+| `cursor` | `.cursor/rules/figdeck.mdc` | Cursor |
+| `copilot` | `.github/instructions/figdeck.instructions.md` | GitHub Copilot |
 
 ### `build` - JSON Output
 

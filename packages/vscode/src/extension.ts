@@ -30,14 +30,17 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Create diagnostics manager
   const config = vscode.workspace.getConfiguration("figdeck.diagnostics");
-  diagnosticsManager = new DiagnosticsManager((document, basePath) => {
-    const imagesConfig = vscode.workspace.getConfiguration("figdeck.images");
-    const maxSizeMb = imagesConfig.get<number>("maxSizeMb", 5);
-    return analyzeDocument(document, basePath, { images: { maxSizeMb } });
-  }, {
-    debounceMs: config.get("debounceMs", 300),
-    enabled: config.get("enabled", true),
-  });
+  diagnosticsManager = new DiagnosticsManager(
+    (document, basePath) => {
+      const imagesConfig = vscode.workspace.getConfiguration("figdeck.images");
+      const maxSizeMb = imagesConfig.get<number>("maxSizeMb", 5);
+      return analyzeDocument(document, basePath, { images: { maxSizeMb } });
+    },
+    {
+      debounceMs: config.get("debounceMs", 300),
+      enabled: config.get("enabled", true),
+    },
+  );
 
   // Create server manager
   serverManager = new ServerManager(outputChannel);

@@ -468,8 +468,9 @@ function isContentLine(line: string): boolean {
 
 /**
  * Extract frontmatter blocks from lines (both explicit and implicit)
+ * @internal Exported for use by analyzer
  */
-function extractFrontmatterBlocks(
+export function extractFrontmatterBlocks(
   lines: string[],
 ): Array<{ startLine: number; endLine: number; content: string }> {
   const blocks: Array<{

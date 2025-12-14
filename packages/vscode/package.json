@@ -116,6 +116,26 @@
           "default": 4141,
           "description": "Port for figdeck serve command"
         },
+        "figdeck.serve.allowRemote": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow remote connections to the server (required for non-loopback hosts)"
+        },
+        "figdeck.serve.secret": {
+          "type": "string",
+          "default": "",
+          "description": "Secret for authentication handshake (auto-generated if not set for remote connections)"
+        },
+        "figdeck.serve.noAuth": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable authentication (not recommended for remote connections)"
+        },
+        "figdeck.serve.noWatch": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable file watching (auto-reload on file changes)"
+        },
         "figdeck.diagnostics.enabled": {
           "type": "boolean",
           "default": true,

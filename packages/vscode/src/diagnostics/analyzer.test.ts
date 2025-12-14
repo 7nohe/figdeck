@@ -757,9 +757,9 @@ describe("analyzeImages", () => {
       documentUri as unknown as vscode.Uri,
     );
 
-    expect(issues.some((issue) => issue.code === "image-unsupported-format")).toBe(
-      true,
-    );
+    expect(
+      issues.some((issue) => issue.code === "image-unsupported-format"),
+    ).toBe(true);
   });
 
   it("warns when a local image exceeds the size limit", async () => {
@@ -767,9 +767,14 @@ describe("analyzeImages", () => {
     const documentPath = path.join(basePath, "docs", "slides.md");
     const documentUri = makeFileUri(documentPath);
 
-    const expectedPath = path.resolve(path.dirname(documentPath), "images/big.png");
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/big.png",
+    );
 
-    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
       if (String(filePath) === expectedPath) {
         return {
           size: 6 * 1024 * 1024,
@@ -799,7 +804,9 @@ describe("analyzeImages", () => {
       "images/big file.png",
     );
 
-    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
       if (String(filePath) === expectedPath) {
         return {
           size: 6 * 1024 * 1024,
@@ -824,9 +831,14 @@ describe("analyzeImages", () => {
     const documentPath = path.join(basePath, "docs", "slides.md");
     const documentUri = makeFileUri(documentPath);
 
-    const expectedPath = path.resolve(path.dirname(documentPath), "images/medium.png");
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/medium.png",
+    );
 
-    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
       if (String(filePath) === expectedPath) {
         return {
           size: 2 * 1024 * 1024,
@@ -864,7 +876,9 @@ describe("analyzeImages", () => {
     );
 
     expect(statSpy).not.toHaveBeenCalled();
-    expect(issues.some((issue) => issue.code === "image-too-large")).toBe(false);
+    expect(issues.some((issue) => issue.code === "image-too-large")).toBe(
+      false,
+    );
   });
 
   it("caches file stats across calls (within TTL)", async () => {
@@ -872,9 +886,14 @@ describe("analyzeImages", () => {
     const documentPath = path.join(basePath, "docs", "slides.md");
     const documentUri = makeFileUri(documentPath);
 
-    const expectedPath = path.resolve(path.dirname(documentPath), "images/cached.png");
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/cached.png",
+    );
 
-    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
       if (String(filePath) === expectedPath) {
         return {
           size: 2 * 1024 * 1024,
@@ -916,9 +935,14 @@ describe("analyzeDocument", () => {
     const documentPath = path.join(basePath, "docs", "slides.md");
     const documentUri = makeFileUri(documentPath);
 
-    const expectedPath = path.resolve(path.dirname(documentPath), "images/medium.png");
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/medium.png",
+    );
 
-    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
       if (String(filePath) === expectedPath) {
         return {
           size: 2 * 1024 * 1024,
@@ -938,8 +962,8 @@ describe("analyzeDocument", () => {
     });
 
     expect(statSpy).toHaveBeenCalledWith(expectedPath);
-    expect(result.issues.some((issue) => issue.code === "image-too-large")).toBe(
-      true,
-    );
+    expect(
+      result.issues.some((issue) => issue.code === "image-too-large"),
+    ).toBe(true);
   });
 });

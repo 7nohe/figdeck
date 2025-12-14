@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import type { CliDetectionResult } from "./cli-runner";
+
 export type { CliDetectionResult, RunCliOptions } from "./cli-runner";
 export { runCli } from "./cli-runner";
 

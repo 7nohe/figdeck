@@ -76,6 +76,10 @@ export class ServerManager implements vscode.Disposable {
     const config = vscode.workspace.getConfiguration("figdeck.serve");
     const host = config.get<string>("host", "127.0.0.1");
     const port = config.get<number>("port", 4141);
+    const allowRemote = config.get<boolean>("allowRemote", false);
+    const secret = config.get<string>("secret", "");
+    const noAuth = config.get<boolean>("noAuth", false);
+    const noWatch = config.get<boolean>("noWatch", false);
 
     this.setState("starting");
     this.currentFile = file;
@@ -87,6 +91,24 @@ export class ServerManager implements vscode.Disposable {
 
     try {
       const args = ["serve", file, "--host", host, "--port", String(port)];
+
+      // Add optional flags based on config
+      if (allowRemote) {
+        args.push("--allow-remote");
+        this.outputChannel.appendLine(`[figdeck] Remote access enabled`);
+      }
+      if (secret) {
+        args.push("--secret", secret);
+        this.outputChannel.appendLine(`[figdeck] Authentication enabled`);
+      }
+      if (noAuth) {
+        args.push("--no-auth");
+        this.outputChannel.appendLine(`[figdeck] Authentication disabled`);
+      }
+      if (noWatch) {
+        args.push("--no-watch");
+        this.outputChannel.appendLine(`[figdeck] File watching disabled`);
+      }
 
       this.process = await runCli(cliResult, {
         args,
@@ -100,6 +122,26 @@ export class ServerManager implements vscode.Disposable {
         },
         onStderr: (data) => {
           this.outputChannel.append(`[stderr] ${data}`);
+          // Check for common errors
+          if (
+            data.includes("EADDRINUSE") ||
+            data.includes("address already in use")
+          ) {
+            this.setState("error");
+            vscode.window
+              .showErrorMessage(
+                `Port ${port} is already in use. Change the port in settings or stop the other process.`,
+                "Open Settings",
+              )
+              .then((selection) => {
+                if (selection === "Open Settings") {
+                  vscode.commands.executeCommand(
+                    "workbench.action.openSettings",
+                    "figdeck.serve.port",
+                  );
+                }
+              });
+          }
         },
         onExit: (code) => {
           this.outputChannel.appendLine(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { runCli, type CliDetectionResult } from "./cli-runner";
+import { type CliDetectionResult, runCli } from "./cli-runner";
 
 describe("runCli", () => {
   it("streams stdout/stderr and reports exit code", async () => {
@@ -63,4 +63,3 @@ describe("runCli", () => {
     expect(caught?.message).toContain("Failed to spawn figdeck CLI");
   });
 });
-

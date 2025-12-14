@@ -1,7 +1,11 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type * as vscode from "vscode";
-import { validateFrontmatter } from "./frontmatterValidator";
+import { parse as parseYaml } from "yaml";
+import {
+  extractFrontmatterBlocks,
+  validateFrontmatter,
+} from "./frontmatterValidator";
 import type { AnalysisResult, Issue } from "./types";
 
 type CachedFileStat = {
@@ -14,7 +18,10 @@ const DEFAULT_MAX_IMAGE_SIZE_MB = 5;
 
 const STAT_CACHE_TTL_MS = 2000;
 const STAT_CACHE_MAX_ENTRIES = 2000;
-const statCache = new Map<string, { expiresAt: number; stat: CachedFileStat }>();
+const statCache = new Map<
+  string,
+  { expiresAt: number; stat: CachedFileStat }
+>();
 
 export function clearImageDiagnosticsCache(): void {
   statCache.clear();
@@ -122,7 +129,17 @@ export async function analyzeDocument(
   // Run all analyzers
   issues.push(...analyzeFrontmatterStructure(lines));
   issues.push(...validateFrontmatter(lines));
-  issues.push(...(await analyzeImages(lines, basePath, document.uri, options?.images)));
+  issues.push(
+    ...(await analyzeBackgroundImages(
+      lines,
+      basePath,
+      document.uri,
+      options?.images,
+    )),
+  );
+  issues.push(
+    ...(await analyzeImages(lines, basePath, document.uri, options?.images)),
+  );
   issues.push(...analyzeFigmaBlocks(lines));
   issues.push(...analyzeColumnsBlocks(lines));
 
@@ -185,6 +202,144 @@ export function analyzeFrontmatterStructure(lines: string[]): Issue[] {
     ) {
       // Could be missing colon, but this is too noisy
       // Skip for now
+    }
+  }
+
+  return issues;
+}
+
+const SUPPORTED_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif"];
+
+/**
+ * Find the line number where a key appears in frontmatter content
+ */
+function findKeyLineInFrontmatter(
+  lines: string[],
+  startLine: number,
+  endLine: number,
+  key: string,
+): number {
+  const keyPattern = new RegExp(`^\\s*${key}\\s*:`);
+  for (let i = startLine; i <= endLine && i < lines.length; i++) {
+    if (keyPattern.test(lines[i])) {
+      return i;
+    }
+  }
+  return startLine;
+}
+
+/**
+ * Analyze backgroundImage references in frontmatter for issues
+ * @internal Exported for testing
+ */
+export async function analyzeBackgroundImages(
+  lines: string[],
+  basePath: string,
+  documentUri: vscode.Uri,
+  options?: AnalyzeImagesOptions,
+): Promise<Issue[]> {
+  const issues: Issue[] = [];
+  const maxSizeMb = resolveMaxSizeMb(options);
+  const blocks = extractFrontmatterBlocks(lines);
+
+  for (const block of blocks) {
+    if (!block.content.trim()) continue;
+
+    let parsed: unknown;
+    try {
+      parsed = parseYaml(block.content);
+    } catch {
+      continue; // YAML parse errors are handled by validateFrontmatter
+    }
+
+    if (typeof parsed !== "object" || parsed === null) continue;
+
+    const backgroundImage = (parsed as Record<string, unknown>).backgroundImage;
+    if (typeof backgroundImage !== "string" || !backgroundImage) continue;
+
+    const url = backgroundImage.trim();
+
+    // Skip remote URLs
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      continue;
+    }
+
+    const keyLine = findKeyLineInFrontmatter(
+      lines,
+      block.startLine,
+      block.endLine,
+      "backgroundImage",
+    );
+    const lineLength = lines[keyLine]?.length ?? 100;
+
+    // Check extension
+    const ext = url.toLowerCase().split(".").pop();
+    if (ext && !SUPPORTED_IMAGE_EXTENSIONS.includes(ext)) {
+      issues.push({
+        severity: "warning",
+        message: `Image format '${ext}' is not supported. Use PNG, JPEG, or GIF.`,
+        range: {
+          startLine: keyLine,
+          startColumn: 0,
+          endLine: keyLine,
+          endColumn: lineLength,
+        },
+        code: "background-image-unsupported-format",
+        data: { url, ext },
+      });
+    }
+
+    // Check file existence and size
+    const candidatePaths = toCandidatePaths(url, basePath, documentUri);
+    let fileFound = false;
+
+    for (const candidatePath of candidatePaths) {
+      const stat = await statWithCache(candidatePath);
+      if (!stat.exists || !stat.isFile) continue;
+
+      fileFound = true;
+
+      // Check file size
+      if (maxSizeMb) {
+        const maxSizeBytes = maxSizeMb * 1024 * 1024;
+        if (stat.size > maxSizeBytes) {
+          const sizeMb = stat.size / 1024 / 1024;
+          issues.push({
+            severity: "warning",
+            message: `Background image is ${sizeMb.toFixed(1)}MB (max ${maxSizeMb}MB). Consider compressing it.`,
+            range: {
+              startLine: keyLine,
+              startColumn: 0,
+              endLine: keyLine,
+              endColumn: lineLength,
+            },
+            code: "background-image-too-large",
+            data: {
+              url,
+              filePath: candidatePath,
+              sizeBytes: stat.size,
+              maxSizeMb,
+            },
+          });
+        }
+      }
+      break;
+    }
+
+    // Check if file exists
+    if (!fileFound && candidatePaths.length > 0) {
+      issues.push({
+        severity: "error",
+        message: `Background image not found: ${url}`,
+        range: {
+          startLine: keyLine,
+          startColumn: 0,
+          endLine: keyLine,
+          endColumn: lineLength,
+        },
+        code: "background-image-not-found",
+        data: { url },
+      });
     }
   }
 

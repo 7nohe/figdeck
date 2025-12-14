@@ -4,19 +4,62 @@ import type * as vscode from "vscode";
 import { validateFrontmatter } from "./frontmatterValidator";
 import type { AnalysisResult, Issue } from "./types";
 
-function getMaxImageSizeMb(): number | null {
-  let maxSizeMb = 5;
-  try {
-    const vscode = require("vscode") as typeof import("vscode");
-    maxSizeMb = vscode.workspace
-      .getConfiguration("figdeck.images")
-      .get<number>("maxSizeMb", 5);
-  } catch {
-    // Ignore when vscode module isn't available (e.g., unit tests)
+type CachedFileStat = {
+  exists: boolean;
+  isFile: boolean;
+  size: number;
+};
+
+const DEFAULT_MAX_IMAGE_SIZE_MB = 5;
+
+const STAT_CACHE_TTL_MS = 2000;
+const STAT_CACHE_MAX_ENTRIES = 2000;
+const statCache = new Map<string, { expiresAt: number; stat: CachedFileStat }>();
+
+export function clearImageDiagnosticsCache(): void {
+  statCache.clear();
+}
+
+async function statWithCache(filePath: string): Promise<CachedFileStat> {
+  const now = Date.now();
+  const cached = statCache.get(filePath);
+  if (cached && cached.expiresAt > now) {
+    return cached.stat;
   }
 
-  if (!Number.isFinite(maxSizeMb) || maxSizeMb <= 0) return null;
-  return maxSizeMb;
+  let stat: CachedFileStat;
+  try {
+    const fsStat = await fs.promises.stat(filePath);
+    stat = { exists: true, isFile: fsStat.isFile(), size: fsStat.size };
+  } catch {
+    stat = { exists: false, isFile: false, size: 0 };
+  }
+
+  if (statCache.size >= STAT_CACHE_MAX_ENTRIES) {
+    statCache.clear();
+  }
+
+  statCache.set(filePath, { expiresAt: now + STAT_CACHE_TTL_MS, stat });
+  return stat;
+}
+
+export interface AnalyzeImagesOptions {
+  maxSizeMb?: number | null;
+}
+
+export interface AnalyzeDocumentOptions {
+  images?: AnalyzeImagesOptions;
+}
+
+function resolveMaxSizeMb(options?: AnalyzeImagesOptions): number | null {
+  const hasOverride = options && Object.hasOwn(options, "maxSizeMb");
+  if (!hasOverride) return DEFAULT_MAX_IMAGE_SIZE_MB;
+
+  const value = options?.maxSizeMb;
+  if (value === undefined) return DEFAULT_MAX_IMAGE_SIZE_MB;
+  if (value === null) return null;
+  if (!Number.isFinite(value) || value <= 0) return null;
+  return value;
 }
 
 function parseImageDestination(raw: string): string {
@@ -67,10 +110,11 @@ function toCandidatePaths(
 /**
  * Analyze a figdeck markdown document for issues
  */
-export function analyzeDocument(
+export async function analyzeDocument(
   document: vscode.TextDocument,
   basePath: string,
-): AnalysisResult {
+  options?: AnalyzeDocumentOptions,
+): Promise<AnalysisResult> {
   const issues: Issue[] = [];
   const text = document.getText();
   const lines = text.split(/\r?\n/);
@@ -78,7 +122,7 @@ export function analyzeDocument(
   // Run all analyzers
   issues.push(...analyzeFrontmatterStructure(lines));
   issues.push(...validateFrontmatter(lines));
-  issues.push(...analyzeImages(lines, basePath, document.uri));
+  issues.push(...(await analyzeImages(lines, basePath, document.uri, options?.images)));
   issues.push(...analyzeFigmaBlocks(lines));
   issues.push(...analyzeColumnsBlocks(lines));
 
@@ -151,14 +195,15 @@ export function analyzeFrontmatterStructure(lines: string[]): Issue[] {
  * Analyze image references for issues
  * @internal Exported for testing
  */
-export function analyzeImages(
+export async function analyzeImages(
   lines: string[],
   basePath: string,
   documentUri: vscode.Uri,
-): Issue[] {
+  options?: AnalyzeImagesOptions,
+): Promise<Issue[]> {
   const issues: Issue[] = [];
   const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
-  const maxSizeMb = getMaxImageSizeMb();
+  const maxSizeMb = resolveMaxSizeMb(options);
 
   let inCodeFence = false;
   for (let i = 0; i < lines.length; i++) {
@@ -212,34 +257,30 @@ export function analyzeImages(
           basePath,
           documentUri,
         )) {
-          try {
-            const stat = fs.statSync(candidatePath);
-            if (!stat.isFile()) continue;
+          const stat = await statWithCache(candidatePath);
+          if (!stat.exists || !stat.isFile) continue;
 
-            if (stat.size > maxSizeBytes) {
-              const sizeMb = stat.size / 1024 / 1024;
-              issues.push({
-                severity: "warning",
-                message: `Image is ${sizeMb.toFixed(1)}MB (max ${maxSizeMb}MB). Consider compressing it or raising 'figdeck.images.maxSizeMb'.`,
-                range: {
-                  startLine: i,
-                  startColumn: startCol,
-                  endLine: i,
-                  endColumn: endCol,
-                },
-                code: "image-too-large",
-                data: {
-                  url,
-                  filePath: candidatePath,
-                  sizeBytes: stat.size,
-                  maxSizeMb,
-                },
-              });
-            }
-            break;
-          } catch {
-            // Ignore missing/unreadable files.
+          if (stat.size > maxSizeBytes) {
+            const sizeMb = stat.size / 1024 / 1024;
+            issues.push({
+              severity: "warning",
+              message: `Image is ${sizeMb.toFixed(1)}MB (max ${maxSizeMb}MB). Consider compressing it or raising 'figdeck.images.maxSizeMb'.`,
+              range: {
+                startLine: i,
+                startColumn: startCol,
+                endLine: i,
+                endColumn: endCol,
+              },
+              code: "image-too-large",
+              data: {
+                url,
+                filePath: candidatePath,
+                sizeBytes: stat.size,
+                maxSizeMb,
+              },
+            });
           }
+          break;
         }
       }
 

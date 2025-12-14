@@ -1,12 +1,22 @@
-import { describe, expect, it } from "bun:test";
+import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import type * as vscode from "vscode";
 import {
   analyzeColumnsBlocks,
+  analyzeDocument,
   analyzeFigmaBlocks,
   analyzeFrontmatterStructure,
+  analyzeImages,
+  clearImageDiagnosticsCache,
   isValidFigmaUrl,
   validateImageAlt,
 } from "./analyzer";
 import { validateFrontmatter } from "./frontmatterValidator";
+
+function makeFileUri(fsPath: string): { scheme: "file"; fsPath: string } {
+  return { scheme: "file", fsPath };
+}
 
 function splitLines(text: string): string[] {
   return text.split(/\r?\n/);
@@ -712,5 +722,224 @@ describe("analyzeColumnsBlocks", () => {
     expect(issues).toHaveLength(1);
     expect(issues[0].code).toBe("columns-unclosed");
     expect(issues[0].severity).toBe("error");
+  });
+});
+
+describe("analyzeImages", () => {
+  let statSpy: ReturnType<typeof spyOn> | null = null;
+
+  afterEach(() => {
+    statSpy?.mockRestore();
+    statSpy = null;
+    clearImageDiagnosticsCache();
+  });
+
+  it("skips remote image URLs", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+
+    const issues = await analyzeImages(
+      ["![alt](https://example.com/image.png)"],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("warns for unsupported image formats", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+
+    const issues = await analyzeImages(
+      ["![alt](images/image.webp)"],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues.some((issue) => issue.code === "image-unsupported-format")).toBe(
+      true,
+    );
+  });
+
+  it("warns when a local image exceeds the size limit", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+
+    const expectedPath = path.resolve(path.dirname(documentPath), "images/big.png");
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 6 * 1024 * 1024,
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeImages(
+      ["![alt](images/big.png)"],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(statSpy).toHaveBeenCalledWith(expectedPath);
+    expect(issues.some((issue) => issue.code === "image-too-large")).toBe(true);
+  });
+
+  it("supports angle-bracket destinations with spaces", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/big file.png",
+    );
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 6 * 1024 * 1024,
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeImages(
+      ['![alt](<images/big file.png> "title")'],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(statSpy).toHaveBeenCalledWith(expectedPath);
+    expect(issues.some((issue) => issue.code === "image-too-large")).toBe(true);
+  });
+
+  it("respects an injected maxSizeMb override", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+
+    const expectedPath = path.resolve(path.dirname(documentPath), "images/medium.png");
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 2 * 1024 * 1024,
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeImages(
+      ["![alt](images/medium.png)"],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+      { maxSizeMb: 1 },
+    );
+
+    expect(statSpy).toHaveBeenCalledWith(expectedPath);
+    expect(issues.some((issue) => issue.code === "image-too-large")).toBe(true);
+  });
+
+  it("allows disabling the size check via injected maxSizeMb", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async () => {
+      throw new Error("Should not be called");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeImages(
+      ["![alt](images/huge.png)"],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+      { maxSizeMb: null },
+    );
+
+    expect(statSpy).not.toHaveBeenCalled();
+    expect(issues.some((issue) => issue.code === "image-too-large")).toBe(false);
+  });
+
+  it("caches file stats across calls (within TTL)", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+
+    const expectedPath = path.resolve(path.dirname(documentPath), "images/cached.png");
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 2 * 1024 * 1024,
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    await analyzeImages(
+      ["![alt](images/cached.png)"],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+      { maxSizeMb: 1 },
+    );
+
+    await analyzeImages(
+      ["![alt](images/cached.png)"],
+      basePath,
+      documentUri as unknown as vscode.Uri,
+      { maxSizeMb: 1 },
+    );
+
+    expect(statSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("analyzeDocument", () => {
+  let statSpy: ReturnType<typeof spyOn> | null = null;
+
+  afterEach(() => {
+    statSpy?.mockRestore();
+    statSpy = null;
+    clearImageDiagnosticsCache();
+  });
+
+  it("forwards image options to analyzeImages", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+
+    const expectedPath = path.resolve(path.dirname(documentPath), "images/medium.png");
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (filePath: fs.PathLike) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 2 * 1024 * 1024,
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const document = {
+      getText: () => "![alt](images/medium.png)",
+      uri: documentUri,
+    } as unknown as vscode.TextDocument;
+
+    const result = await analyzeDocument(document, basePath, {
+      images: { maxSizeMb: 1 },
+    });
+
+    expect(statSpy).toHaveBeenCalledWith(expectedPath);
+    expect(result.issues.some((issue) => issue.code === "image-too-large")).toBe(
+      true,
+    );
   });
 });

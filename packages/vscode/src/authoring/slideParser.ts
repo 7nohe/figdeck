@@ -126,7 +126,6 @@ export function splitIntoSlidesWithRanges(content: string): SlideInfo[] {
   let currentStartLine = 0;
   let inFrontmatter = false;
   let codeFence: string | null = null;
-  let isFirstBlock = true;
 
   const flushSlide = (endLine: number) => {
     if (currentLines.length === 0) return;
@@ -136,10 +135,8 @@ export function splitIntoSlidesWithRanges(content: string): SlideInfo[] {
       // Skip frontmatter-only blocks (global or per-slide)
       if (isOnlyFrontmatter(currentLines)) {
         currentLines = [];
-        isFirstBlock = false;
         return;
       }
-      isFirstBlock = false;
 
       const title = extractSlideTitle(currentLines);
       slides.push({

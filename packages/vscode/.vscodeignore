@@ -1,0 +1,10 @@
+.vscode/**
+src/**
+node_modules/**
+*.ts
+!*.d.ts
+tsconfig.json
+biome.json
+.gitignore
+bun.lockb
+*.map

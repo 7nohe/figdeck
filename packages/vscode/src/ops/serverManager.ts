@@ -148,6 +148,7 @@ export class ServerManager implements vscode.Disposable {
             `\n[figdeck] Process exited with code ${code}`,
           );
           this.process = null;
+          if (this.state === "stopped") return;
           this.setState(code === 0 ? "stopped" : "error");
         },
       });

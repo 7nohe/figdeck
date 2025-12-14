@@ -561,6 +561,22 @@ describe("analyzeFigmaBlocks", () => {
     expect(issues[0].message).toContain("y");
   });
 
+  it("should detect position values with units", () => {
+    const lines = [
+      ":::figma",
+      "link=https://www.figma.com/file/abc",
+      "x=10px",
+      "y=20rem",
+      ":::",
+    ];
+    const issues = analyzeFigmaBlocks(lines);
+    expect(issues).toHaveLength(2);
+    expect(issues[0].code).toBe("figma-invalid-position");
+    expect(issues[0].message).toContain("x");
+    expect(issues[1].code).toBe("figma-invalid-position");
+    expect(issues[1].message).toContain("y");
+  });
+
   it("should allow percentage position values", () => {
     const lines = [
       ":::figma",

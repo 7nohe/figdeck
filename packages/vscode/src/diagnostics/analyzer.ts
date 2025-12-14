@@ -512,6 +512,19 @@ export function validateImageAlt(
   return issues;
 }
 
+function isValidNumberOrPercentage(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+
+  if (trimmed.endsWith("%")) {
+    const numberPart = trimmed.slice(0, -1).trim();
+    if (!numberPart) return false;
+    return Number.isFinite(Number(numberPart));
+  }
+
+  return Number.isFinite(Number(trimmed));
+}
+
 /**
  * Analyze :::figma blocks for issues
  * @internal Exported for testing
@@ -593,8 +606,8 @@ export function analyzeFigmaBlocks(lines: string[]): Issue[] {
       const posMatch = trimmed.match(/^(x|y)\s*=\s*(.+)$/);
       if (posMatch) {
         const prop = posMatch[1];
-        const value = posMatch[2];
-        if (value && Number.isNaN(Number.parseFloat(value.replace("%", "")))) {
+        const value = posMatch[2].trim();
+        if (value && !isValidNumberOrPercentage(value)) {
           issues.push({
             severity: "warning",
             message: `Invalid ${prop} value: expected number or percentage`,

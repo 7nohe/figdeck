@@ -1,4 +1,9 @@
 import type { TitlePrefixConfig } from "@figdeck/shared";
+import agentsTemplate from "../templates/agents.md";
+import aiRulesBodyTemplate from "../templates/ai-rules-body.md";
+import claudeTemplate from "../templates/claude.md";
+import copilotTemplate from "../templates/copilot.md";
+import cursorTemplate from "../templates/cursor.mdc";
 import initTemplate from "../templates/init.md";
 
 /**
@@ -53,4 +58,32 @@ export function getRegisteredTemplates(): string[] {
  */
 export function getInitTemplate(): string {
   return initTemplate;
+}
+
+/**
+ * Get the AGENTS.md template for Codex CLI and general AI agents
+ */
+export function getAgentsTemplate(): string {
+  return agentsTemplate.replaceAll("{{aiRulesBody}}", aiRulesBodyTemplate);
+}
+
+/**
+ * Get the Claude Code template (.claude/rules/figdeck.md)
+ */
+export function getClaudeTemplate(): string {
+  return claudeTemplate;
+}
+
+/**
+ * Get the Cursor template (.cursor/rules/figdeck.mdc)
+ */
+export function getCursorTemplate(): string {
+  return cursorTemplate.replaceAll("{{aiRulesBody}}", aiRulesBodyTemplate);
+}
+
+/**
+ * Get the GitHub Copilot template (.github/instructions/figdeck.instructions.md)
+ */
+export function getCopilotTemplate(): string {
+  return copilotTemplate.replaceAll("{{aiRulesBody}}", aiRulesBodyTemplate);
 }

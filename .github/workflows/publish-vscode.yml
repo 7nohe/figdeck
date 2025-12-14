@@ -1,0 +1,65 @@
+name: Publish VS Code Extension
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_openvsx:
+        description: "Also publish to Open VSX Registry"
+        required: false
+        type: boolean
+        default: true
+      confirm:
+        description: "Confirm publish"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.confirm }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build extension
+        run: bun run build
+        working-directory: packages/vscode
+
+      - name: Run typecheck
+        run: bun run typecheck
+        working-directory: packages/vscode
+
+      - name: Install vsce
+        run: npm install -g @vscode/vsce
+
+      - name: Publish to VS Code Marketplace
+        run: vsce publish --no-dependencies
+        working-directory: packages/vscode
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Install ovsx
+        if: ${{ inputs.publish_openvsx }}
+        run: npm install -g ovsx
+
+      - name: Publish to Open VSX
+        if: ${{ inputs.publish_openvsx }}
+        run: ovsx publish --no-dependencies
+        working-directory: packages/vscode
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_TOKEN }}

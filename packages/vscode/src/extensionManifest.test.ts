@@ -27,22 +27,23 @@ describe("VS Code extension packaging", () => {
     expect(
       snippets.some(
         (snippet) =>
-          snippet.language === "markdown" && snippet.path === "./snippets/figdeck.json",
+          snippet.language === "markdown" &&
+          snippet.path === "./snippets/figdeck.json",
       ),
     ).toBe(true);
 
     expect(
       snippets.some(
         (snippet) =>
-          snippet.language === "yaml" && snippet.path === "./snippets/figdeck.json",
+          snippet.language === "yaml" &&
+          snippet.path === "./snippets/figdeck.json",
       ),
     ).toBe(true);
   });
 
   it("keeps the figdeck-global snippet prefix present", () => {
-    const snippetsJson = readJson<Record<string, { prefix?: unknown }>>(
-      snippetsPath,
-    );
+    const snippetsJson =
+      readJson<Record<string, { prefix?: unknown }>>(snippetsPath);
 
     const globalFrontmatter = snippetsJson["figdeck: Global Frontmatter"];
     expect(globalFrontmatter).toBeDefined();
@@ -65,9 +66,9 @@ describe("figdeck markdown injection grammar", () => {
     const frontmatter = grammar.repository?.["figdeck-frontmatter-block"];
     expect(frontmatter).toBeDefined();
     expect(typeof frontmatter?.name).toBe("string");
-    expect(frontmatter?.name === "meta.embedded.block.frontmatter.figdeck").toBe(
-      false,
-    );
+    expect(
+      frontmatter?.name === "meta.embedded.block.frontmatter.figdeck",
+    ).toBe(false);
     expect(typeof frontmatter?.end).toBe("string");
 
     const endRegex = new RegExp(frontmatter?.end ?? "", "m");

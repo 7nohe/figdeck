@@ -74,9 +74,10 @@ const AI_RULES_FILES: Record<
   },
 };
 
-function parseAiRulesTargets(
-  aiRules: boolean | string | undefined,
-): { targets: AiRulesTarget[]; invalidTargets: string[] } {
+function parseAiRulesTargets(aiRules: boolean | string | undefined): {
+  targets: AiRulesTarget[];
+  invalidTargets: string[];
+} {
   if (aiRules === true || aiRules === "all") {
     return { targets: [...AI_RULES_TARGETS], invalidTargets: [] };
   }
@@ -123,7 +124,9 @@ program
         const slidesPath = options.out;
 
         // Parse --ai-rules targets
-        const { targets, invalidTargets } = parseAiRulesTargets(options.aiRules);
+        const { targets, invalidTargets } = parseAiRulesTargets(
+          options.aiRules,
+        );
         if (invalidTargets.length) {
           console.error(
             `Error: Invalid --ai-rules targets: ${invalidTargets.join(", ")}`,

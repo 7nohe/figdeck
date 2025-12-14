@@ -4,6 +4,15 @@
   "description": "VS Code extension for figdeck - Markdown to Figma Slides",
   "version": "0.1.0",
   "publisher": "figdeck",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/7nohe/figdeck",
+  "bugs": {
+    "url": "https://github.com/7nohe/figdeck/issues"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",

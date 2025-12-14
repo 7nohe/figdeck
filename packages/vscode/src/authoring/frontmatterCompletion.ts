@@ -196,48 +196,90 @@ function isInFrontmatter(
   document: vscode.TextDocument,
   position: vscode.Position,
 ): boolean {
-  const text = document.getText();
-  const offset = document.offsetAt(position);
+  // Keep frontmatter detection aligned with figdeck's Markdown parser:
+  // - `---` is either a slide separator or a fenced frontmatter fence
+  // - fenced frontmatter can only start at the beginning of a slide (no meaningful content yet)
+  // - implicit frontmatter is a YAML-looking block at the beginning of a slide terminated by `---`
 
-  // Find all --- positions
-  const separatorRegex = /^---\s*$/gm;
-  const separators: number[] = [];
-  let match = separatorRegex.exec(text);
+  const targetLine = position.line;
+  let currentLines: string[] = [];
+  let inFencedFrontmatter = false;
+  let codeFence: string | null = null;
 
-  while (match !== null) {
-    separators.push(match.index);
-    match = separatorRegex.exec(text);
-  }
+  const hasMeaningfulContent = (lines: string[]): boolean =>
+    lines.some((l) => l.trim() !== "");
 
-  // Check if we're between pairs of ---
-  for (let i = 0; i < separators.length - 1; i += 2) {
-    const start = separators[i];
-    const end = separators[i + 1];
-    if (offset > start && offset < end + 3) {
-      return true;
-    }
-  }
-
-  // Also check for implicit frontmatter (YAML without opening ---)
-  // This is at the start of a slide block
-  const lineText = document.lineAt(position.line).text;
-  if (/^[a-zA-Z][\w-]*:/.test(lineText)) {
-    // Check if previous non-empty lines are also YAML-like or ---
-    for (let i = position.line - 1; i >= 0; i--) {
-      const prevLine = document.lineAt(i).text.trim();
-      if (!prevLine) continue;
-      if (prevLine === "---") return true;
-      if (
-        /^[a-zA-Z][\w-]*:/.test(prevLine) ||
-        /^\s+/.test(document.lineAt(i).text)
-      ) {
+  const looksLikeInlineFrontmatter = (lines: string[]): boolean => {
+    let sawKey = false;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      if (/^[a-zA-Z][\w-]*:\s*/.test(trimmed)) {
+        sawKey = true;
         continue;
       }
-      break;
+      if (/^\s+/.test(line) && sawKey) {
+        continue;
+      }
+      return false;
     }
+    return sawKey;
+  };
+
+  for (let lineIndex = 0; lineIndex <= targetLine; lineIndex++) {
+    const lineText = document.lineAt(lineIndex).text;
+    const trimmed = lineText.trim();
+
+    // Track fenced code blocks so we don't treat --- inside code samples as separators/frontmatter
+    const fenceMatch = trimmed.match(/^(```+|~~~+)/);
+    if (fenceMatch) {
+      if (codeFence === null) {
+        codeFence = fenceMatch[1];
+      } else if (trimmed.startsWith(codeFence)) {
+        codeFence = null;
+      }
+      currentLines.push(lineText);
+      continue;
+    }
+
+    if (codeFence !== null) {
+      currentLines.push(lineText);
+      continue;
+    }
+
+    if (trimmed === "---") {
+      if (inFencedFrontmatter) {
+        currentLines.push(lineText);
+        inFencedFrontmatter = false;
+        continue;
+      }
+
+      if (!hasMeaningfulContent(currentLines)) {
+        inFencedFrontmatter = true;
+        currentLines.push(lineText);
+        continue;
+      }
+
+      // Implicit frontmatter closer (no opening fence, only key/value lines so far)
+      if (looksLikeInlineFrontmatter(currentLines)) {
+        currentLines.push(lineText);
+        continue;
+      }
+
+      // Slide separator: start a new slide context
+      currentLines = [];
+      inFencedFrontmatter = false;
+      continue;
+    }
+
+    currentLines.push(lineText);
   }
 
-  return false;
+  if (inFencedFrontmatter) {
+    return true;
+  }
+
+  return looksLikeInlineFrontmatter(currentLines);
 }
 
 /**

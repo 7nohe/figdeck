@@ -93,6 +93,10 @@
       {
         "language": "markdown",
         "path": "./snippets/figdeck.json"
+      },
+      {
+        "language": "yaml",
+        "path": "./snippets/figdeck.json"
       }
     ],
     "grammars": [

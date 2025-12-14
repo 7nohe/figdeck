@@ -12,12 +12,12 @@
   ],
   "repository": {
     "figdeck-frontmatter-block": {
-      "name": "meta.embedded.block.frontmatter.figdeck",
+      "name": "meta.block.frontmatter.figdeck",
       "begin": "^(---)[\\t ]*$",
       "beginCaptures": {
         "1": { "name": "punctuation.definition.frontmatter.begin.figdeck" }
       },
-      "end": "^(---)[\\t ]*$",
+      "end": "^(---)[\\t ]*$|^(?=\\S)(?![\\t ]*[a-zA-Z_][a-zA-Z0-9_-]*:)(?![\\t ]+)",
       "endCaptures": {
         "1": { "name": "punctuation.definition.frontmatter.end.figdeck" }
       },

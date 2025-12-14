@@ -28,8 +28,13 @@ YAML frontmatter を使用してスライドの設定を行えます。設定に
 
 ファイルの先頭（コンテンツの前）に配置した設定は、**すべてのスライド**にデフォルトとして適用されます。
 
+:::note
+VSCode 拡張機能を使用する場合は、グローバル frontmatter に `figdeck: true` を追加して figdeck の機能（診断、スライドアウトライン、補完）を有効にしてください。このフラグがない通常の Markdown ファイルは拡張機能で処理されません。
+:::
+
 ```markdown
 ---
+figdeck: true
 background: "#1a1a2e"
 color: "#ffffff"
 transition: dissolve
@@ -79,6 +84,7 @@ transition: slide-from-right
 
 | 設定 | 説明 |
 |------|------|
+| `figdeck` | VSCode 拡張機能の機能を有効化（`true`/`false`） |
 | `background` | 背景色（16進数） |
 | `gradient` | グラデーション背景 |
 | `backgroundImage` | 背景画像（ローカルパスまたはURL） |

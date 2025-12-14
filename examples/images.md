@@ -1,3 +1,7 @@
+---
+figdeck: true
+---
+
 # Image Size and Position Examples
 
 Demonstrates Marp-style image size and position specifications.

@@ -1,3 +1,7 @@
+---
+figdeck: true
+---
+
 # Absolute Positioning Example
 
 This example demonstrates how to use absolute x/y positioning for text elements.

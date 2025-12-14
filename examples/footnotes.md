@@ -1,3 +1,7 @@
+---
+figdeck: true
+---
+
 # Footnotes Sample
 
 Demonstrating footnote support in figdeck

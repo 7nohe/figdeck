@@ -1,4 +1,5 @@
 ---
+figdeck: true
 background: "#ffffff"
 ---
 # Rich Markdown Features

@@ -1,4 +1,5 @@
 ---
+figdeck: true
 background: "#ffffff"
 # Font configuration for slides
 # Supports per-element font families with style variants

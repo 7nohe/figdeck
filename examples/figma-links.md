@@ -1,3 +1,7 @@
+---
+figdeck: true
+---
+
 # Figma Selection Links Demo
 
 This slide demonstrates the `:::figma` block feature.

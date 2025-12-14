@@ -28,8 +28,13 @@ YAML frontmatter allows you to configure slide settings. There are two types of 
 
 Settings at the very beginning of the file (before any content) apply to **all slides** as defaults.
 
+:::note
+When using the VSCode extension, add `figdeck: true` to the global frontmatter to enable figdeck features (diagnostics, slide outline, completions). Without this flag, regular markdown files will not be processed by the extension.
+:::
+
 ```markdown
 ---
+figdeck: true
 background: "#1a1a2e"
 color: "#ffffff"
 transition: dissolve
@@ -79,6 +84,7 @@ Back to global settings (dark background, dissolve)
 
 | Setting | Description |
 |---------|-------------|
+| `figdeck` | Enable VSCode extension features (`true`/`false`) |
 | `background` | Background color (hex) |
 | `gradient` | Gradient background |
 | `backgroundImage` | Background image (local path or URL) |

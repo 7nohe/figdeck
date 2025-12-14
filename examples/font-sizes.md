@@ -1,4 +1,5 @@
 ---
+figdeck: true
 background: "#1a1a2e"
 headings:
   h1:

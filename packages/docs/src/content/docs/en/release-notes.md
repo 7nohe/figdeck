@@ -2,6 +2,92 @@
 title: Release Notes
 ---
 
+## [1.5.0] - 2025-12-15
+
+### New Features
+
+#### VSCode Extension
+Added a dedicated VSCode extension for figdeck. Provides powerful support for Markdown slide authoring.
+
+**Key Features:**
+- **Snippets**: Quickly insert common syntax like `slide`, `columns`, `callout`, `figma`
+- **Frontmatter Completion**: Auto-complete YAML frontmatter properties and values
+- **Slide Outline**: Visually browse and navigate slide structure in the sidebar
+- **Diagnostics**: Real-time display of syntax errors and warnings
+- **Quick Fixes**: Code actions to automatically fix common issues
+- **CLI Integration**: Run `serve` and `build` commands directly from the editor
+
+See [VSCode Extension Documentation](/en/vscode-extension) for details.
+
+#### Enhanced `figdeck init` Command (AI Agent Rules Support)
+The `figdeck init` command can now generate rule files for AI agents.
+
+**Supported AI Agents:**
+- **Claude Code**: Generates `CLAUDE.md` file
+- **Cursor**: Generates `.cursor/rules/figdeck.mdc` file
+- **GitHub Copilot**: Generates `.github/copilot-instructions.md` file
+
+**Examples:**
+```bash
+# Generate rules for all AI agents
+figdeck init --agents
+
+# Generate rules for a specific agent only
+figdeck init --agents claude
+figdeck init --agents cursor
+figdeck init --agents copilot
+
+# Specify multiple agents
+figdeck init --agents claude,cursor
+```
+
+This enables AI agents to understand figdeck's Markdown syntax and provide more accurate code completions and suggestions.
+
+#### GitHub Alerts Style Callouts
+Added support for callout blocks using GitHub Alerts syntax.
+
+**Supported Types:**
+- `:::note` (blue): General information
+- `:::tip` (green): Helpful suggestions
+- `:::warning` (orange): Important warnings
+- `:::caution` (red): Critical warnings
+
+**Example:**
+```markdown
+:::note
+This is supplementary information.
+:::
+
+:::tip
+Here's a helpful tip.
+:::
+
+:::warning
+Be careful with this operation.
+:::
+
+:::caution
+This action is irreversible!
+:::
+```
+
+Supports inline formatting (bold, italic, links, code).
+
+See `examples/callouts.md` for details.
+
+### Documentation
+- Added comprehensive documentation for VSCode extension (English and Japanese)
+- Added documentation for `figdeck init --agents` command
+- Added specifications and usage examples for callout blocks
+- Updated `CLAUDE.md` with new features
+
+### Tests
+- Added comprehensive tests for VSCode extension
+- Added extended tests for `figdeck init` command
+- Added tests for callout block parsing and rendering
+
+---
+
 ## [1.4.0] - 2025-12-08
 
 ### New Features

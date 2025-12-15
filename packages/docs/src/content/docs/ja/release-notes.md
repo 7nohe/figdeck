@@ -2,6 +2,92 @@
 title: リリースノート
 ---
 
+## [1.5.0] - 2025-12-15
+
+### 新機能
+
+#### VSCode 拡張機能
+figdeck 専用の VSCode 拡張機能を追加しました。Markdown スライド作成を強力にサポートします。
+
+**主な機能:**
+- **スニペット**: `slide`、`columns`、`callout`、`figma` などのよく使う構文をすばやく挿入
+- **フロントマター補完**: YAML フロントマターのプロパティと値を自動補完
+- **スライドアウトライン**: サイドバーでスライド構造を視覚的に確認・ナビゲート
+- **診断機能**: 構文エラーや警告をリアルタイムで表示
+- **クイックフィックス**: 一般的な問題を自動修正するコードアクション
+- **CLI 統合**: エディタから直接 `serve` や `build` コマンドを実行
+
+詳細は [VSCode 拡張機能ドキュメント](/ja/vscode-extension) を参照してください。
+
+#### `figdeck init` コマンドの拡張（AI エージェントルール対応）
+`figdeck init` コマンドで AI エージェント用のルールファイルを生成できるようになりました。
+
+**対応 AI エージェント:**
+- **Claude Code**: `CLAUDE.md` ファイルを生成
+- **Cursor**: `.cursor/rules/figdeck.mdc` ファイルを生成
+- **GitHub Copilot**: `.github/copilot-instructions.md` ファイルを生成
+
+**使用例:**
+```bash
+# すべての AI エージェント用ルールを生成
+figdeck init --agents
+
+# 特定のエージェント用ルールのみ生成
+figdeck init --agents claude
+figdeck init --agents cursor
+figdeck init --agents copilot
+
+# 複数のエージェントを指定
+figdeck init --agents claude,cursor
+```
+
+これにより、AI エージェントが figdeck の Markdown 構文を理解し、より正確なコード補完や提案を行えるようになります。
+
+#### GitHub Alerts スタイルのコールアウト
+GitHub Alerts 構文に対応したコールアウトブロックをサポートしました。
+
+**対応タイプ:**
+- `:::note` (青): 一般的な情報
+- `:::tip` (緑): 役立つ提案
+- `:::warning` (オレンジ): 重要な警告
+- `:::caution` (赤): 危険な操作の警告
+
+**使用例:**
+```markdown
+:::note
+これは補足情報です。
+:::
+
+:::tip
+ここに役立つヒントを記載できます。
+:::
+
+:::warning
+この操作には注意が必要です。
+:::
+
+:::caution
+この操作は元に戻せません！
+:::
+```
+
+インライン書式（太字、斜体、リンク、コード）にも対応しています。
+
+詳細は `examples/callouts.md` を参照してください。
+
+### ドキュメント
+- VSCode 拡張機能の包括的なドキュメントを追加（英語・日本語）
+- `figdeck init --agents` コマンドのドキュメントを追加
+- コールアウトブロックの仕様と使用例を追加
+- `CLAUDE.md` に新機能を追加
+
+### テスト
+- VSCode 拡張機能の包括的なテストを追加
+- `figdeck init` コマンドの拡張テストを追加
+- コールアウトブロックのパースとレンダリングテストを追加
+
+---
+
 ## [1.4.0] - 2025-12-08
 
 ### 新機能

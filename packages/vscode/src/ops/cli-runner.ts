@@ -4,7 +4,6 @@ import { type ChildProcess, spawn } from "node:child_process";
  * Result of CLI detection
  */
 export interface CliDetectionResult {
-  found: boolean;
   command: string[];
   source: "workspace" | "path" | "config" | "none";
 }
@@ -49,11 +48,10 @@ export async function runCli(
   cliResult: CliDetectionResult,
   options: RunCliOptions,
 ): Promise<ChildProcess> {
-  if (!cliResult.found) {
-    throw new Error("figdeck CLI not found");
-  }
-
   const [cmd, ...baseArgs] = cliResult.command;
+  if (!cmd) {
+    throw new Error("figdeck CLI command is empty");
+  }
   const args = [...baseArgs, ...options.args];
 
   let proc: ChildProcess;

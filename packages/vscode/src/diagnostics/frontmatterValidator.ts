@@ -1,210 +1,121 @@
 import { parse as parseYaml } from "yaml";
+import {
+  FRONTMATTER_SPEC,
+  type FrontmatterDef,
+  TRANSITION_STYLES,
+} from "../frontmatter-spec";
 import type { Issue } from "./types";
 
-/**
- * Property definition for validation
- */
-interface PropertyDef {
-  type: "string" | "number" | "boolean" | "object" | "array";
-  values?: string[];
-  pattern?: RegExp;
-  min?: number;
-  max?: number;
-  children?: Record<string, PropertyDef>;
-  patternError?: string;
+type FrontmatterSchema = Record<string, FrontmatterDef>;
+
+function countErrors(issues: Issue[]): number {
+  return issues.filter((issue) => issue.severity === "error").length;
 }
 
-/**
- * Frontmatter schema definition
- */
-const FRONTMATTER_SCHEMA: Record<string, PropertyDef> = {
-  figdeck: {
-    type: "boolean",
-  },
-  background: {
-    type: "string",
-    pattern: /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/,
-    patternError: "Invalid color format. Use #rgb or #rrggbb",
-  },
-  gradient: {
-    type: "string",
-    pattern: /^#[0-9a-fA-F]{3,6}:\d+%/,
-    patternError: "Invalid gradient format. Use #color:0%,#color:100%[@angle]",
-  },
-  backgroundImage: {
-    type: "string",
-  },
-  template: {
-    type: "string",
-  },
-  color: {
-    type: "string",
-    pattern: /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/,
-    patternError: "Invalid color format. Use #rgb or #rrggbb",
-  },
-  align: {
-    type: "string",
-    values: ["left", "center", "right"],
-  },
-  valign: {
-    type: "string",
-    values: ["top", "middle", "bottom"],
-  },
-  headings: {
-    type: "object",
-    children: {
-      h1: { type: "object", children: createStyleSchema() },
-      h2: { type: "object", children: createStyleSchema() },
-      h3: { type: "object", children: createStyleSchema() },
-      h4: { type: "object", children: createStyleSchema() },
-    },
-  },
-  paragraphs: {
-    type: "object",
-    children: createStyleSchema(),
-  },
-  bullets: {
-    type: "object",
-    children: {
-      ...createStyleSchema(),
-      spacing: { type: "number", min: 0 },
-    },
-  },
-  code: {
-    type: "object",
-    children: {
-      size: { type: "number", min: 1 },
-    },
-  },
-  fonts: {
-    type: "object",
-    children: {
-      h1: { type: "object", children: createFontSchema() },
-      h2: { type: "object", children: createFontSchema() },
-      h3: { type: "object", children: createFontSchema() },
-      h4: { type: "object", children: createFontSchema() },
-      body: { type: "object", children: createFontSchema() },
-      bullets: { type: "object", children: createFontSchema() },
-      code: { type: "object", children: createFontSchema() },
-    },
-  },
-  slideNumber: {
-    type: "object",
-    children: {
-      show: { type: "boolean" },
-      position: {
-        type: "string",
-        values: ["bottom-right", "bottom-left", "top-right", "top-left"],
+function compareIssueSets(a: Issue[], b: Issue[]): number {
+  const aErrors = countErrors(a);
+  const bErrors = countErrors(b);
+  if (aErrors !== bErrors) return aErrors - bErrors;
+  return a.length - b.length;
+}
+
+function isValueCompatibleWithDef(
+  value: unknown,
+  def: FrontmatterDef,
+): boolean {
+  if (def.kind === "oneOf") {
+    return def.options.some((option) =>
+      isValueCompatibleWithDef(value, option),
+    );
+  }
+
+  switch (def.kind) {
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number";
+    case "boolean":
+      return typeof value === "boolean";
+    case "object":
+      return (
+        typeof value === "object" && value !== null && !Array.isArray(value)
+      );
+  }
+}
+
+function validateTransitionShorthand(
+  raw: string,
+  line: number,
+  lineLength: number,
+): Issue[] {
+  const issues: Issue[] = [];
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    issues.push({
+      code: "frontmatter-invalid-value",
+      message: "'transition' must not be empty",
+      severity: "error",
+      range: {
+        startLine: line,
+        startColumn: 0,
+        endLine: line,
+        endColumn: lineLength,
       },
-      size: { type: "number", min: 1 },
-      color: {
-        type: "string",
-        pattern: /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/,
-        patternError: "Invalid color format",
+    });
+    return issues;
+  }
+
+  const [styleRaw, durationRaw] = trimmed.split(/\s+/, 2);
+  const style = styleRaw.toLowerCase().replace(/_/g, "-");
+
+  if (
+    !TRANSITION_STYLES.includes(style as (typeof TRANSITION_STYLES)[number])
+  ) {
+    issues.push({
+      code: "frontmatter-invalid-value",
+      message: `'transition' must be one of: ${TRANSITION_STYLES.join(", ")}`,
+      severity: "error",
+      range: {
+        startLine: line,
+        startColumn: 0,
+        endLine: line,
+        endColumn: lineLength,
       },
-      format: { type: "string" },
-      link: {
-        type: "string",
-        pattern: /^https:\/\/(www\.)?figma\.com\//,
-        patternError: "Must be a valid Figma URL",
-      },
-      startFrom: { type: "number", min: 1 },
-    },
-  },
-  titlePrefix: {
-    type: "object",
-    children: {
-      link: {
-        type: "string",
-        pattern: /^https:\/\/(www\.)?figma\.com\//,
-        patternError: "Must be a valid Figma URL",
-      },
-      spacing: { type: "number", min: 0 },
-    },
-  },
-  transition: {
-    type: "object",
-    children: {
-      style: {
-        type: "string",
-        values: [
-          "none",
-          "dissolve",
-          "smart-animate",
-          "slide-from-left",
-          "slide-from-right",
-          "slide-from-top",
-          "slide-from-bottom",
-          "push-from-left",
-          "push-from-right",
-          "push-from-top",
-          "push-from-bottom",
-          "move-from-left",
-          "move-from-right",
-          "move-from-top",
-          "move-from-bottom",
-          "slide-out-to-left",
-          "slide-out-to-right",
-          "slide-out-to-top",
-          "slide-out-to-bottom",
-          "move-out-to-left",
-          "move-out-to-right",
-          "move-out-to-top",
-          "move-out-to-bottom",
-        ],
-      },
-      duration: { type: "number", min: 0.01, max: 10 },
-      curve: {
-        type: "string",
-        values: [
-          "ease-in",
-          "ease-out",
-          "ease-in-and-out",
-          "linear",
-          "gentle",
-          "quick",
-          "bouncy",
-          "slow",
-        ],
-      },
-      timing: {
-        type: "object",
-        children: {
-          type: { type: "string", values: ["on-click", "after-delay"] },
-          delay: { type: "number", min: 0, max: 30 },
+    });
+    return issues;
+  }
+
+  if (durationRaw) {
+    const duration = Number(durationRaw);
+    if (!Number.isFinite(duration)) {
+      issues.push({
+        code: "frontmatter-invalid-format",
+        message: "'transition' duration must be a number",
+        severity: "warning",
+        range: {
+          startLine: line,
+          startColumn: 0,
+          endLine: line,
+          endColumn: lineLength,
         },
-      },
-    },
-  },
-};
+      });
+    } else if (duration < 0.01 || duration > 10) {
+      issues.push({
+        code: "frontmatter-out-of-range",
+        message: "'transition' duration must be between 0.01 and 10",
+        severity: "warning",
+        range: {
+          startLine: line,
+          startColumn: 0,
+          endLine: line,
+          endColumn: lineLength,
+        },
+      });
+    }
+  }
 
-/**
- * Create style schema (size, color, x, y)
- */
-function createStyleSchema(): Record<string, PropertyDef> {
-  return {
-    size: { type: "number", min: 1 },
-    color: {
-      type: "string",
-      pattern: /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/,
-      patternError: "Invalid color format",
-    },
-    x: { type: "number" },
-    y: { type: "number" },
-  };
-}
-
-/**
- * Create font schema
- */
-function createFontSchema(): Record<string, PropertyDef> {
-  return {
-    family: { type: "string" },
-    style: { type: "string" },
-    bold: { type: "string" },
-    italic: { type: "string" },
-    boldItalic: { type: "string" },
-  };
+  return issues;
 }
 
 /**
@@ -239,146 +150,221 @@ function findKeyLine(
  */
 function validateValue(
   value: unknown,
-  def: PropertyDef,
+  def: FrontmatterDef,
   keyPath: string[],
   lines: string[],
   startLine: number,
   endLine: number,
 ): Issue[] {
-  const issues: Issue[] = [];
   const line = findKeyLine(lines, startLine, endLine, keyPath);
   const keyName = keyPath.join(".");
   const lineLength = lines[line]?.length ?? 100;
 
-  // Type check
-  if (def.type === "number") {
-    if (typeof value !== "number") {
-      issues.push({
-        code: "frontmatter-invalid-type",
-        message: `'${keyName}' must be a number`,
-        severity: "error",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
-      return issues;
-    }
-    if (def.min !== undefined && value < def.min) {
-      issues.push({
-        code: "frontmatter-out-of-range",
-        message: `'${keyName}' must be at least ${def.min}`,
-        severity: "warning",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
-    }
-    if (def.max !== undefined && value > def.max) {
-      issues.push({
-        code: "frontmatter-out-of-range",
-        message: `'${keyName}' must be at most ${def.max}`,
-        severity: "warning",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
-    }
-  } else if (def.type === "boolean") {
-    if (typeof value !== "boolean") {
-      issues.push({
-        code: "frontmatter-invalid-type",
-        message: `'${keyName}' must be true or false`,
-        severity: "error",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
-    }
-  } else if (def.type === "string") {
-    if (typeof value !== "string") {
-      issues.push({
-        code: "frontmatter-invalid-type",
-        message: `'${keyName}' must be a string`,
-        severity: "error",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
-      return issues;
-    }
-    // Value validation
-    if (def.values && !def.values.includes(value)) {
-      issues.push({
-        code: "frontmatter-invalid-value",
-        message: `'${keyName}' must be one of: ${def.values.join(", ")}`,
-        severity: "error",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
-    }
-    // Pattern validation
-    if (def.pattern && !def.pattern.test(value)) {
-      issues.push({
-        code: "frontmatter-invalid-format",
-        message: def.patternError || `'${keyName}' has invalid format`,
-        severity: "warning",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
-    }
-  } else if (def.type === "object" && def.children) {
-    if (typeof value === "object" && value !== null) {
-      issues.push(
-        ...validateObject(
-          value as Record<string, unknown>,
-          def.children,
-          keyPath,
-          lines,
-          startLine,
-          endLine,
-        ),
-      );
-    } else if (typeof value !== "boolean") {
-      // Allow boolean false for properties like titlePrefix that can be disabled
-      // But report error for other non-object types (strings, numbers)
-      issues.push({
-        code: "frontmatter-invalid-type",
-        message: `'${keyName}' must be an object or false`,
-        severity: "error",
-        range: {
-          startLine: line,
-          startColumn: 0,
-          endLine: line,
-          endColumn: lineLength,
-        },
-      });
+  if (keyPath.length === 1 && keyPath[0] === "transition") {
+    if (typeof value === "string") {
+      return validateTransitionShorthand(value, line, lineLength);
     }
   }
 
-  return issues;
+  if (def.kind === "oneOf") {
+    const candidates = def.options.filter((candidate) =>
+      isValueCompatibleWithDef(value, candidate),
+    );
+    if (candidates.length === 0) {
+      return [
+        {
+          code: "frontmatter-invalid-type",
+          message: `'${keyName}' has an invalid type`,
+          severity: "error",
+          range: {
+            startLine: line,
+            startColumn: 0,
+            endLine: line,
+            endColumn: lineLength,
+          },
+        },
+      ];
+    }
+
+    let bestIssues: Issue[] | null = null;
+    for (const candidate of candidates) {
+      const candidateIssues = validateValue(
+        value,
+        candidate,
+        keyPath,
+        lines,
+        startLine,
+        endLine,
+      );
+      if (candidateIssues.length === 0) return candidateIssues;
+      if (!bestIssues || compareIssueSets(candidateIssues, bestIssues) < 0) {
+        bestIssues = candidateIssues;
+      }
+    }
+
+    return bestIssues ?? [];
+  }
+
+  switch (def.kind) {
+    case "number": {
+      if (typeof value !== "number") {
+        return [
+          {
+            code: "frontmatter-invalid-type",
+            message: `'${keyName}' must be a number`,
+            severity: "error",
+            range: {
+              startLine: line,
+              startColumn: 0,
+              endLine: line,
+              endColumn: lineLength,
+            },
+          },
+        ];
+      }
+
+      const issues: Issue[] = [];
+      if (def.min !== undefined && value < def.min) {
+        issues.push({
+          code: "frontmatter-out-of-range",
+          message: `'${keyName}' must be at least ${def.min}`,
+          severity: "warning",
+          range: {
+            startLine: line,
+            startColumn: 0,
+            endLine: line,
+            endColumn: lineLength,
+          },
+        });
+      }
+      if (def.max !== undefined && value > def.max) {
+        issues.push({
+          code: "frontmatter-out-of-range",
+          message: `'${keyName}' must be at most ${def.max}`,
+          severity: "warning",
+          range: {
+            startLine: line,
+            startColumn: 0,
+            endLine: line,
+            endColumn: lineLength,
+          },
+        });
+      }
+      return issues;
+    }
+
+    case "boolean": {
+      if (typeof value !== "boolean") {
+        return [
+          {
+            code: "frontmatter-invalid-type",
+            message: `'${keyName}' must be true or false`,
+            severity: "error",
+            range: {
+              startLine: line,
+              startColumn: 0,
+              endLine: line,
+              endColumn: lineLength,
+            },
+          },
+        ];
+      }
+
+      if (def.allowedValues && !def.allowedValues.includes(value)) {
+        return [
+          {
+            code: "frontmatter-invalid-value",
+            message: `'${keyName}' must be ${def.allowedValues.join(" or ")}`,
+            severity: "error",
+            range: {
+              startLine: line,
+              startColumn: 0,
+              endLine: line,
+              endColumn: lineLength,
+            },
+          },
+        ];
+      }
+
+      return [];
+    }
+
+    case "string": {
+      if (typeof value !== "string") {
+        return [
+          {
+            code: "frontmatter-invalid-type",
+            message: `'${keyName}' must be a string`,
+            severity: "error",
+            range: {
+              startLine: line,
+              startColumn: 0,
+              endLine: line,
+              endColumn: lineLength,
+            },
+          },
+        ];
+      }
+
+      const issues: Issue[] = [];
+      if (def.values && !def.values.includes(value)) {
+        issues.push({
+          code: "frontmatter-invalid-value",
+          message: `'${keyName}' must be one of: ${def.values.join(", ")}`,
+          severity: "error",
+          range: {
+            startLine: line,
+            startColumn: 0,
+            endLine: line,
+            endColumn: lineLength,
+          },
+        });
+      }
+
+      if (def.pattern && !def.pattern.test(value)) {
+        issues.push({
+          code: "frontmatter-invalid-format",
+          message: def.patternError || `'${keyName}' has invalid format`,
+          severity: "warning",
+          range: {
+            startLine: line,
+            startColumn: 0,
+            endLine: line,
+            endColumn: lineLength,
+          },
+        });
+      }
+
+      return issues;
+    }
+
+    case "object": {
+      if (typeof value !== "object" || value === null || Array.isArray(value)) {
+        return [
+          {
+            code: "frontmatter-invalid-type",
+            message: `'${keyName}' must be an object`,
+            severity: "error",
+            range: {
+              startLine: line,
+              startColumn: 0,
+              endLine: line,
+              endColumn: lineLength,
+            },
+          },
+        ];
+      }
+
+      return validateObject(
+        value as Record<string, unknown>,
+        def.children,
+        keyPath,
+        lines,
+        startLine,
+        endLine,
+      );
+    }
+  }
 }
 
 /**
@@ -386,7 +372,7 @@ function validateValue(
  */
 function validateObject(
   obj: Record<string, unknown>,
-  schema: Record<string, PropertyDef>,
+  schema: FrontmatterSchema,
   parentPath: string[],
   lines: string[],
   startLine: number,
@@ -626,7 +612,7 @@ export function validateFrontmatter(lines: string[]): Issue[] {
       issues.push(
         ...validateObject(
           parsed as Record<string, unknown>,
-          FRONTMATTER_SCHEMA,
+          FRONTMATTER_SPEC,
           [],
           lines,
           block.startLine,

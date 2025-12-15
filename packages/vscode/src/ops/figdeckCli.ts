@@ -28,7 +28,6 @@ export async function detectCli(
     );
     if (fs.existsSync(localBin)) {
       return {
-        found: true,
         command: [localBin],
         source: "workspace",
       };
@@ -41,7 +40,6 @@ export async function detectCli(
     const which = process.platform === "win32" ? "where" : "which";
     execSync(`${which} figdeck`, { stdio: "ignore" });
     return {
-      found: true,
       command: ["figdeck"],
       source: "path",
     };
@@ -54,7 +52,6 @@ export async function detectCli(
   const configCommand = config.get<string[]>("command");
   if (configCommand && configCommand.length > 0) {
     return {
-      found: true,
       command: configCommand,
       source: "config",
     };
@@ -62,7 +59,6 @@ export async function detectCli(
 
   // 4. Fallback to npx figdeck@latest
   return {
-    found: true,
     command: ["npx", "figdeck@latest"],
     source: "none",
   };

@@ -68,11 +68,6 @@ export function activate(context: vscode.ExtensionContext) {
       const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
       const cliResult = await detectCli(workspaceFolder);
 
-      if (!cliResult.found) {
-        await showCliNotFoundNotification();
-        return;
-      }
-
       // Ask for output filename
       const filename = await vscode.window.showInputBox({
         prompt: "Enter filename for the new slides file",
@@ -112,6 +107,12 @@ export function activate(context: vscode.ExtensionContext) {
           },
         });
       } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("Failed to spawn figdeck CLI")
+        ) {
+          await showCliNotFoundNotification();
+        }
         vscode.window.showErrorMessage(`Failed to run figdeck init: ${error}`);
       }
     }),
@@ -126,11 +127,6 @@ export function activate(context: vscode.ExtensionContext) {
 
       const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
       const cliResult = await detectCli(workspaceFolder);
-
-      if (!cliResult.found) {
-        await showCliNotFoundNotification();
-        return;
-      }
 
       const filePath = editor.document.uri.fsPath;
       const outputPath = filePath.replace(/\.md$/, ".json");
@@ -154,6 +150,12 @@ export function activate(context: vscode.ExtensionContext) {
           },
         });
       } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message.includes("Failed to spawn figdeck CLI")
+        ) {
+          await showCliNotFoundNotification();
+        }
         vscode.window.showErrorMessage(`Failed to run figdeck build: ${error}`);
       }
     }),

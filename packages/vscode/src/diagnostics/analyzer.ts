@@ -114,6 +114,30 @@ function toCandidatePaths(
   return candidates;
 }
 
+function* iterateLinesOutsideCodeFences(
+  lines: string[],
+): Generator<{ line: string; trimmed: string; index: number }> {
+  let codeFence: string | null = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    const fenceMatch = trimmed.match(/^(```+|~~~+)/);
+    if (fenceMatch) {
+      if (codeFence === null) {
+        codeFence = fenceMatch[1];
+      } else if (trimmed.startsWith(codeFence)) {
+        codeFence = null;
+      }
+      continue;
+    }
+
+    if (codeFence !== null) continue;
+    yield { line, trimmed, index: i };
+  }
+}
+
 /**
  * Analyze a figdeck markdown document for issues
  */
@@ -360,19 +384,7 @@ export async function analyzeImages(
   const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
   const maxSizeMb = resolveMaxSizeMb(options);
 
-  let inCodeFence = false;
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // Track code fences
-    if (trimmed.match(/^(```+|~~~+)/)) {
-      inCodeFence = !inCodeFence;
-      continue;
-    }
-
-    if (inCodeFence) continue;
-
+  for (const { line, index: i } of iterateLinesOutsideCodeFences(lines)) {
     // Find images in line
     for (const match of line.matchAll(imagePattern)) {
       const alt = match[1];
@@ -532,25 +544,13 @@ function isValidNumberOrPercentage(value: string): boolean {
 export function analyzeFigmaBlocks(lines: string[]): Issue[] {
   const issues: Issue[] = [];
 
-  let inCodeFence = false;
   let inFigmaBlock = false;
   let figmaBlockStart = -1;
   let hasLink = false;
   let linkValue = "";
   let linkLine = -1;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // Track code fences
-    if (trimmed.match(/^(```+|~~~+)/)) {
-      inCodeFence = !inCodeFence;
-      continue;
-    }
-
-    if (inCodeFence) continue;
-
+  for (const { trimmed, index: i } of iterateLinesOutsideCodeFences(lines)) {
     if (trimmed === ":::figma") {
       inFigmaBlock = true;
       figmaBlockStart = i;
@@ -615,7 +615,7 @@ export function analyzeFigmaBlocks(lines: string[]): Issue[] {
               startLine: i,
               startColumn: 0,
               endLine: i,
-              endColumn: line.length,
+              endColumn: lines[i].length,
             },
             code: "figma-invalid-position",
           });
@@ -663,25 +663,13 @@ export function isValidFigmaUrl(url: string): boolean {
 export function analyzeColumnsBlocks(lines: string[]): Issue[] {
   const issues: Issue[] = [];
 
-  let inCodeFence = false;
   let inColumnsBlock = false;
   let columnsBlockStart = -1;
   let columnCount = 0;
   let columnsParams = "";
   let columnsParamsLine = -1;
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    // Track code fences
-    if (trimmed.match(/^(```+|~~~+)/)) {
-      inCodeFence = !inCodeFence;
-      continue;
-    }
-
-    if (inCodeFence) continue;
-
+  for (const { trimmed, index: i } of iterateLinesOutsideCodeFences(lines)) {
     const columnsMatch = trimmed.match(/^:::columns\s*(.*)$/);
     if (columnsMatch) {
       inColumnsBlock = true;

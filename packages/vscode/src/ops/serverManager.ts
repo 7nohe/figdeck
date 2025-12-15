@@ -67,11 +67,6 @@ export class ServerManager implements vscode.Disposable {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
     const cliResult = await detectCli(workspaceFolder);
 
-    if (!cliResult.found) {
-      await showCliNotFoundNotification();
-      return;
-    }
-
     // Get config
     const config = vscode.workspace.getConfiguration("figdeck.serve");
     const host = config.get<string>("host", "127.0.0.1");
@@ -162,6 +157,12 @@ export class ServerManager implements vscode.Disposable {
     } catch (error) {
       this.outputChannel.appendLine(`[figdeck] Error: ${error}`);
       this.setState("error");
+      if (
+        error instanceof Error &&
+        error.message.includes("Failed to spawn figdeck CLI")
+      ) {
+        await showCliNotFoundNotification();
+      }
       vscode.window.showErrorMessage(`Failed to start figdeck serve: ${error}`);
     }
   }

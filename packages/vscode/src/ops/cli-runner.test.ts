@@ -4,7 +4,6 @@ import { type CliDetectionResult, runCli } from "./cli-runner";
 describe("runCli", () => {
   it("streams stdout/stderr and reports exit code", async () => {
     const cliResult: CliDetectionResult = {
-      found: true,
       command: [process.execPath],
       source: "config",
     };
@@ -39,7 +38,6 @@ describe("runCli", () => {
     if (process.platform === "win32") return;
 
     const cliResult: CliDetectionResult = {
-      found: true,
       command: [`definitely-not-a-command-${Date.now()}`],
       source: "config",
     };

@@ -1,4 +1,9 @@
 import * as vscode from "vscode";
+import {
+  TRANSITION_CURVES,
+  TRANSITION_STYLES,
+  TRANSITION_TIMING_TYPES,
+} from "../frontmatter-spec";
 
 /**
  * CodeAction provider for figdeck diagnostics
@@ -280,44 +285,12 @@ function normalizeColor(value: string): string | null {
   return null;
 }
 
-const TRANSITION_STYLES = [
-  "none",
-  "dissolve",
-  "smart-animate",
-  "slide-from-left",
-  "slide-from-right",
-  "slide-from-top",
-  "slide-from-bottom",
-  "push-from-left",
-  "push-from-right",
-  "push-from-top",
-  "push-from-bottom",
-  "move-from-left",
-  "move-from-right",
-  "move-from-top",
-  "move-from-bottom",
-  "slide-out-to-left",
-  "slide-out-to-right",
-  "slide-out-to-top",
-  "slide-out-to-bottom",
-  "move-out-to-left",
-  "move-out-to-right",
-  "move-out-to-top",
-  "move-out-to-bottom",
-];
-
-const TRANSITION_CURVES = [
-  "ease-in",
-  "ease-out",
-  "ease-in-and-out",
-  "linear",
-  "gentle",
-  "quick",
-  "bouncy",
-  "slow",
-];
-
-const TIMING_TYPES = ["on-click", "after-delay"];
+function isOneOf<T extends readonly string[]>(
+  options: T,
+  value: string,
+): value is T[number] {
+  return (options as readonly string[]).includes(value);
+}
 
 /**
  * Normalize transition style/curve values
@@ -328,7 +301,7 @@ function normalizeTransitionValue(key: string, value: string): string | null {
 
   // Check against valid values
   if (key === "style") {
-    if (TRANSITION_STYLES.includes(normalized)) {
+    if (isOneOf(TRANSITION_STYLES, normalized)) {
       return normalized;
     }
     // Try fuzzy matching for common mistakes
@@ -337,7 +310,7 @@ function normalizeTransitionValue(key: string, value: string): string | null {
   }
 
   if (key === "curve") {
-    if (TRANSITION_CURVES.includes(normalized)) {
+    if (isOneOf(TRANSITION_CURVES, normalized)) {
       return normalized;
     }
     // Handle common variations
@@ -351,7 +324,7 @@ function normalizeTransitionValue(key: string, value: string): string | null {
   }
 
   if (key === "type") {
-    if (TIMING_TYPES.includes(normalized)) {
+    if (isOneOf(TRANSITION_TIMING_TYPES, normalized)) {
       return normalized;
     }
     // Handle common variations
@@ -363,7 +336,7 @@ function normalizeTransitionValue(key: string, value: string): string | null {
     ) {
       return "after-delay";
     }
-    const closest = findClosestMatch(normalized, TIMING_TYPES);
+    const closest = findClosestMatch(normalized, TRANSITION_TIMING_TYPES);
     return closest;
   }
 
@@ -373,7 +346,10 @@ function normalizeTransitionValue(key: string, value: string): string | null {
 /**
  * Find closest matching string using Levenshtein distance
  */
-function findClosestMatch(value: string, candidates: string[]): string | null {
+function findClosestMatch(
+  value: string,
+  candidates: readonly string[],
+): string | null {
   let bestMatch: string | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
 

@@ -239,6 +239,7 @@ Global settings at file start, or per-slide after `---`:
 
 ```yaml
 ---
+figdeck: true                   # Required for VSCode extension to recognize file
 background: "#1a1a2e"           # Solid color
 gradient: "#0d1117:0%,#1f2937:50%,#58a6ff:100%@45"  # Gradient with angle
 template: "Style Name"          # Figma paint style name

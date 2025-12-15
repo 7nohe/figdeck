@@ -1,0 +1,207 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "scopeName": "figdeck.markdown.injection",
+  "injectionSelector": "L:text.html.markdown -markup.fenced_code",
+  "patterns": [
+    { "include": "#figdeck-frontmatter-block" },
+    { "include": "#figdeck-columns-block" },
+    { "include": "#figdeck-figma-block" },
+    { "include": "#figdeck-directive-end" },
+    { "include": "#figdeck-slide-separator" },
+    { "include": "#figdeck-image-alt-tokens" }
+  ],
+  "repository": {
+    "figdeck-frontmatter-block": {
+      "name": "meta.block.frontmatter.figdeck",
+      "begin": "^(---)[\\t ]*$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.begin.figdeck" }
+      },
+      "end": "^(---)[\\t ]*$|^(?=\\S)(?![\\t ]*[a-zA-Z_][a-zA-Z0-9_-]*:)(?![\\t ]+)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.frontmatter.end.figdeck" }
+      },
+      "patterns": [
+        { "include": "#figdeck-yaml-content" }
+      ]
+    },
+    "figdeck-yaml-content": {
+      "patterns": [
+        { "include": "#figdeck-yaml-comment" },
+        { "include": "#figdeck-yaml-key-nested" },
+        { "include": "#figdeck-yaml-key-value" }
+      ]
+    },
+    "figdeck-yaml-comment": {
+      "name": "comment.line.number-sign.yaml.figdeck",
+      "match": "^\\s*(#.*)$"
+    },
+    "figdeck-yaml-key-nested": {
+      "name": "meta.key.yaml.figdeck",
+      "match": "^(\\s*)([a-zA-Z_][a-zA-Z0-9_-]*)(:)\\s*$",
+      "captures": {
+        "2": { "name": "entity.name.tag.yaml.figdeck" },
+        "3": { "name": "punctuation.separator.key-value.yaml.figdeck" }
+      }
+    },
+    "figdeck-yaml-key-value": {
+      "name": "meta.key-value.yaml.figdeck",
+      "match": "^(\\s*)([a-zA-Z_][a-zA-Z0-9_-]*)(:)\\s*(.+)?$",
+      "captures": {
+        "2": { "name": "entity.name.tag.yaml.figdeck" },
+        "3": { "name": "punctuation.separator.key-value.yaml.figdeck" },
+        "4": {
+          "patterns": [
+            { "include": "#figdeck-yaml-value" }
+          ]
+        }
+      }
+    },
+    "figdeck-yaml-value": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.yaml.figdeck",
+          "match": "\"[^\"]*\""
+        },
+        {
+          "name": "string.quoted.single.yaml.figdeck",
+          "match": "'[^']*'"
+        },
+        {
+          "name": "constant.language.boolean.yaml.figdeck",
+          "match": "\\b(true|false|yes|no|on|off)\\b"
+        },
+        {
+          "name": "constant.numeric.yaml.figdeck",
+          "match": "\\b[0-9]+(\\.[0-9]+)?\\b"
+        },
+        {
+          "name": "string.unquoted.yaml.figdeck",
+          "match": "[^#\\s][^#]*"
+        }
+      ]
+    },
+    "figdeck-columns-block": {
+      "name": "meta.directive.columns.figdeck",
+      "begin": "^(:::columns)(?:\\s+(.*))?$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.directive.columns.figdeck" },
+        "2": { "patterns": [{ "include": "#figdeck-directive-attributes" }] }
+      },
+      "end": "^(:::)\\s*$",
+      "endCaptures": {
+        "1": { "name": "keyword.control.directive.end.figdeck" }
+      },
+      "patterns": [
+        { "include": "#figdeck-column-directive" },
+        { "include": "text.html.markdown" }
+      ]
+    },
+    "figdeck-column-directive": {
+      "name": "keyword.control.directive.column.figdeck",
+      "match": "^(:::column)\\s*$"
+    },
+    "figdeck-figma-block": {
+      "name": "meta.directive.figma.figdeck",
+      "begin": "^(:::figma)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "keyword.control.directive.figma.figdeck" }
+      },
+      "end": "^(:::)\\s*$",
+      "endCaptures": {
+        "1": { "name": "keyword.control.directive.end.figdeck" }
+      },
+      "patterns": [
+        { "include": "#figdeck-key-value" }
+      ]
+    },
+    "figdeck-directive-end": {
+      "name": "keyword.control.directive.end.figdeck",
+      "match": "^:::$"
+    },
+    "figdeck-directive-attributes": {
+      "patterns": [
+        {
+          "name": "meta.attribute.figdeck",
+          "match": "(gap|width)\\s*(=)\\s*([^\\s]+)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.figdeck" },
+            "2": { "name": "keyword.operator.assignment.figdeck" },
+            "3": { "name": "string.unquoted.attribute-value.figdeck" }
+          }
+        }
+      ]
+    },
+    "figdeck-key-value": {
+      "patterns": [
+        {
+          "name": "meta.key-value.link.figdeck",
+          "match": "^(link)\\s*(=)\\s*(.+)$",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.link.figdeck" },
+            "2": { "name": "keyword.operator.assignment.figdeck" },
+            "3": { "name": "string.unquoted.url.figdeck" }
+          }
+        },
+        {
+          "name": "meta.key-value.text.figdeck",
+          "match": "^(text\\.[a-zA-Z0-9_]+)\\s*(=)\\s*(.*)$",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.text-override.figdeck" },
+            "2": { "name": "keyword.operator.assignment.figdeck" },
+            "3": { "name": "string.unquoted.text-value.figdeck" }
+          }
+        },
+        {
+          "name": "meta.key-value.position.figdeck",
+          "match": "^(x|y)\\s*(=)\\s*([0-9]+%?)$",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.position.figdeck" },
+            "2": { "name": "keyword.operator.assignment.figdeck" },
+            "3": { "name": "constant.numeric.figdeck" }
+          }
+        },
+        {
+          "name": "meta.key-value.hidelink.figdeck",
+          "match": "^(hideLink)\\s*(=)\\s*(true|false)$",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.figdeck" },
+            "2": { "name": "keyword.operator.assignment.figdeck" },
+            "3": { "name": "constant.language.boolean.figdeck" }
+          }
+        },
+        {
+          "name": "meta.multiline-text.figdeck",
+          "begin": "^(text\\.[a-zA-Z0-9_]+)\\s*(=)\\s*$",
+          "beginCaptures": {
+            "1": { "name": "entity.other.attribute-name.text-override.figdeck" },
+            "2": { "name": "keyword.operator.assignment.figdeck" }
+          },
+          "end": "^(?=\\S)",
+          "patterns": [
+            {
+              "name": "string.unquoted.multiline-text.figdeck",
+              "match": "^\\s+.+$"
+            }
+          ]
+        }
+      ]
+    },
+    "figdeck-slide-separator": {
+      "name": "meta.separator.slide.figdeck",
+      "match": "^---$",
+      "captures": {
+        "0": { "name": "keyword.control.separator.slide.figdeck" }
+      }
+    },
+    "figdeck-image-alt-tokens": {
+      "name": "meta.image.size-position.figdeck",
+      "match": "(w|h|x|y)(:)([0-9]+%?)",
+      "captures": {
+        "1": { "name": "entity.other.attribute-name.image-size.figdeck" },
+        "2": { "name": "punctuation.separator.figdeck" },
+        "3": { "name": "constant.numeric.figdeck" }
+      }
+    }
+  }
+}

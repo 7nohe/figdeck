@@ -1,4 +1,5 @@
 ---
+figdeck: true
 transition:
   style: dissolve
   duration: 0.5

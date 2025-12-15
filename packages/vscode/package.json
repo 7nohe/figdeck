@@ -1,0 +1,198 @@
+{
+  "name": "figdeck-vscode",
+  "displayName": "figdeck",
+  "description": "VS Code extension for figdeck - Markdown to Figma Slides",
+  "version": "0.1.0",
+  "publisher": "figdeck",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
+  "homepage": "https://github.com/7nohe/figdeck",
+  "bugs": {
+    "url": "https://github.com/7nohe/figdeck/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/7nohe/figdeck.git",
+    "directory": "packages/vscode"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Snippets",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "figma",
+    "slides",
+    "markdown",
+    "presentation"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "figdeck.init",
+        "title": "figdeck: Init slides.md"
+      },
+      {
+        "command": "figdeck.build",
+        "title": "figdeck: Build JSON (current file)"
+      },
+      {
+        "command": "figdeck.serve.start",
+        "title": "figdeck: Start Serve"
+      },
+      {
+        "command": "figdeck.serve.stop",
+        "title": "figdeck: Stop Serve"
+      },
+      {
+        "command": "figdeck.serve.restart",
+        "title": "figdeck: Restart Serve"
+      },
+      {
+        "command": "figdeck.serve.quickPick",
+        "title": "figdeck: Serve Actions"
+      },
+      {
+        "command": "figdeck.showOutput",
+        "title": "figdeck: Show Output"
+      },
+      {
+        "command": "figdeck.nextSlide",
+        "title": "figdeck: Go to Next Slide"
+      },
+      {
+        "command": "figdeck.previousSlide",
+        "title": "figdeck: Go to Previous Slide"
+      },
+      {
+        "command": "figdeck.refreshOutline",
+        "title": "figdeck: Refresh Slide Outline"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "figdeck.slideOutline",
+          "name": "Slide Outline",
+          "when": "resourceLangId == markdown"
+        }
+      ]
+    },
+    "snippets": [
+      {
+        "language": "markdown",
+        "path": "./snippets/figdeck.json"
+      },
+      {
+        "language": "yaml",
+        "path": "./snippets/figdeck.json"
+      }
+    ],
+    "grammars": [
+      {
+        "scopeName": "figdeck.markdown.injection",
+        "path": "./syntaxes/figdeck-markdown.injection.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "figdeck",
+      "properties": {
+        "figdeck.cli.command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": null,
+          "description": "Custom command to run figdeck CLI. Default: npx figdeck@latest (e.g., [\"bunx\", \"figdeck\"] or [\"npx\", \"figdeck\"])"
+        },
+        "figdeck.serve.host": {
+          "type": "string",
+          "default": "127.0.0.1",
+          "description": "Host for figdeck serve command"
+        },
+        "figdeck.serve.port": {
+          "type": "number",
+          "default": 4141,
+          "description": "Port for figdeck serve command"
+        },
+        "figdeck.serve.allowRemote": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow remote connections to the server (required for non-loopback hosts)"
+        },
+        "figdeck.serve.secret": {
+          "type": "string",
+          "default": "",
+          "description": "Secret for authentication handshake (auto-generated if not set for remote connections)"
+        },
+        "figdeck.serve.noAuth": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable authentication (not recommended for remote connections)"
+        },
+        "figdeck.serve.noWatch": {
+          "type": "boolean",
+          "default": false,
+          "description": "Disable file watching (auto-reload on file changes)"
+        },
+        "figdeck.diagnostics.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable diagnostics for figdeck Markdown files"
+        },
+        "figdeck.diagnostics.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "Debounce time in milliseconds for diagnostics"
+        },
+        "figdeck.images.maxSizeMb": {
+          "type": "number",
+          "default": 5,
+          "description": "Maximum image file size in MB"
+        }
+      }
+    },
+    "configurationDefaults": {
+      "[markdown]": {
+        "editor.quickSuggestions": {
+          "other": "on",
+          "comments": "off",
+          "strings": "off"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify --keep-names",
+    "build:dev": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "package": "bun run build && vsce package --no-dependencies",
+    "dev": "bun run build:dev --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint src",
+    "test": "bun test src"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.3",
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}

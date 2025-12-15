@@ -77,6 +77,7 @@ export default defineConfig({
 					items: [
 						{ label: 'Installation', link: '/getting-started/installation/' },
 						{ label: 'Plugin Setup', link: '/plugin-setup/' },
+						{ label: 'VS Code Extension', link: '/vscode-extension/' },
 					],
 				},
 				{

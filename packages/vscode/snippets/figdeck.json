@@ -1,0 +1,288 @@
+{
+  "figdeck: Global Frontmatter": {
+    "prefix": ["figdeck-global", "---global"],
+    "body": [
+      "---",
+      "background: \"${1:#1a1a2e}\"",
+      "color: \"${2:#ffffff}\"",
+      "align: ${3|left,center,right|}",
+      "valign: ${4|top,middle,bottom|}",
+      "---",
+      "",
+      "$0"
+    ],
+    "description": "Global YAML frontmatter for figdeck slides"
+  },
+  "figdeck: Global Frontmatter (Full)": {
+    "prefix": ["figdeck-global-full"],
+    "body": [
+      "---",
+      "background: \"${1:#1a1a2e}\"",
+      "color: \"${2:#ffffff}\"",
+      "align: ${3|left,center,right|}",
+      "valign: ${4|top,middle,bottom|}",
+      "transition:",
+      "  style: ${5|dissolve,smart-animate,slide-from-left,slide-from-right,slide-from-top,slide-from-bottom,push-from-left,push-from-right,push-from-top,push-from-bottom|}",
+      "  duration: ${6:0.5}",
+      "  curve: ${7|ease-out,ease-in,ease-in-and-out,linear,gentle,quick,bouncy,slow|}",
+      "slideNumber:",
+      "  show: true",
+      "  position: ${8|bottom-right,bottom-left,top-right,top-left|}",
+      "  size: ${9:14}",
+      "  color: \"${10:#888888}\"",
+      "  format: \"\\${current} / \\${total}\"",
+      "---",
+      "",
+      "$0"
+    ],
+    "description": "Full global YAML frontmatter with all options"
+  },
+  "figdeck: Slide Separator": {
+    "prefix": ["---slide", "figdeck-slide"],
+    "body": [
+      "---",
+      "",
+      "## ${1:Slide Title}",
+      "",
+      "$0"
+    ],
+    "description": "New slide with separator and title"
+  },
+  "figdeck: Slide with Frontmatter": {
+    "prefix": ["---slide-fm", "figdeck-slide-fm"],
+    "body": [
+      "---",
+      "${1:background: \"#1a1a2e\"}",
+      "---",
+      "",
+      "## ${2:Slide Title}",
+      "",
+      "$0"
+    ],
+    "description": "New slide with per-slide frontmatter"
+  },
+  "figdeck: Slide with Transition": {
+    "prefix": ["---slide-transition", "figdeck-transition"],
+    "body": [
+      "---",
+      "transition: ${1|dissolve,smart-animate,slide-from-left,slide-from-right,slide-from-top,slide-from-bottom,push-from-left,push-from-right|} ${2:0.5}",
+      "---",
+      "",
+      "## ${3:Slide Title}",
+      "",
+      "$0"
+    ],
+    "description": "New slide with transition animation"
+  },
+  "figdeck: Two Columns": {
+    "prefix": [":::columns2", "figdeck-columns2", "columns2"],
+    "body": [
+      ":::columns",
+      ":::column",
+      "${1:Left column content}",
+      "",
+      ":::column",
+      "${2:Right column content}",
+      ":::",
+      "$0"
+    ],
+    "description": "Two-column layout"
+  },
+  "figdeck: Three Columns": {
+    "prefix": [":::columns3", "figdeck-columns3", "columns3"],
+    "body": [
+      ":::columns",
+      ":::column",
+      "${1:Column 1}",
+      "",
+      ":::column",
+      "${2:Column 2}",
+      "",
+      ":::column",
+      "${3:Column 3}",
+      ":::",
+      "$0"
+    ],
+    "description": "Three-column layout"
+  },
+  "figdeck: Four Columns": {
+    "prefix": [":::columns4", "figdeck-columns4", "columns4"],
+    "body": [
+      ":::columns",
+      ":::column",
+      "${1:Column 1}",
+      "",
+      ":::column",
+      "${2:Column 2}",
+      "",
+      ":::column",
+      "${3:Column 3}",
+      "",
+      ":::column",
+      "${4:Column 4}",
+      ":::",
+      "$0"
+    ],
+    "description": "Four-column layout"
+  },
+  "figdeck: Columns with Gap": {
+    "prefix": [":::columns-gap", "figdeck-columns-gap"],
+    "body": [
+      ":::columns gap=${1:64}",
+      ":::column",
+      "${2:Left column}",
+      "",
+      ":::column",
+      "${3:Right column}",
+      ":::",
+      "$0"
+    ],
+    "description": "Two-column layout with custom gap"
+  },
+  "figdeck: Columns with Width": {
+    "prefix": [":::columns-width", "figdeck-columns-width"],
+    "body": [
+      ":::columns width=${1:1fr/2fr}",
+      ":::column",
+      "${2:Sidebar}",
+      "",
+      ":::column",
+      "${3:Main content}",
+      ":::",
+      "$0"
+    ],
+    "description": "Two-column layout with custom widths"
+  },
+  "figdeck: Figma Block": {
+    "prefix": [":::figma", "figdeck-figma", "figma"],
+    "body": [
+      ":::figma",
+      "link=${1:https://www.figma.com/file/xxx/name?node-id=1234-5678}",
+      ":::",
+      "$0"
+    ],
+    "description": "Figma link block"
+  },
+  "figdeck: Figma Block with Text": {
+    "prefix": [":::figma-text", "figdeck-figma-text"],
+    "body": [
+      ":::figma",
+      "link=${1:https://www.figma.com/file/xxx/name?node-id=1234-5678}",
+      "text.title=${2:Title}",
+      "text.body=${3:Description}",
+      ":::",
+      "$0"
+    ],
+    "description": "Figma link block with text overrides"
+  },
+  "figdeck: Figma Block with Position": {
+    "prefix": [":::figma-pos", "figdeck-figma-pos"],
+    "body": [
+      ":::figma",
+      "link=${1:https://www.figma.com/file/xxx/name?node-id=1234-5678}",
+      "x=${2:160}",
+      "y=${3:300}",
+      "hideLink=${4|true,false|}",
+      ":::",
+      "$0"
+    ],
+    "description": "Figma link block with position"
+  },
+  "figdeck: Image with Size": {
+    "prefix": ["![w:", "figdeck-image-size"],
+    "body": [
+      "![w:${1:400}${2: h:${3:300}}](${4:./image.png})"
+    ],
+    "description": "Image with width and optional height"
+  },
+  "figdeck: Image with Position": {
+    "prefix": ["![x:", "figdeck-image-pos"],
+    "body": [
+      "![w:${1:400} x:${2:100} y:${3:200}](${4:./image.png})"
+    ],
+    "description": "Image with size and absolute position"
+  },
+  "figdeck: Image Percentage Size": {
+    "prefix": ["![w:%", "figdeck-image-percent"],
+    "body": [
+      "![w:${1:50}%](${2:./image.png})"
+    ],
+    "description": "Image with percentage width"
+  },
+  "figdeck: Gradient Background": {
+    "prefix": ["gradient:", "figdeck-gradient"],
+    "body": [
+      "gradient: \"${1:#0d1117}:0%,${2:#1f2937}:50%,${3:#3b82f6}:100%@${4:45}\""
+    ],
+    "description": "Gradient background (color:stop,...@angle)"
+  },
+  "figdeck: Background Image (Local)": {
+    "prefix": ["backgroundImage-local", "figdeck-bg-local"],
+    "body": [
+      "backgroundImage: \"./${1:bg.png}\""
+    ],
+    "description": "Local background image"
+  },
+  "figdeck: Background Image (URL)": {
+    "prefix": ["backgroundImage-url", "figdeck-bg-url"],
+    "body": [
+      "backgroundImage: \"${1:https://example.com/image.jpg}\""
+    ],
+    "description": "Remote background image URL"
+  },
+  "figdeck: Title Prefix": {
+    "prefix": ["titlePrefix:", "figdeck-titleprefix"],
+    "body": [
+      "titlePrefix:",
+      "  link: \"${1:https://www.figma.com/design/xxx?node-id=123-456}\"",
+      "  spacing: ${2:16}"
+    ],
+    "description": "Title prefix from Figma component"
+  },
+  "figdeck: Slide Number": {
+    "prefix": ["slideNumber:", "figdeck-slidenumber"],
+    "body": [
+      "slideNumber:",
+      "  show: true",
+      "  position: ${1|bottom-right,bottom-left,top-right,top-left|}",
+      "  size: ${2:14}",
+      "  color: \"${3:#888888}\"",
+      "  format: \"\\${current} / \\${total}\""
+    ],
+    "description": "Slide number configuration"
+  },
+  "figdeck: Fonts Configuration": {
+    "prefix": ["fonts:", "figdeck-fonts"],
+    "body": [
+      "fonts:",
+      "  h1:",
+      "    family: \"${1:Roboto}\"",
+      "    style: \"${2:Medium}\"",
+      "    bold: \"${3:Bold}\"",
+      "  body:",
+      "    family: \"${4:Inter}\"",
+      "    style: \"Regular\""
+    ],
+    "description": "Custom font configuration"
+  },
+  "figdeck: Headings Style": {
+    "prefix": ["headings:", "figdeck-headings"],
+    "body": [
+      "headings:",
+      "  h1: { size: ${1:72}, color: \"${2:#ffffff}\" }",
+      "  h2: { size: ${3:56}, color: \"${4:#ffffff}\" }"
+    ],
+    "description": "Heading styles (size and color)"
+  },
+  "figdeck: Auto-advance Transition": {
+    "prefix": ["transition-auto", "figdeck-auto"],
+    "body": [
+      "transition:",
+      "  style: ${1|dissolve,slide-from-right|}",
+      "  timing:",
+      "    type: after-delay",
+      "    delay: ${2:3}"
+    ],
+    "description": "Auto-advancing slide transition"
+  }
+}

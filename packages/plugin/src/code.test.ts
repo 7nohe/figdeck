@@ -1,6 +1,36 @@
 import { beforeEach, describe, expect, it, mock } from "bun:test";
 import type { BulletItem } from "@figdeck/shared";
 
+// Mock for TextNode
+function createMockTextNode(overrides: Partial<TextNode> = {}): TextNode {
+  return {
+    type: "TEXT",
+    width: 800,
+    height: 20,
+    layoutSizingHorizontal: "HUG",
+    textAutoResize: "WIDTH_AND_HEIGHT",
+    resize: mock(() => {}),
+    ...overrides,
+  } as unknown as TextNode;
+}
+
+// Mock for FrameNode
+function createMockFrameNode(
+  overrides: Partial<FrameNode> & { children?: SceneNode[] } = {},
+): FrameNode {
+  const children = overrides.children || [];
+  return {
+    type: "FRAME",
+    width: 400,
+    height: 100,
+    layoutMode: "VERTICAL",
+    layoutSizingHorizontal: "HUG",
+    layoutSizingVertical: "HUG",
+    children: children,
+    ...overrides,
+  } as unknown as FrameNode;
+}
+
 // Minimal figma + __html__ stubs for importing the plugin entrypoint
 beforeEach(() => {
   (globalThis as { __html__?: string }).__html__ = "";
@@ -185,5 +215,98 @@ describe("validateAndSanitizeSlides", () => {
 
     // Should be limited to MAX_BULLET_ITEMS (100)
     expect(block.items.length).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("constrainNodeToWidth", () => {
+  it("sets text node properties for wrapping", async () => {
+    const { constrainNodeToWidth } = await import("./code");
+
+    const textNode = createMockTextNode();
+    constrainNodeToWidth(textNode as unknown as SceneNode, 400);
+
+    expect(textNode.layoutSizingHorizontal).toBe("FIXED");
+    expect(textNode.textAutoResize).toBe("HEIGHT");
+    expect(textNode.resize).toHaveBeenCalledWith(400, 20);
+  });
+
+  it("sets frame node properties and processes children", async () => {
+    const { constrainNodeToWidth } = await import("./code");
+
+    const childText = createMockTextNode();
+    const frameNode = createMockFrameNode({
+      layoutMode: "VERTICAL",
+      children: [childText as unknown as SceneNode],
+    });
+
+    constrainNodeToWidth(frameNode as unknown as SceneNode, 400);
+
+    expect(frameNode.layoutSizingHorizontal).toBe("FILL");
+    expect(frameNode.layoutSizingVertical).toBe("HUG");
+    // Child text node should also be constrained
+    expect(childText.layoutSizingHorizontal).toBe("FIXED");
+    expect(childText.textAutoResize).toBe("HEIGHT");
+  });
+
+  it("does not modify non-auto-layout frames", async () => {
+    const { constrainNodeToWidth } = await import("./code");
+
+    const frameNode = createMockFrameNode({
+      layoutMode: "NONE",
+      width: 300,
+    });
+
+    constrainNodeToWidth(frameNode as unknown as SceneNode, 400);
+
+    // Should not change layoutSizingHorizontal for non-auto-layout frames
+    expect(frameNode.layoutSizingHorizontal).toBe("HUG");
+  });
+});
+
+describe("constrainTextNodesInFrame", () => {
+  it("constrains all text nodes in frame", async () => {
+    const { constrainTextNodesInFrame } = await import("./code");
+
+    const textNode1 = createMockTextNode();
+    const textNode2 = createMockTextNode();
+    const frameNode = createMockFrameNode({
+      children: [
+        textNode1 as unknown as SceneNode,
+        textNode2 as unknown as SceneNode,
+      ],
+    });
+
+    constrainTextNodesInFrame(frameNode, 350);
+
+    expect(textNode1.layoutSizingHorizontal).toBe("FIXED");
+    expect(textNode1.textAutoResize).toBe("HEIGHT");
+    expect(textNode1.resize).toHaveBeenCalledWith(350, 20);
+
+    expect(textNode2.layoutSizingHorizontal).toBe("FIXED");
+    expect(textNode2.textAutoResize).toBe("HEIGHT");
+    expect(textNode2.resize).toHaveBeenCalledWith(350, 20);
+  });
+
+  it("recursively processes nested frames", async () => {
+    const { constrainTextNodesInFrame } = await import("./code");
+
+    const nestedText = createMockTextNode();
+    const nestedFrame = createMockFrameNode({
+      layoutMode: "VERTICAL",
+      children: [nestedText as unknown as SceneNode],
+    });
+    const outerFrame = createMockFrameNode({
+      children: [nestedFrame as unknown as SceneNode],
+    });
+
+    constrainTextNodesInFrame(outerFrame, 300);
+
+    // Nested frame should be configured
+    expect(nestedFrame.layoutSizingHorizontal).toBe("FILL");
+    expect(nestedFrame.layoutSizingVertical).toBe("HUG");
+
+    // Text inside nested frame should be constrained
+    expect(nestedText.layoutSizingHorizontal).toBe("FIXED");
+    expect(nestedText.textAutoResize).toBe("HEIGHT");
   });
 });

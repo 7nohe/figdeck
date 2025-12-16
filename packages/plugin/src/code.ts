@@ -408,6 +408,78 @@ async function renderBlockItemToNode(
 }
 
 /**
+ * Constrain a node's width for column layouts, enabling proper text wrapping.
+ */
+export function constrainNodeToWidth(
+  node: SceneNode,
+  targetWidth: number,
+): void {
+  if (node.type === "TEXT") {
+    // For text nodes in auto-layout: enable wrapping and constrain to column width
+    const textNode = node as TextNode;
+    // 1. Set layout sizing to FIXED first (prevents auto-layout from overriding width)
+    textNode.layoutSizingHorizontal = "FIXED";
+    // 2. Set text auto-resize to HEIGHT (enables text wrapping with fixed width)
+    textNode.textAutoResize = "HEIGHT";
+    // 3. Now resize to target width - text will wrap
+    textNode.resize(targetWidth, textNode.height);
+  } else if (node.type === "FRAME") {
+    // For frame nodes (bullet lists, blockquotes, etc.)
+    const frameNode = node as FrameNode;
+    if (frameNode.layoutMode !== "NONE") {
+      // Auto-layout frame: fill width, hug height, ensure children also fill
+      frameNode.layoutSizingHorizontal = "FILL";
+      frameNode.layoutSizingVertical = "HUG";
+      // Recursively constrain text children for proper wrapping
+      constrainTextNodesInFrame(frameNode, targetWidth);
+    } else if (node.width > targetWidth) {
+      // Non-auto-layout frame, resize maintaining aspect ratio
+      const aspectRatio = node.height / node.width;
+      frameNode.resize(targetWidth, targetWidth * aspectRatio);
+    }
+  } else if (
+    "resize" in node &&
+    typeof (node as { resize?: (w: number, h: number) => void }).resize ===
+      "function" &&
+    node.width > targetWidth
+  ) {
+    // For other nodes (images, etc.), constrain width maintaining aspect ratio
+    const aspectRatio = node.height / node.width;
+    (node as { resize: (w: number, h: number) => void }).resize(
+      targetWidth,
+      targetWidth * aspectRatio,
+    );
+  }
+}
+
+/**
+ * Recursively constrain text nodes within a frame for proper text wrapping.
+ */
+export function constrainTextNodesInFrame(
+  frame: FrameNode,
+  maxWidth: number,
+): void {
+  for (const child of frame.children) {
+    if (child.type === "TEXT") {
+      const textNode = child as TextNode;
+      // 1. Set layout sizing to FIXED first
+      textNode.layoutSizingHorizontal = "FIXED";
+      // 2. Set text auto-resize to HEIGHT (enables wrapping)
+      textNode.textAutoResize = "HEIGHT";
+      // 3. Resize to max width
+      textNode.resize(maxWidth, textNode.height);
+    } else if (child.type === "FRAME") {
+      const childFrame = child as FrameNode;
+      if (childFrame.layoutMode !== "NONE") {
+        childFrame.layoutSizingHorizontal = "FILL";
+        childFrame.layoutSizingVertical = "HUG";
+        constrainTextNodesInFrame(childFrame, maxWidth);
+      }
+    }
+  }
+}
+
+/**
  * Render a columns block as a horizontal auto-layout frame
  */
 async function renderColumnsBlock(
@@ -500,11 +572,8 @@ async function renderColumnsBlock(
       const node = await renderBlockItemToNode(item, styles);
       if (node) {
         columnFrame.appendChild(node);
-        // Constrain node width to column width
-        if ("resize" in node && node.width > columnWidth) {
-          const aspectRatio = node.height / node.width;
-          node.resize(columnWidth, columnWidth * aspectRatio);
-        }
+        // Constrain node width to column width with proper text wrapping
+        constrainNodeToWidth(node, columnWidth);
       }
     }
 

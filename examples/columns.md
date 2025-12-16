@@ -16,7 +16,7 @@ Demonstration of figdeck's column layout feature.
 :::column
 ### Left Column
 
-- Feature A
+- Feature A 
 - Feature B
 - Feature C
 

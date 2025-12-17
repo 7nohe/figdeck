@@ -209,26 +209,45 @@
     ],
     "description": "Image with percentage width"
   },
-  "figdeck: Gradient Background": {
-    "prefix": ["gradient:", "figdeck-gradient"],
+  "figdeck: Background (Gradient)": {
+    "prefix": ["background-gradient", "figdeck-bg-gradient"],
     "body": [
-      "gradient: \"${1:#0d1117}:0%,${2:#1f2937}:50%,${3:#3b82f6}:100%@${4:45}\""
+      "background: \"${1:#0d1117}:0%,${2:#1f2937}:50%,${3:#3b82f6}:100%@${4:45}\""
     ],
     "description": "Gradient background (color:stop,...@angle)"
   },
-  "figdeck: Background Image (Local)": {
-    "prefix": ["backgroundImage-local", "figdeck-bg-local"],
+  "figdeck: Background (Image Local)": {
+    "prefix": ["background-local", "figdeck-bg-local"],
     "body": [
-      "backgroundImage: \"./${1:bg.png}\""
+      "background: \"./${1:bg.png}\""
     ],
     "description": "Local background image"
   },
-  "figdeck: Background Image (URL)": {
-    "prefix": ["backgroundImage-url", "figdeck-bg-url"],
+  "figdeck: Background (Image URL)": {
+    "prefix": ["background-url", "figdeck-bg-url"],
     "body": [
-      "backgroundImage: \"${1:https://example.com/image.jpg}\""
+      "background: \"${1:https://example.com/image.jpg}\""
     ],
     "description": "Remote background image URL"
+  },
+  "figdeck: Background (Component URL)": {
+    "prefix": ["background-component", "figdeck-bg-component"],
+    "body": [
+      "background: \"${1:https://www.figma.com/design/xxx?node-id=123-456}\""
+    ],
+    "description": "Figma Component/Frame as slide background (URL shorthand)"
+  },
+  "figdeck: Background (Component Full)": {
+    "prefix": ["background-component-full", "figdeck-bg-component-full"],
+    "body": [
+      "background:",
+      "  component:",
+      "    link: \"${1:https://www.figma.com/design/xxx?node-id=123-456}\"",
+      "    fit: ${2|cover,contain,stretch|}",
+      "    align: ${3|center,top-left,top-right,bottom-left,bottom-right|}",
+      "    opacity: ${4:1}"
+    ],
+    "description": "Figma Component/Frame as slide background (full options)"
   },
   "figdeck: Title Prefix": {
     "prefix": ["titlePrefix:", "figdeck-titleprefix"],

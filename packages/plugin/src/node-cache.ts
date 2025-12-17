@@ -153,6 +153,21 @@ export function cloneNode(node: SceneNode): SceneNode | null {
     if (node.type === "COMPONENT") {
       return (node as ComponentNode).createInstance();
     }
+    if (node.type === "COMPONENT_SET") {
+      // For component sets, create an instance of the default variant
+      const componentSet = node as ComponentSetNode;
+      const defaultVariant = componentSet.defaultVariant;
+      if (defaultVariant) {
+        return defaultVariant.createInstance();
+      }
+      // Fallback: try the first child if no default variant
+      const firstChild = componentSet.children[0];
+      if (firstChild && firstChild.type === "COMPONENT") {
+        return (firstChild as ComponentNode).createInstance();
+      }
+      console.warn("[figdeck] Component set has no usable variants");
+      return null;
+    }
     return node.clone();
   } catch (e) {
     // Node reference is stale - the node was likely deleted by the user

@@ -234,6 +234,21 @@ export function analyzeFrontmatterStructure(lines: string[]): Issue[] {
 
 const SUPPORTED_IMAGE_EXTENSIONS = ["png", "jpg", "jpeg", "gif"];
 
+function looksLikeColor(value: string): boolean {
+  // Hex colors
+  if (/^#[0-9a-fA-F]{3,8}$/.test(value)) return true;
+  // rgb/rgba/hsl/hsla
+  if (/^(rgb|hsl)a?\s*\(/.test(value)) return true;
+  // Named colors (basic check - CLI will validate)
+  if (/^[a-zA-Z]+$/.test(value)) return true;
+  return false;
+}
+
+function looksLikeGradient(value: string): boolean {
+  // Gradient format: #color:position%,#color:position%[@angle]
+  return /^#?[0-9a-fA-F]{3,8}:\d+%/.test(value);
+}
+
 /**
  * Find the line number where a key appears in frontmatter content
  */
@@ -253,7 +268,7 @@ function findKeyLineInFrontmatter(
 }
 
 /**
- * Analyze backgroundImage references in frontmatter for issues
+ * Analyze background image references in frontmatter for issues
  * @internal Exported for testing
  */
 export async function analyzeBackgroundImages(
@@ -278,10 +293,29 @@ export async function analyzeBackgroundImages(
 
     if (typeof parsed !== "object" || parsed === null) continue;
 
-    const backgroundImage = (parsed as Record<string, unknown>).backgroundImage;
-    if (typeof backgroundImage !== "string" || !backgroundImage) continue;
+    const background = (parsed as Record<string, unknown>).background;
+    if (background === undefined || background === null) continue;
 
-    const url = backgroundImage.trim();
+    let url: string | null = null;
+    let keyForLineSearch: string = "background";
+
+    if (typeof background === "string") {
+      const trimmed = background.trim();
+      if (!trimmed) continue;
+      if (looksLikeColor(trimmed) || looksLikeGradient(trimmed)) continue;
+      url = trimmed;
+    } else if (typeof background === "object") {
+      const image = (background as Record<string, unknown>).image;
+      if (typeof image !== "string") continue;
+      const trimmed = image.trim();
+      if (!trimmed) continue;
+      url = trimmed;
+      keyForLineSearch = "image";
+    } else {
+      continue;
+    }
+
+    if (!url) continue;
 
     // Skip remote URLs
     if (url.startsWith("http://") || url.startsWith("https://")) {
@@ -292,7 +326,7 @@ export async function analyzeBackgroundImages(
       lines,
       block.startLine,
       block.endLine,
-      "backgroundImage",
+      keyForLineSearch,
     );
     const lineLength = lines[keyLine]?.length ?? 100;
 

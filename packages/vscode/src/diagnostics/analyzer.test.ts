@@ -3,6 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type * as vscode from "vscode";
 import {
+  analyzeBackgroundImages,
   analyzeColumnsBlocks,
   analyzeDocument,
   analyzeFigmaBlocks,
@@ -934,6 +935,455 @@ describe("analyzeImages", () => {
     );
 
     expect(statSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("analyzeBackgroundImages", () => {
+  let statSpy: ReturnType<typeof spyOn> | null = null;
+
+  afterEach(() => {
+    statSpy?.mockRestore();
+    statSpy = null;
+    clearImageDiagnosticsCache();
+  });
+
+  it("skips solid hex color background", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", 'background: "#1a1a2e"', "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips hex color with alpha", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", 'background: "#1a1a2eff"', "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips rgb/rgba colors", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: rgb(255, 0, 0)", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips named colors", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: red", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips gradient background", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", 'background: "#0d1117:0%,#58a6ff:100%@45"', "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips gradient without leading hash", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: 0d1117:0%,58a6ff:100%", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips 3-character hex color", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", 'background: "#fff"', "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips hsl color", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: hsl(0, 100%, 50%)", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips hsla color", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: hsla(0, 100%, 50%, 0.5)", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips rgba color", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: rgba(255, 0, 0, 0.5)", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips remote http URLs", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: http://example.com/image.png", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("skips remote https URLs", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = ["---", "background: https://example.com/image.png", "---"];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
+  });
+
+  it("reports error for non-existent background image (string format)", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = ["---", "background: ./images/missing.png", "---"];
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async () => {
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(
+      issues.some((issue) => issue.code === "background-image-not-found"),
+    ).toBe(true);
+  });
+
+  it("reports error for non-existent background image (object format)", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = [
+      "---",
+      "background:",
+      "  image: ./images/missing.png",
+      "---",
+    ];
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async () => {
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(
+      issues.some((issue) => issue.code === "background-image-not-found"),
+    ).toBe(true);
+  });
+
+  it("warns for unsupported background image format", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = ["---", "background: ./images/bg.webp", "---"];
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async () => {
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(
+      issues.some(
+        (issue) => issue.code === "background-image-unsupported-format",
+      ),
+    ).toBe(true);
+  });
+
+  it("warns for oversized background image", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = ["---", "background: ./images/large.png", "---"];
+
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/large.png",
+    );
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 10 * 1024 * 1024, // 10MB
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(
+      issues.some((issue) => issue.code === "background-image-too-large"),
+    ).toBe(true);
+  });
+
+  it("detects image path in object format with image property", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = ["---", "background:", "  image: ./images/large.png", "---"];
+
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/large.png",
+    );
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 10 * 1024 * 1024, // 10MB
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(
+      issues.some((issue) => issue.code === "background-image-too-large"),
+    ).toBe(true);
+  });
+
+  it("does not warn when image size is within limit", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = ["---", "background: ./images/small.png", "---"];
+
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/small.png",
+    );
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 1 * 1024 * 1024, // 1MB
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(
+      issues.some((issue) => issue.code === "background-image-too-large"),
+    ).toBe(false);
+    expect(
+      issues.some((issue) => issue.code === "background-image-not-found"),
+    ).toBe(false);
+  });
+
+  it("respects maxSizeMb option", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = ["---", "background: ./images/medium.png", "---"];
+
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/medium.png",
+    );
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 2 * 1024 * 1024, // 2MB
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+      { maxSizeMb: 1 },
+    );
+
+    expect(
+      issues.some((issue) => issue.code === "background-image-too-large"),
+    ).toBe(true);
+  });
+
+  it("allows disabling size check via maxSizeMb: null", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentPath = path.join(basePath, "docs", "slides.md");
+    const documentUri = makeFileUri(documentPath);
+    const lines = ["---", "background: ./images/huge.png", "---"];
+
+    const expectedPath = path.resolve(
+      path.dirname(documentPath),
+      "images/huge.png",
+    );
+
+    statSpy = spyOn(fs.promises, "stat").mockImplementation((async (
+      filePath: fs.PathLike,
+    ) => {
+      if (String(filePath) === expectedPath) {
+        return {
+          size: 100 * 1024 * 1024, // 100MB
+          isFile: () => true,
+        } as unknown as fs.Stats;
+      }
+      throw new Error("ENOENT");
+    }) as unknown as typeof fs.promises.stat);
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+      { maxSizeMb: null },
+    );
+
+    expect(
+      issues.some((issue) => issue.code === "background-image-too-large"),
+    ).toBe(false);
+  });
+
+  it("skips per-slide frontmatter with color background", async () => {
+    const basePath = path.resolve("test-workspace");
+    const documentUri = makeFileUri(path.join(basePath, "docs", "slides.md"));
+    const lines = [
+      "---",
+      'background: "#000"',
+      "---",
+      "",
+      "# Title",
+      "",
+      "---",
+      'background: "#fff"',
+      "---",
+      "",
+      "## Slide 2",
+    ];
+
+    const issues = await analyzeBackgroundImages(
+      lines,
+      basePath,
+      documentUri as unknown as vscode.Uri,
+    );
+
+    expect(issues).toHaveLength(0);
   });
 });
 

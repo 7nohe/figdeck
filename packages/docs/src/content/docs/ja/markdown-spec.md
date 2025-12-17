@@ -85,10 +85,7 @@ transition: slide-from-right
 | 設定 | 説明 |
 |------|------|
 | `figdeck` | VSCode 拡張機能の機能を有効化（`true`/`false`） |
-| `background` | 背景色（16進数） |
-| `gradient` | グラデーション背景 |
-| `backgroundImage` | 背景画像（ローカルパスまたはURL） |
-| `template` | Figma ペイントスタイル名 |
+| `background` | 統合背景設定：色、グラデーション、画像、テンプレート、Figma コンポーネント |
 | `color` | ベーステキスト色 |
 | `headings` | 見出しスタイル（h1, h2, h3, h4） |
 | `paragraphs` | 段落スタイル |
@@ -272,6 +269,90 @@ bullets:
 詳細は[ドキュメント](https://example.com)を参照してください。
 :::
 ```
+
+## 背景
+
+`background` プロパティは、すべての背景タイプを統合した設定です。文字列形式（自動検出）またはオブジェクト形式（明示的）で指定できます。
+
+### 文字列形式（自動検出）
+
+```yaml
+---
+# 単色（16進数）
+background: "#1a1a2e"
+
+# グラデーション
+background: "#0d1117:0%,#1f2937:50%,#58a6ff:100%@45"
+
+# 画像（ローカルパスまたはURL）
+background: "./bg.png"
+background: "https://example.com/bg.png"
+
+# Figma コンポーネント（node-id 付きURL）
+background: "https://www.figma.com/design/YOUR_FILE_KEY?node-id=123-456"
+---
+```
+
+### オブジェクト形式（明示的）
+
+```yaml
+---
+background:
+  color: "#1a1a2e"           # 単色
+  gradient: "#000:0%,#fff:100%@45"  # グラデーション
+  template: "Dark Mode"      # Figma ペイントスタイル名
+  image: "./bg.png"          # 画像パスまたはURL
+  component:                 # Figma コンポーネント
+    link: "https://www.figma.com/design/xxx?node-id=123-456"
+    fit: "cover"             # cover | contain | stretch
+    align: "center"          # center | top-left | top-right | bottom-left | bottom-right
+    opacity: 0.8             # 0-1
+---
+```
+
+### 背景の組み合わせ
+
+コンポーネントは color/gradient/image 背景と組み合わせて使用できます。コンポーネントは上位レイヤーとして描画されます：
+
+```yaml
+---
+background:
+  color: "#1a1a2e"
+  component:
+    link: "https://www.figma.com/design/xxx?node-id=123-456"
+    opacity: 0.6
+---
+```
+
+### 優先順位
+
+オブジェクト形式で複数のプロパティを指定した場合の優先順位: `template` > `gradient` > `color` > `image`
+
+### コンポーネントの fit オプション
+
+| 値 | 説明 |
+|----|------|
+| `cover` | スライド全体を覆うようにスケール、はみ出し部分はクリップ（デフォルト） |
+| `contain` | スライド内に収まるようにスケール、余白が生じる場合あり |
+| `stretch` | スライドサイズに合わせて引き伸ばし、アスペクト比は維持されない |
+
+### コンポーネントの align オプション
+
+`cover` または `contain` 使用時に配置位置を指定できます：
+
+| 値 | 説明 |
+|----|------|
+| `center` | スライドの中央（デフォルト） |
+| `top-left` | 左上隅 |
+| `top-right` | 右上隅 |
+| `bottom-left` | 左下隅 |
+| `bottom-right` | 右下隅 |
+
+### 制限事項
+
+- コンポーネントは**同一 Figma ファイル内**のノードのみ対応（MVP 制限）
+- 対応ノードタイプ: Component, ComponentSet, Frame, Instance
+- 推奨背景サイズ: 1920x1080（スライドサイズ）
 
 ## 画像
 
@@ -902,3 +983,4 @@ CLI と Figma Plugin が連携して動作します。
 | 脚注 | ✅ | GFM、スライド下部に表示 |
 | トランジション | ✅ | スライド切り替えアニメーション |
 | カスタムフォント | ✅ | 要素ごとのフォントファミリー |
+| 背景コンポーネント | ✅ | Figma コンポーネント/フレームを背景に |

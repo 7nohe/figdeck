@@ -10,6 +10,42 @@ export interface BackgroundImage {
   source?: "local" | "remote";
 }
 
+/**
+ * Fit mode for background component
+ * - cover: Scale to cover entire slide, cropping if necessary
+ * - contain: Scale to fit within slide, may have empty space
+ * - stretch: Stretch to fill slide, ignoring aspect ratio
+ */
+export type BackgroundComponentFit = "cover" | "contain" | "stretch";
+
+/**
+ * Alignment for background component positioning
+ */
+export type BackgroundComponentAlign =
+  | "center"
+  | "top-left"
+  | "top-right"
+  | "bottom-left"
+  | "bottom-right";
+
+/**
+ * Background component configuration for using a Figma Component/Frame as background
+ */
+export interface BackgroundComponent {
+  /** Figma URL link to the component/frame */
+  link?: string;
+  /** Figma node ID (extracted from link or specified directly) */
+  nodeId: string;
+  /** Figma file key (extracted from link) */
+  fileKey?: string;
+  /** How the component should be scaled to fit the slide (default: cover) */
+  fit?: BackgroundComponentFit;
+  /** Position alignment when component doesn't fill the slide (default: center) */
+  align?: BackgroundComponentAlign;
+  /** Opacity of the background component (0-1, default: 1) */
+  opacity?: number;
+}
+
 export interface SlideBackground {
   solid?: string;
   gradient?: {
@@ -18,6 +54,8 @@ export interface SlideBackground {
   };
   templateStyle?: string;
   image?: BackgroundImage;
+  /** Figma Component/Frame used as background layer */
+  component?: BackgroundComponent;
 }
 
 export interface CodeBlock {

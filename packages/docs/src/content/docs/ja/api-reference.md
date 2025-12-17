@@ -155,10 +155,7 @@ color: "#58a6ff"
 
 | プロパティ | 型 | 説明 |
 |------------|------|------|
-| `background` | `string` | 背景色（hex） |
-| `gradient` | `string` | グラデーション（`color:pos%,...@angle` 形式） |
-| `template` | `string` | Figma Paint Style 名 |
-| `backgroundImage` | `string` | 背景画像（ローカルパスまたは URL） |
+| `background` | `string \| object` | 統一された背景設定: string（色/グラデーション/画像/コンポーネント）または object（`color`, `gradient`, `template`, `image`, `component`） |
 | `color` | `string` | 基本テキスト色（全要素に適用） |
 | `headings` | `object` | 見出しスタイル（h1〜h4） |
 | `paragraphs` | `object` | 段落スタイル |

@@ -39,69 +39,285 @@ describe("parseFontSize", () => {
 });
 
 describe("parseSlideConfig", () => {
-  describe("background parsing", () => {
-    it("should parse solid background", () => {
-      const result = parseSlideConfig({ background: "#1a1a2e" });
-      expect(result.background).toEqual({ solid: "#1a1a2e" });
+  describe("unified background parsing", () => {
+    describe("string format (auto-detect)", () => {
+      it("should parse solid color from hex string", () => {
+        const result = parseSlideConfig({ background: "#1a1a2e" });
+        expect(result.background).toEqual({ solid: "#1a1a2e" });
+      });
+
+      it("should parse solid color from short hex", () => {
+        const result = parseSlideConfig({ background: "#fff" });
+        expect(result.background).toEqual({ solid: "#ffffff" });
+      });
+
+      it("should parse gradient from string", () => {
+        const result = parseSlideConfig({
+          background: "#000:0%,#fff:100%@45",
+        });
+        expect(result.background?.gradient?.stops).toHaveLength(2);
+        expect(result.background?.gradient?.angle).toBe(45);
+      });
+
+      it("should parse Figma component URL", () => {
+        const result = parseSlideConfig({
+          background: "https://www.figma.com/design/abc123?node-id=456-789",
+        });
+        expect(result.background?.component).toEqual({
+          link: "https://www.figma.com/design/abc123?node-id=456-789",
+          nodeId: "456:789",
+          fileKey: "abc123",
+        });
+      });
+
+      it("should treat Figma URL without node-id as image", () => {
+        const result = parseSlideConfig({
+          background: "https://www.figma.com/design/abc123",
+        });
+        // Without node-id, Figma URL is treated as a regular image URL
+        expect(result.background?.image?.url).toBe(
+          "https://www.figma.com/design/abc123",
+        );
+      });
+
+      it("should parse remote image URL", () => {
+        const result = parseSlideConfig({
+          background: "https://example.com/bg.png",
+        });
+        expect(result.background).toEqual({
+          image: {
+            url: "https://example.com/bg.png",
+            source: "remote",
+          },
+        });
+      });
+
+      it("should parse local image path", () => {
+        const result = parseSlideConfig({
+          background: "./bg.png",
+        });
+        // Without basePath, local image should return null
+        expect(result.background).toBeNull();
+      });
     });
 
-    it("should parse gradient background", () => {
-      const result = parseSlideConfig({
-        gradient: "#000:0%,#fff:100%@45",
+    describe("object format (explicit)", () => {
+      it("should parse explicit color property", () => {
+        const result = parseSlideConfig({
+          background: { color: "#1a1a2e" },
+        });
+        expect(result.background).toEqual({ solid: "#1a1a2e" });
       });
-      expect(result.background?.gradient?.stops).toHaveLength(2);
-      expect(result.background?.gradient?.angle).toBe(45);
+
+      it("should parse explicit gradient property", () => {
+        const result = parseSlideConfig({
+          background: { gradient: "#000:0%,#fff:100%@45" },
+        });
+        expect(result.background?.gradient?.stops).toHaveLength(2);
+        expect(result.background?.gradient?.angle).toBe(45);
+      });
+
+      it("should parse explicit template property", () => {
+        const result = parseSlideConfig({
+          background: { template: "Dark Mode" },
+        });
+        expect(result.background).toEqual({ templateStyle: "Dark Mode" });
+      });
+
+      it("should parse explicit image property", () => {
+        const result = parseSlideConfig({
+          background: { image: "https://example.com/bg.png" },
+        });
+        expect(result.background).toEqual({
+          image: {
+            url: "https://example.com/bg.png",
+            source: "remote",
+          },
+        });
+      });
+
+      it("should parse explicit component property (URL string)", () => {
+        const result = parseSlideConfig({
+          background: {
+            component: "https://www.figma.com/design/abc?node-id=123-456",
+          },
+        });
+        expect(result.background?.component).toEqual({
+          link: "https://www.figma.com/design/abc?node-id=123-456",
+          nodeId: "123:456",
+          fileKey: "abc",
+        });
+      });
+
+      it("should parse explicit component property (object)", () => {
+        const result = parseSlideConfig({
+          background: {
+            component: {
+              link: "https://www.figma.com/design/xyz?node-id=111-222",
+              fit: "cover",
+              align: "center",
+              opacity: 0.8,
+            },
+          },
+        });
+        expect(result.background?.component).toEqual({
+          link: "https://www.figma.com/design/xyz?node-id=111-222",
+          nodeId: "111:222",
+          fileKey: "xyz",
+          fit: "cover",
+          align: "center",
+          opacity: 0.8,
+        });
+      });
+
+      it("should prioritize template > gradient > color > image", () => {
+        const result = parseSlideConfig({
+          background: {
+            color: "#fff",
+            gradient: "#000:0%,#fff:100%",
+            template: "Custom",
+            image: "https://example.com/bg.png",
+          },
+        });
+        expect(result.background).toEqual({ templateStyle: "Custom" });
+      });
+
+      it("should combine component with color background", () => {
+        const result = parseSlideConfig({
+          background: {
+            color: "#1a1a2e",
+            component: "https://www.figma.com/design/abc?node-id=123-456",
+          },
+        });
+        expect(result.background?.solid).toBe("#1a1a2e");
+        expect(result.background?.component?.nodeId).toBe("123:456");
+      });
+
+      it("should combine component with gradient background", () => {
+        const result = parseSlideConfig({
+          background: {
+            gradient: "#000:0%,#fff:100%@45",
+            component: "https://www.figma.com/design/abc?node-id=123-456",
+          },
+        });
+        expect(result.background?.gradient).toBeDefined();
+        expect(result.background?.component?.nodeId).toBe("123:456");
+      });
     });
 
-    it("should parse template style", () => {
-      const result = parseSlideConfig({ template: "Dark Mode" });
-      expect(result.background).toEqual({ templateStyle: "Dark Mode" });
-    });
+    describe("component options validation", () => {
+      it("should validate fit option values", () => {
+        const validFits = ["cover", "contain", "stretch"] as const;
+        for (const fit of validFits) {
+          const result = parseSlideConfig({
+            background: {
+              component: {
+                link: "https://www.figma.com/design/abc?node-id=111-222",
+                fit,
+              },
+            },
+          });
+          expect(result.background?.component?.fit).toBe(fit);
+        }
 
-    it("should prioritize template over gradient over solid", () => {
-      const result = parseSlideConfig({
-        background: "#fff",
-        gradient: "#000:0%,#fff:100%",
-        template: "Custom",
+        // Invalid fit should be ignored
+        const invalidResult = parseSlideConfig({
+          background: {
+            component: {
+              link: "https://www.figma.com/design/abc?node-id=111-222",
+              fit: "invalid",
+            },
+          },
+        });
+        expect(invalidResult.background?.component?.fit).toBeUndefined();
       });
-      expect(result.background).toEqual({ templateStyle: "Custom" });
-    });
 
-    it("should parse remote background image URL", () => {
-      const result = parseSlideConfig({
-        backgroundImage: "https://example.com/bg.png",
-      });
-      expect(result.background).toEqual({
-        image: {
-          url: "https://example.com/bg.png",
-          source: "remote",
-        },
-      });
-    });
+      it("should validate align option values", () => {
+        const validAligns = [
+          "center",
+          "top-left",
+          "top-right",
+          "bottom-left",
+          "bottom-right",
+        ] as const;
+        for (const align of validAligns) {
+          const result = parseSlideConfig({
+            background: {
+              component: {
+                link: "https://www.figma.com/design/abc?node-id=111-222",
+                align,
+              },
+            },
+          });
+          expect(result.background?.component?.align).toBe(align);
+        }
 
-    it("should prioritize solid over image", () => {
-      const result = parseSlideConfig({
-        background: "#fff",
-        backgroundImage: "https://example.com/bg.png",
+        // Invalid align should be ignored
+        const invalidResult = parseSlideConfig({
+          background: {
+            component: {
+              link: "https://www.figma.com/design/abc?node-id=111-222",
+              align: "invalid",
+            },
+          },
+        });
+        expect(invalidResult.background?.component?.align).toBeUndefined();
       });
-      expect(result.background).toEqual({ solid: "#ffffff" });
-    });
 
-    it("should prioritize gradient over image", () => {
-      const result = parseSlideConfig({
-        gradient: "#000:0%,#fff:100%",
-        backgroundImage: "https://example.com/bg.png",
+      it("should normalize align with underscores to kebab-case", () => {
+        const result = parseSlideConfig({
+          background: {
+            component: {
+              link: "https://www.figma.com/design/abc?node-id=111-222",
+              align: "top_left",
+            },
+          },
+        });
+        expect(result.background?.component?.align).toBe("top-left");
       });
-      expect(result.background?.gradient).toBeDefined();
-      expect(result.background?.image).toBeUndefined();
-    });
 
-    it("should return null for unsupported local image format without basePath", () => {
-      const result = parseSlideConfig({
-        backgroundImage: "./bg.svg",
+      it("should validate opacity range (0-1)", () => {
+        const testLink = "https://www.figma.com/design/abc?node-id=111-222";
+        // Valid opacity values
+        expect(
+          parseSlideConfig({
+            background: { component: { link: testLink, opacity: 0 } },
+          }).background?.component?.opacity,
+        ).toBe(0);
+        expect(
+          parseSlideConfig({
+            background: { component: { link: testLink, opacity: 0.5 } },
+          }).background?.component?.opacity,
+        ).toBe(0.5);
+        expect(
+          parseSlideConfig({
+            background: { component: { link: testLink, opacity: 1 } },
+          }).background?.component?.opacity,
+        ).toBe(1);
+
+        // Invalid opacity values
+        expect(
+          parseSlideConfig({
+            background: { component: { link: testLink, opacity: -0.1 } },
+          }).background?.component?.opacity,
+        ).toBeUndefined();
+        expect(
+          parseSlideConfig({
+            background: { component: { link: testLink, opacity: 1.1 } },
+          }).background?.component?.opacity,
+        ).toBeUndefined();
       });
-      // SVG is not supported, and no basePath provided
-      expect(result.background).toBeNull();
+
+      it("should ignore component object without link", () => {
+        const result = parseSlideConfig({
+          background: {
+            component: {
+              fit: "cover",
+            } as { link?: string; fit?: string },
+          },
+        });
+        expect(result.background).toBeNull();
+      });
     });
   });
 

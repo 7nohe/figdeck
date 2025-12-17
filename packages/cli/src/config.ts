@@ -1,4 +1,7 @@
 import type {
+  BackgroundComponent,
+  BackgroundComponentAlign,
+  BackgroundComponentFit,
   BackgroundImage,
   FontConfig,
   FontVariant,
@@ -121,13 +124,43 @@ interface FontsYamlConfig {
 }
 
 /**
+ * Background component configuration from YAML
+ * Accepts URL string or object with link and fit/align/opacity options
+ */
+interface BackgroundComponentYamlConfig {
+  link?: string;
+  fit?: string;
+  align?: string;
+  opacity?: number;
+}
+
+/**
+ * Unified background configuration from YAML
+ * Can be a string (auto-detected) or object with explicit properties
+ */
+interface BackgroundYamlConfig {
+  /** Solid color (hex or CSS color) */
+  color?: string;
+  /** Gradient string (e.g., "#000:0%,#fff:100%@45") */
+  gradient?: string;
+  /** Figma paint style name */
+  template?: string;
+  /** Image path or URL */
+  image?: string;
+  /** Figma component/frame (URL string or config object) */
+  component?: string | BackgroundComponentYamlConfig;
+}
+
+/**
  * Full slide configuration from YAML frontmatter
  */
 export interface SlideConfig {
-  background?: string;
-  gradient?: string;
-  template?: string;
-  backgroundImage?: string;
+  /**
+   * Background configuration - unified property that accepts:
+   * - String: auto-detected as color, gradient, image, or Figma component
+   * - Object: explicit configuration with color/gradient/template/image/component
+   */
+  background?: string | BackgroundYamlConfig;
   color?: string;
   headings?: HeadingsConfig;
   paragraphs?: TextStyle;
@@ -278,7 +311,7 @@ export interface ParseSlideConfigOptions {
 }
 
 /**
- * Parse backgroundImage into BackgroundImage
+ * Parse background image URL/path into BackgroundImage
  */
 function parseBackgroundImage(
   url: string,
@@ -317,13 +350,248 @@ function parseBackgroundImage(
 }
 
 /**
+ * Validate and normalize backgroundComponent fit option
+ */
+function parseBackgroundComponentFit(
+  value: string | undefined,
+): BackgroundComponentFit | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase();
+  if (
+    normalized === "cover" ||
+    normalized === "contain" ||
+    normalized === "stretch"
+  ) {
+    return normalized;
+  }
+  console.warn(
+    `[figdeck] Invalid backgroundComponent fit: ${value}. Using default "cover".`,
+  );
+  return undefined;
+}
+
+/**
+ * Validate and normalize backgroundComponent align option
+ */
+function parseBackgroundComponentAlign(
+  value: string | undefined,
+): BackgroundComponentAlign | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase().replace(/_/g, "-");
+  const validAligns: BackgroundComponentAlign[] = [
+    "center",
+    "top-left",
+    "top-right",
+    "bottom-left",
+    "bottom-right",
+  ];
+  if (validAligns.includes(normalized as BackgroundComponentAlign)) {
+    return normalized as BackgroundComponentAlign;
+  }
+  console.warn(
+    `[figdeck] Invalid backgroundComponent align: ${value}. Using default "center".`,
+  );
+  return undefined;
+}
+
+/**
+ * Validate backgroundComponent opacity (0-1)
+ */
+function parseBackgroundComponentOpacity(
+  value: number | undefined,
+): number | undefined {
+  if (value === undefined) return undefined;
+  const opacity = Number(value);
+  if (!Number.isNaN(opacity) && opacity >= 0 && opacity <= 1) {
+    return opacity;
+  }
+  console.warn(
+    `[figdeck] Invalid backgroundComponent opacity: ${value}. Must be 0-1.`,
+  );
+  return undefined;
+}
+
+/**
+ * Parse backgroundComponent from YAML config
+ * Accepts either a Figma URL string or object with link and options
+ */
+function parseBackgroundComponent(
+  config: string | BackgroundComponentYamlConfig | undefined,
+): BackgroundComponent | null {
+  if (!config) return null;
+
+  // Shorthand: just a Figma URL
+  if (typeof config === "string") {
+    const parsed = parseFigmaUrl(config);
+    if (!parsed.nodeId) {
+      console.warn(
+        `[figdeck] backgroundComponent URL must include node-id: ${config}`,
+      );
+      return null;
+    }
+    return {
+      link: config,
+      nodeId: parsed.nodeId,
+      fileKey: parsed.fileKey,
+    };
+  }
+
+  // Object form - requires link
+  if (!config.link) {
+    console.warn("[figdeck] backgroundComponent requires link with node-id");
+    return null;
+  }
+
+  const parsed = parseFigmaUrl(config.link);
+  if (!parsed.nodeId) {
+    console.warn(
+      `[figdeck] backgroundComponent URL must include node-id: ${config.link}`,
+    );
+    return null;
+  }
+
+  const result: BackgroundComponent = {
+    link: config.link,
+    nodeId: parsed.nodeId,
+    fileKey: parsed.fileKey,
+  };
+
+  const fit = parseBackgroundComponentFit(config.fit);
+  if (fit) {
+    result.fit = fit;
+  }
+
+  const align = parseBackgroundComponentAlign(config.align);
+  if (align) {
+    result.align = align;
+  }
+
+  const opacity = parseBackgroundComponentOpacity(config.opacity);
+  if (opacity !== undefined) {
+    result.opacity = opacity;
+  }
+
+  return result;
+}
+
+/**
+ * Check if a string looks like a color (hex or CSS color name)
+ */
+function looksLikeColor(value: string): boolean {
+  // Hex colors
+  if (/^#[0-9a-fA-F]{3,8}$/.test(value)) return true;
+  // rgb/rgba/hsl/hsla
+  if (/^(rgb|hsl)a?\s*\(/.test(value)) return true;
+  // Named colors (basic check - normalize will handle validation)
+  if (/^[a-zA-Z]+$/.test(value)) return true;
+  return false;
+}
+
+/**
+ * Check if a string looks like a gradient (contains color stops with positions)
+ */
+function looksLikeGradient(value: string): boolean {
+  // Gradient format: #color:position%,#color:position%[@angle]
+  return /^#?[0-9a-fA-F]{3,8}:\d+%/.test(value);
+}
+
+/**
+ * Check if a string is a Figma URL with node-id
+ */
+function isFigmaComponentUrl(value: string): boolean {
+  return (
+    /^https?:\/\/(?:www\.)?figma\.com\//.test(value) &&
+    /[?&]node-id=/.test(value)
+  );
+}
+
+/**
+ * Parse unified background configuration
+ * Handles both string (auto-detect) and object formats
+ */
+function parseUnifiedBackground(
+  config: string | BackgroundYamlConfig | undefined,
+  basePath?: string,
+): { background: SlideBackground | null; templateName?: string } {
+  if (!config) return { background: null };
+
+  // String format - auto-detect type
+  if (typeof config === "string") {
+    // Check if it's a Figma component URL
+    if (isFigmaComponentUrl(config)) {
+      const component = parseBackgroundComponent(config);
+      if (component) {
+        return { background: { component } };
+      }
+      return { background: null };
+    }
+
+    // Check if it's a gradient
+    if (looksLikeGradient(config)) {
+      const gradient = parseGradient(config);
+      if (gradient) {
+        return { background: { gradient } };
+      }
+    }
+
+    // Check if it's a color
+    if (looksLikeColor(config)) {
+      return { background: { solid: normalizeColor(config) } };
+    }
+
+    // Otherwise treat as image path/URL
+    const image = parseBackgroundImage(config, basePath);
+    if (image) {
+      return { background: { image } };
+    }
+
+    return { background: null };
+  }
+
+  // Object format - explicit configuration
+  let background: SlideBackground | null = null;
+  let templateName: string | undefined;
+
+  // Priority: template > gradient > color > image
+  if (config.template) {
+    background = { templateStyle: config.template };
+    templateName = config.template;
+  } else if (config.gradient) {
+    const gradient = parseGradient(config.gradient);
+    if (gradient) {
+      background = { gradient };
+    }
+  } else if (config.color) {
+    background = { solid: normalizeColor(config.color) };
+  } else if (config.image) {
+    const image = parseBackgroundImage(config.image, basePath);
+    if (image) {
+      background = { image };
+    }
+  }
+
+  // Component can be combined with other backgrounds
+  if (config.component) {
+    const component = parseBackgroundComponent(config.component);
+    if (component) {
+      if (background) {
+        background.component = component;
+      } else {
+        background = { component };
+      }
+    }
+  }
+
+  return { background, templateName };
+}
+
+/**
  * Parse slide config from YAML frontmatter
  */
 export function parseSlideConfig(
   config: SlideConfig,
   options: ParseSlideConfigOptions = {},
 ): ParsedConfigResult {
-  let background: SlideBackground | null = null;
   const styles: SlideStyles = {};
 
   const baseColor = config.color ? normalizeColor(config.color) : undefined;
@@ -337,25 +605,11 @@ export function parseSlideConfig(
     return { color: baseColor };
   };
 
-  // Priority: templateStyle > gradient > solid > image
-  if (config.template) {
-    background = { templateStyle: config.template };
-  } else if (config.gradient) {
-    const gradient = parseGradient(config.gradient);
-    if (gradient) {
-      background = { gradient };
-    }
-  } else if (config.background) {
-    background = { solid: normalizeColor(config.background) };
-  } else if (config.backgroundImage) {
-    const image = parseBackgroundImage(
-      config.backgroundImage,
-      options.basePath,
-    );
-    if (image) {
-      background = { image };
-    }
-  }
+  // Parse unified background
+  const { background, templateName } = parseUnifiedBackground(
+    config.background,
+    options.basePath,
+  );
 
   // Parse headings
   const headingStyles: NonNullable<SlideStyles["headings"]> = {
@@ -402,9 +656,9 @@ export function parseSlideConfig(
         spacing: config.titlePrefix.spacing,
       };
     }
-  } else if (config.template) {
+  } else if (templateName) {
     // Look up template defaults
-    const templateDefaults = getTemplateDefaults(config.template);
+    const templateDefaults = getTemplateDefaults(templateName);
     if (templateDefaults?.titlePrefix) {
       titlePrefix = templateDefaults.titlePrefix;
     }

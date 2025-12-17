@@ -40,9 +40,8 @@ color: "#111827"
 ```
 
 Common settings:
-- `background`, `color` (prefer hex like `"#RRGGBB"`)
-- `gradient: "#000:0%,#fff:100%@45"`
-- `backgroundImage` (local path or URL)
+- `background` (hex like `"#111827"`, gradient like `"#000:0%,#fff:100%@45"`, image path/URL, or Figma component URL)
+- `color` (prefer hex like `"#RRGGBB"`)
 - `align: left|center|right`, `valign: top|middle|bottom`
 - `transition` (e.g. `dissolve`, `slide-from-right 0.5`, or the detailed object form)
 - `fonts` (falls back to Inter if unavailable)

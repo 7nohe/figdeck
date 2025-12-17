@@ -164,6 +164,20 @@ describe("validateFrontmatter", () => {
     );
   });
 
+  it("should accept cover boolean", () => {
+    const lines = ["---", "cover: false", "---"];
+    const issues = validateFrontmatter(lines);
+    expect(issues).toHaveLength(0);
+  });
+
+  it("should detect invalid cover type", () => {
+    const lines = ["---", "cover: 1", "---"];
+    const issues = validateFrontmatter(lines);
+    expect(issues.some((i) => i.code === "frontmatter-invalid-type")).toBe(
+      true,
+    );
+  });
+
   it("should validate nested properties", () => {
     const lines = ["---", "slideNumber:", "  position: invalid-pos", "---"];
     const issues = validateFrontmatter(lines);

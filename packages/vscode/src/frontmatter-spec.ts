@@ -183,6 +183,10 @@ export const FRONTMATTER_SPEC: Record<string, FrontmatterDef> = {
     kind: "boolean",
     description: "Enable figdeck processing for this file",
   },
+  cover: {
+    kind: "boolean",
+    description: "Treat the first slide as a cover (default: true)",
+  },
   background: {
     kind: "oneOf",
     description:

@@ -876,12 +876,10 @@ async function fillCoverSlide(
   // Apply cover-only default heading sizes unless explicitly set in styles.
   const styles = Object.assign({}, resolvedStyles, {
     h1: Object.assign({}, resolvedStyles.h1, {
-      fontSize:
-        slide.styles?.headings?.h1?.size ?? COVER_DEFAULT_H1_SIZE,
+      fontSize: slide.styles?.headings?.h1?.size ?? COVER_DEFAULT_H1_SIZE,
     }),
     h2: Object.assign({}, resolvedStyles.h2, {
-      fontSize:
-        slide.styles?.headings?.h2?.size ?? COVER_DEFAULT_H2_SIZE,
+      fontSize: slide.styles?.headings?.h2?.size ?? COVER_DEFAULT_H2_SIZE,
     }),
   });
 
@@ -1036,7 +1034,8 @@ async function fillCoverSlide(
 
     coverInfoHeight = infoFrame.height;
     infoFrame.x = LAYOUT.CONTAINER_PADDING;
-    infoFrame.y = slideNode.height - infoFrame.height - LAYOUT.CONTAINER_PADDING;
+    infoFrame.y =
+      slideNode.height - infoFrame.height - LAYOUT.CONTAINER_PADDING;
     slideNode.appendChild(infoFrame);
   }
 

@@ -73,6 +73,11 @@ function computeSlideHash(slide: SlideContent): string {
 // Default spacing between prefix component and title text
 const DEFAULT_PREFIX_SPACING = 16;
 
+// Cover slide defaults
+const COVER_DEFAULT_H1_SIZE = 80;
+const COVER_DEFAULT_H2_SIZE = 48;
+const COVER_INFO_ITEM_SPACING = 8;
+
 /**
  * Map CLI's CalloutType (lowercase) to Plugin's AlertType (uppercase)
  */
@@ -855,6 +860,212 @@ async function fillSlide(
   }
 }
 
+/**
+ * Fill a cover slide with title/subtitle centered and paragraphs bottom-left.
+ */
+async function fillCoverSlide(
+  slideNode: SlideNode,
+  slide: SlideContent,
+  availableFonts: Set<string>,
+) {
+  const resolvedStyles = applyFontFallbacks(
+    resolveSlideStyles(slide.styles),
+    availableFonts,
+  );
+
+  // Apply cover-only default heading sizes unless explicitly set in styles.
+  const styles = Object.assign({}, resolvedStyles, {
+    h1: Object.assign({}, resolvedStyles.h1, {
+      fontSize:
+        slide.styles?.headings?.h1?.size ?? COVER_DEFAULT_H1_SIZE,
+    }),
+    h2: Object.assign({}, resolvedStyles.h2, {
+      fontSize:
+        slide.styles?.headings?.h2?.size ?? COVER_DEFAULT_H2_SIZE,
+    }),
+  });
+
+  // Centered container for non-paragraph content
+  const container = createContentContainer(
+    slideNode.width,
+    slideNode.height,
+    "center",
+    "middle",
+  );
+
+  // Collect nodes that need absolute positioning (to be added after container)
+  const absoluteNodes: Array<{ node: SceneNode; x: number; y: number }> = [];
+
+  // Track if we've rendered the first title (H1/H2) for prefix support
+  let firstTitleRendered = false;
+
+  // Collect paragraph blocks for bottom-left placement
+  const coverInfoBlocks = slide.blocks.filter(
+    (b): b is Extract<SlideBlockItem, { kind: "paragraph" }> =>
+      b.kind === "paragraph",
+  );
+  const mainBlocks = slide.blocks.filter((b) => b.kind !== "paragraph");
+
+  // Render main blocks into the centered container
+  for (const block of mainBlocks) {
+    // Handle figma blocks with custom position separately
+    if (
+      block.kind === "figma" &&
+      (block.link.x !== undefined || block.link.y !== undefined)
+    ) {
+      const figmaNode = await renderFigmaLink(block.link);
+      absoluteNodes.push({
+        node: figmaNode,
+        x: block.link.x ?? 0,
+        y: block.link.y ?? 0,
+      });
+      continue;
+    }
+
+    // Handle image blocks with custom position separately
+    if (
+      block.kind === "image" &&
+      block.position &&
+      (block.position.x !== undefined || block.position.y !== undefined)
+    ) {
+      const imageNode = await renderImage({
+        url: block.url,
+        alt: block.alt,
+        mimeType: block.mimeType,
+        dataBase64: block.dataBase64,
+        source: block.source,
+        size: block.size,
+      });
+      absoluteNodes.push({
+        node: imageNode,
+        x: block.position.x ?? 0,
+        y: block.position.y ?? 0,
+      });
+      continue;
+    }
+
+    // Determine the style for this block kind
+    const blockStyle = getStyleForBlock(block.kind, styles);
+
+    // Check if this block has absolute positioning via style
+    if (
+      blockStyle &&
+      (blockStyle.x !== undefined || blockStyle.y !== undefined)
+    ) {
+      const blockNode = await renderBlockToNode(
+        block,
+        styles,
+        LAYOUT.CONTENT_WIDTH,
+      );
+      if (blockNode) {
+        absoluteNodes.push({
+          node: blockNode,
+          x: blockStyle.x ?? 0,
+          y: blockStyle.y ?? 0,
+        });
+      }
+      continue;
+    }
+
+    // Special handling for first H1/H2 heading with titlePrefix
+    if (
+      block.kind === "heading" &&
+      (block.level === 1 || block.level === 2) &&
+      !firstTitleRendered &&
+      slide.titlePrefix
+    ) {
+      const titleStyle = block.level === 1 ? styles.h1 : styles.h2;
+      const titleNode = await renderTitleToNode(
+        block.text,
+        titleStyle,
+        slide.titlePrefix,
+      );
+      container.appendChild(titleNode);
+      firstTitleRendered = true;
+      continue;
+    }
+
+    // Mark first H1/H2 as rendered even without prefix
+    if (
+      block.kind === "heading" &&
+      (block.level === 1 || block.level === 2) &&
+      !firstTitleRendered
+    ) {
+      firstTitleRendered = true;
+    }
+
+    const blockNode = await renderBlockToNode(
+      block,
+      styles,
+      LAYOUT.CONTENT_WIDTH,
+    );
+    if (blockNode) {
+      container.appendChild(blockNode);
+    }
+  }
+
+  // Add container to slide and explicitly set position to origin
+  slideNode.appendChild(container);
+  container.x = 0;
+  container.y = 0;
+
+  // Render cover info (paragraphs) at bottom-left
+  let coverInfoHeight = 0;
+  if (coverInfoBlocks.length > 0) {
+    const infoFrame = figma.createFrame();
+    infoFrame.name = "Cover Info";
+    infoFrame.layoutMode = "VERTICAL";
+    infoFrame.primaryAxisSizingMode = "AUTO";
+    infoFrame.counterAxisSizingMode = "AUTO";
+    infoFrame.itemSpacing = COVER_INFO_ITEM_SPACING;
+    infoFrame.fills = [];
+    infoFrame.primaryAxisAlignItems = "MIN";
+    infoFrame.counterAxisAlignItems = "MIN";
+
+    for (const block of coverInfoBlocks) {
+      const result = await renderParagraph(
+        block.text,
+        block.spans,
+        styles.paragraph,
+        0,
+        0,
+        styles.code.font,
+      );
+      infoFrame.appendChild(result.node);
+    }
+
+    coverInfoHeight = infoFrame.height;
+    infoFrame.x = LAYOUT.CONTAINER_PADDING;
+    infoFrame.y = slideNode.height - infoFrame.height - LAYOUT.CONTAINER_PADDING;
+    slideNode.appendChild(infoFrame);
+  }
+
+  // Add absolutely positioned nodes to slide
+  for (const { node, x, y } of absoluteNodes) {
+    slideNode.appendChild(node);
+    node.x = x;
+    node.y = y;
+  }
+
+  // Render footnotes at the bottom of the slide (outside container), above cover info if present
+  if (slide.footnotes && slide.footnotes.length > 0) {
+    const footnotesNode = await renderFootnotes(
+      slide.footnotes,
+      styles.paragraph.fontSize,
+      styles.paragraph.fills,
+      styles.paragraph.font,
+      styles.code.font,
+    );
+    footnotesNode.x = LAYOUT.CONTAINER_PADDING;
+    footnotesNode.y =
+      slideNode.height -
+      footnotesNode.height -
+      40 -
+      (coverInfoHeight > 0 ? coverInfoHeight + COVER_INFO_ITEM_SPACING : 0);
+    slideNode.appendChild(footnotesNode);
+  }
+}
+
 function findExistingSlides(): Map<number, SlideNode> {
   const slideMap = new Map<number, SlideNode>();
   const grid = figma.getSlideGrid();
@@ -950,7 +1161,11 @@ async function generateSlides(slides: SlideContent[]) {
       await applyBackground(node, slide.background);
     }
 
-    await fillSlide(node, slide, availableFonts);
+    if (i === 0 && slide.cover === true) {
+      await fillCoverSlide(node, slide, availableFonts);
+    } else {
+      await fillSlide(node, slide, availableFonts);
+    }
 
     // Render slide number if configured
     if (slide.slideNumber) {
@@ -1202,6 +1417,11 @@ export function validateAndSanitizeSlides(
 
     // Sanitize strings in blocks (use Object.assign for Figma sandbox compatibility)
     const sanitizedSlide = Object.assign({}, slide) as unknown as SlideContent;
+
+    // Only keep the cover flag if it's a boolean
+    if (typeof slide.cover !== "boolean") {
+      delete (sanitizedSlide as { cover?: unknown }).cover;
+    }
 
     // Sanitize text content in blocks
     if (Array.isArray(sanitizedSlide.blocks)) {

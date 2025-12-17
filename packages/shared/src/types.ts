@@ -383,6 +383,8 @@ export interface SlideContent {
   styles?: SlideStyles;
   slideNumber?: SlideNumberConfig;
   titlePrefix?: TitlePrefixConfig | null;
+  /** Treat this slide as a cover slide (typically the first slide). */
+  cover?: boolean;
   /** Horizontal alignment of slide content */
   align?: HorizontalAlign;
   /** Vertical alignment of slide content */

@@ -804,6 +804,7 @@ export function parseMarkdown(
   let globalDefaultAlign: HorizontalAlign | undefined;
   let globalDefaultValign: VerticalAlign | undefined;
   let globalDefaultTransition: SlideTransitionConfig | undefined;
+  let globalCoverEnabled = true;
   let contentWithoutGlobalFrontmatter = processedMarkdown;
   const slides: SlideContent[] = [];
 
@@ -812,6 +813,9 @@ export function parseMarkdown(
   if (frontmatterMatch) {
     try {
       const config = parseYaml(frontmatterMatch[1]) as SlideConfig;
+      if (typeof config.cover === "boolean") {
+        globalCoverEnabled = config.cover;
+      }
       const {
         background,
         styles,
@@ -859,6 +863,10 @@ export function parseMarkdown(
     if (slide) {
       slides.push(slide);
     }
+  }
+
+  if (globalCoverEnabled && slides.length > 0) {
+    slides[0].cover = true;
   }
 
   return slides;

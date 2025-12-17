@@ -155,6 +155,7 @@ color: "#58a6ff"
 
 | プロパティ | 型 | 説明 |
 |------------|------|------|
+| `cover` | `boolean` | 1枚目を表紙として扱う（デフォルト: `true`） |
 | `background` | `string \| object` | 統一された背景設定: string（色/グラデーション/画像/コンポーネント）または object（`color`, `gradient`, `template`, `image`, `component`） |
 | `color` | `string` | 基本テキスト色（全要素に適用） |
 | `headings` | `object` | 見出しスタイル（h1〜h4） |

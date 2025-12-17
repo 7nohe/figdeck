@@ -156,6 +156,11 @@ interface BackgroundYamlConfig {
  */
 export interface SlideConfig {
   /**
+   * Treat the first slide as a cover slide (global frontmatter only).
+   * Default: true
+   */
+  cover?: boolean;
+  /**
    * Background configuration - unified property that accepts:
    * - String: auto-detected as color, gradient, image, or Figma component
    * - Object: explicit configuration with color/gradient/template/image/component

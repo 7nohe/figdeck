@@ -17,12 +17,8 @@ headings:
 
 ## Markdown to Figma Slides
 
-### Agenda
-
-- Introduction
-- Features
-- Demo
-- Q&A
+2025.12.31
+Jone Doe
 
 ---
 

@@ -855,6 +855,36 @@ Text`);
     });
   });
 
+  describe("cover frontmatter", () => {
+    it("should mark the first slide as cover by default", () => {
+      const result = parseMarkdown(`# Title
+
+---
+
+## Slide 2`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].cover).toBe(true);
+      expect(result[1].cover).toBeUndefined();
+    });
+
+    it("should disable cover when cover: false is set in global frontmatter", () => {
+      const result = parseMarkdown(`---
+cover: false
+---
+
+# Title
+
+---
+
+## Slide 2`);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].cover).toBeUndefined();
+      expect(result[1].cover).toBeUndefined();
+    });
+  });
+
   describe("footnotes", () => {
     it("parses footnote references in text", () => {
       const result = parseMarkdown(`## Test

@@ -85,6 +85,7 @@ Back to global settings (dark background, dissolve)
 | Setting | Description |
 |---------|-------------|
 | `figdeck` | Enable VSCode extension features (`true`/`false`) |
+| `cover` | Treat the first slide as a cover (`true`/`false`, default: `true`) |
 | `background` | Unified background: color, gradient, image, template, or Figma component |
 | `color` | Base text color |
 | `headings` | Heading styles (h1, h2, h3, h4) |

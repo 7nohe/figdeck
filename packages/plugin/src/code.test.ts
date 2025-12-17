@@ -42,6 +42,38 @@ beforeEach(() => {
 });
 
 describe("validateAndSanitizeSlides", () => {
+  it("preserves cover flag when boolean", async () => {
+    const { validateAndSanitizeSlides } = await import("./code");
+
+    const result = validateAndSanitizeSlides([
+      {
+        cover: true,
+        blocks: [{ kind: "paragraph", text: "Cover" }],
+      },
+    ]);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+
+    expect(result.slides[0].cover).toBe(true);
+  });
+
+  it("drops cover flag when not boolean", async () => {
+    const { validateAndSanitizeSlides } = await import("./code");
+
+    const result = validateAndSanitizeSlides([
+      {
+        cover: "true",
+        blocks: [{ kind: "paragraph", text: "Not cover" }],
+      },
+    ]);
+
+    expect(result.valid).toBe(true);
+    if (!result.valid) return;
+
+    expect(result.slides[0].cover).toBeUndefined();
+  });
+
   it("preserves BulletItem hierarchy while sanitizing text", async () => {
     const { validateAndSanitizeSlides } = await import("./code");
 

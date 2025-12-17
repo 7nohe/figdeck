@@ -85,6 +85,7 @@ transition: slide-from-right
 | 設定 | 説明 |
 |------|------|
 | `figdeck` | VSCode 拡張機能の機能を有効化（`true`/`false`） |
+| `cover` | 1枚目を表紙として扱う（`true`/`false`、デフォルト: `true`） |
 | `background` | 統合背景設定：色、グラデーション、画像、テンプレート、Figma コンポーネント |
 | `color` | ベーステキスト色 |
 | `headings` | 見出しスタイル（h1, h2, h3, h4） |

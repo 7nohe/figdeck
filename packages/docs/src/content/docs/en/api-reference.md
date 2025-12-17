@@ -155,6 +155,7 @@ color: "#58a6ff"
 
 | Property | Type | Description |
 |----------|------|-------------|
+| `cover` | `boolean` | Treat the first slide as a cover (default: `true`) |
 | `background` | `string \| object` | Unified background config: string (color/gradient/image/component) or object (`color`, `gradient`, `template`, `image`, `component`) |
 | `color` | `string` | Base text color (applied to all elements) |
 | `headings` | `object` | Heading styles (h1-h4) |

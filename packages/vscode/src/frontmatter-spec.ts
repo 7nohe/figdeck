@@ -184,25 +184,89 @@ export const FRONTMATTER_SPEC: Record<string, FrontmatterDef> = {
     description: "Enable figdeck processing for this file",
   },
   background: {
-    kind: "string",
-    description: "Solid background color (e.g., #1a1a2e)",
-    pattern: COLOR_HEX_PATTERN,
-    patternError: "Invalid color format. Use #rgb or #rrggbb",
-  },
-  gradient: {
-    kind: "string",
+    kind: "oneOf",
     description:
-      "Gradient background (e.g., #0d1117:0%,#1f2937:50%,#58a6ff:100%@45)",
-    pattern: /^#[0-9a-fA-F]{3,6}:\d+%/,
-    patternError: "Invalid gradient format. Use #color:0%,#color:100%[@angle]",
-  },
-  backgroundImage: {
-    kind: "string",
-    description: "Background image path or URL",
-  },
-  template: {
-    kind: "string",
-    description: "Figma paint style name",
+      "Unified background: color, gradient, image, or Figma component",
+    options: [
+      {
+        kind: "string",
+        description:
+          "Auto-detected: color (#hex), gradient (#color:0%,...), image (path/URL), or Figma component URL",
+      },
+      {
+        kind: "object",
+        description: "Explicit background configuration",
+        children: {
+          color: {
+            kind: "string",
+            description: "Solid background color",
+            pattern: COLOR_HEX_PATTERN,
+            patternError: "Invalid color format. Use #rgb or #rrggbb",
+          },
+          gradient: {
+            kind: "string",
+            description: "Gradient (e.g., #0d1117:0%,#fff:100%@45)",
+            pattern: /^#[0-9a-fA-F]{3,6}:\d+%/,
+            patternError:
+              "Invalid gradient format. Use #color:0%,#color:100%[@angle]",
+          },
+          template: {
+            kind: "string",
+            description: "Figma paint style name",
+          },
+          image: {
+            kind: "string",
+            description: "Background image path or URL",
+          },
+          component: {
+            kind: "oneOf",
+            description: "Figma Component/Frame as background layer",
+            options: [
+              {
+                kind: "string",
+                description: "Figma URL with node-id",
+                pattern: FIGMA_URL_PATTERN,
+                patternError: "Must be a valid Figma URL with node-id",
+              },
+              {
+                kind: "object",
+                description: "Component configuration",
+                children: {
+                  link: {
+                    kind: "string",
+                    description: "Figma component/frame link",
+                    pattern: FIGMA_URL_PATTERN,
+                    patternError: "Must be a valid Figma URL",
+                  },
+                  fit: {
+                    kind: "string",
+                    description: "How the component should be scaled",
+                    values: ["cover", "contain", "stretch"],
+                  },
+                  align: {
+                    kind: "string",
+                    description: "Position alignment",
+                    values: [
+                      "center",
+                      "top-left",
+                      "top-right",
+                      "bottom-left",
+                      "bottom-right",
+                    ],
+                  },
+                  opacity: {
+                    kind: "number",
+                    description: "Opacity (0-1)",
+                    min: 0,
+                    max: 1,
+                  },
+                },
+              },
+            ],
+          },
+        },
+      },
+    ],
   },
   color: {
     kind: "string",

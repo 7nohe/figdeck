@@ -91,23 +91,175 @@ If not found, you'll be prompted to install or configure it.
 
 ## Development
 
+### Build Commands
+
 ```bash
-# Build extension
 cd packages/vscode
+
+# Build for production (minified)
 bun run build
 
-# Watch mode
+# Build for development (with sourcemaps)
+bun run build:dev
+
+# Watch mode for development
 bun run dev
 
 # Type check
 bun run typecheck
+
+# Run tests
+bun test src
 ```
 
 ### Debugging
 
-1. Open VS Code in the figdeck workspace
-2. Press F5 to launch Extension Development Host
-3. Open a Markdown file to activate the extension
+The project includes VS Code launch configurations in `.vscode/` for debugging the extension.
+
+#### Quick Start
+
+1. Open the figdeck workspace in VS Code
+2. Press `F5` (or Run > Start Debugging)
+3. Select **"Run Extension"** configuration
+4. A new VS Code window (Extension Development Host) will open
+5. Open a Markdown file with `figdeck: true` in frontmatter to activate the extension
+
+#### Available Launch Configurations
+
+| Configuration | Description |
+|---------------|-------------|
+| **Run Extension** | Build once and launch Extension Development Host |
+| **Run Extension (Watch)** | Start watch mode and launch Extension Development Host |
+
+#### Available Tasks
+
+Run via `Cmd+Shift+P` > "Tasks: Run Task":
+
+| Task | Description |
+|------|-------------|
+| `vscode: build dev` | Build with sourcemaps |
+| `vscode: watch` | Watch mode (background task) |
+| `vscode: build` | Production build |
+| `vscode: test` | Run tests |
+
+#### Debugging Tips
+
+- **Breakpoints**: Set breakpoints in `src/` files. Sourcemaps are enabled in dev builds.
+- **Console output**: View extension logs in the Debug Console panel.
+- **Reload extension**: In the Extension Development Host, run `Developer: Reload Window` to reload after code changes.
+- **Watch mode**: Use "Run Extension (Watch)" for automatic rebuilds on file changes.
+
+#### Configuration Files
+
+The debug configuration files are located in the repository root `.vscode/` directory:
+
+<details>
+<summary><code>.vscode/launch.json</code></summary>
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/packages/vscode/dist/**/*.js"
+      ],
+      "sourceMaps": true,
+      "preLaunchTask": "vscode: build dev"
+    },
+    {
+      "name": "Run Extension (Watch)",
+      "type": "extensionHost",
+      "request": "launch",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/packages/vscode"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/packages/vscode/dist/**/*.js"
+      ],
+      "sourceMaps": true,
+      "preLaunchTask": "vscode: watch"
+    }
+  ]
+}
+```
+
+</details>
+
+<details>
+<summary><code>.vscode/tasks.json</code></summary>
+
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "vscode: build dev",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "build:dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/packages/vscode"
+      },
+      "group": "build",
+      "problemMatcher": "$esbuild"
+    },
+    {
+      "label": "vscode: watch",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "dev"],
+      "options": {
+        "cwd": "${workspaceFolder}/packages/vscode"
+      },
+      "isBackground": true,
+      "group": "build",
+      "problemMatcher": {
+        "owner": "esbuild",
+        "pattern": {
+          "regexp": "^✘ \\[ERROR\\] (.+)$",
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[watch\\]",
+          "endsPattern": "^\\s*dist/extension\\.js"
+        }
+      }
+    },
+    {
+      "label": "vscode: build",
+      "type": "shell",
+      "command": "bun",
+      "args": ["run", "build"],
+      "options": {
+        "cwd": "${workspaceFolder}/packages/vscode"
+      },
+      "group": "build",
+      "problemMatcher": "$esbuild"
+    },
+    {
+      "label": "vscode: test",
+      "type": "shell",
+      "command": "bun",
+      "args": ["test", "src"],
+      "options": {
+        "cwd": "${workspaceFolder}/packages/vscode"
+      },
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}
+```
+
+</details>
 
 ## License
 

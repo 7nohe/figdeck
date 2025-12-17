@@ -240,11 +240,20 @@ Global settings at file start, or per-slide after `---`:
 ```yaml
 ---
 figdeck: true                   # Required for VSCode extension to recognize file
-background: "#1a1a2e"           # Solid color
-gradient: "#0d1117:0%,#1f2937:50%,#58a6ff:100%@45"  # Gradient with angle
-template: "Style Name"          # Figma paint style name
-backgroundImage: "./bg.png"     # Local image (PNG, JPEG, GIF)
-backgroundImage: "https://..."  # Remote image URL
+background: "#1a1a2e"           # Solid color (auto-detect)
+background: "#0d1117:0%,#58a6ff:100%@45"  # Gradient (auto-detect)
+background: "./bg.png"          # Local image (auto-detect)
+background: "https://figma.com/...?node-id=123-456"  # Figma component (auto-detect)
+background:                     # Object format (explicit)
+  color: "#1a1a2e"              # Solid color
+  gradient: "#0d1117:0%,#58a6ff:100%@45"  # Gradient with angle
+  template: "Style Name"        # Figma paint style name
+  image: "./bg.png"             # Local image (PNG, JPEG, GIF) or URL
+  component:                    # Figma Component/Frame as background
+    link: "https://www.figma.com/design/xxx?node-id=123-456"
+    fit: "cover"                # cover | contain | stretch
+    align: "center"             # center | top-left | top-right | bottom-left | bottom-right
+    opacity: 0.8                # 0-1
 color: "#ffffff"                # Base text color for all elements
 headings:
   h1: { size: 72, color: "#fff" }
@@ -294,7 +303,7 @@ transition:                     # Full configuration
 ---
 ```
 
-**Background Priority:** templateStyle > gradient > solid > image
+**Background Priority (object format):** template > gradient > color > image
 
 **Transition Styles:** `none`, `dissolve`, `smart-animate`, `slide-from-*`, `push-from-*`, `move-from-*`, `slide-out-to-*`, `move-out-to-*` (where * = left, right, top, bottom)
 
@@ -338,7 +347,7 @@ Supported text override formatting: **bold**, *italic*, ~~strikethrough~~, [link
   - `fonts.md` - Custom font family configuration
   - `slide-numbers.md` - Slide number configuration
   - `figma-links.md` - Figma node embedding
-  - `backgrounds.md` - Background styles
+  - `backgrounds.md` - All background types (color, gradient, image, template, Figma component)
   - `rich-formatting.md` - Inline formatting
   - `transitions.md` - Slide transition animations
   - `images.md` - Image size and position specifications (Marp-style)

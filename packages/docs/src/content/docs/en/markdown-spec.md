@@ -85,10 +85,7 @@ Back to global settings (dark background, dissolve)
 | Setting | Description |
 |---------|-------------|
 | `figdeck` | Enable VSCode extension features (`true`/`false`) |
-| `background` | Background color (hex) |
-| `gradient` | Gradient background |
-| `backgroundImage` | Background image (local path or URL) |
-| `template` | Figma paint style name |
+| `background` | Unified background: color, gradient, image, template, or Figma component |
 | `color` | Base text color |
 | `headings` | Heading styles (h1, h2, h3, h4) |
 | `paragraphs` | Paragraph styles |
@@ -272,6 +269,90 @@ Use `console.log()` for **debugging** purposes.
 Check the [documentation](https://example.com) for more details.
 :::
 ```
+
+## Background
+
+The `background` property is a unified configuration for all background types. It supports string format (auto-detected) or object format (explicit).
+
+### String Format (Auto-detect)
+
+```yaml
+---
+# Solid color (hex)
+background: "#1a1a2e"
+
+# Gradient
+background: "#0d1117:0%,#1f2937:50%,#58a6ff:100%@45"
+
+# Image (local path or URL)
+background: "./bg.png"
+background: "https://example.com/bg.png"
+
+# Figma component (URL with node-id)
+background: "https://www.figma.com/design/YOUR_FILE_KEY?node-id=123-456"
+---
+```
+
+### Object Format (Explicit)
+
+```yaml
+---
+background:
+  color: "#1a1a2e"           # Solid color
+  gradient: "#000:0%,#fff:100%@45"  # Gradient
+  template: "Dark Mode"      # Figma paint style name
+  image: "./bg.png"          # Image path or URL
+  component:                 # Figma component
+    link: "https://www.figma.com/design/xxx?node-id=123-456"
+    fit: "cover"             # cover | contain | stretch
+    align: "center"          # center | top-left | top-right | bottom-left | bottom-right
+    opacity: 0.8             # 0-1
+---
+```
+
+### Combined Background
+
+Component can be combined with color/gradient/image backgrounds. The component renders as a layer on top:
+
+```yaml
+---
+background:
+  color: "#1a1a2e"
+  component:
+    link: "https://www.figma.com/design/xxx?node-id=123-456"
+    opacity: 0.6
+---
+```
+
+### Priority
+
+When multiple properties are specified in object format: `template` > `gradient` > `color` > `image`
+
+### Component Fit Options
+
+| Value | Description |
+|-------|-------------|
+| `cover` | Scale to cover entire slide, may crop (default) |
+| `contain` | Scale to fit within slide, may have empty space |
+| `stretch` | Stretch to fill slide, ignores aspect ratio |
+
+### Component Align Options
+
+When using `cover` or `contain`, you can specify alignment:
+
+| Value | Description |
+|-------|-------------|
+| `center` | Center of slide (default) |
+| `top-left` | Top-left corner |
+| `top-right` | Top-right corner |
+| `bottom-left` | Bottom-left corner |
+| `bottom-right` | Bottom-right corner |
+
+### Limitations
+
+- Component only works with nodes in the **same Figma file** (MVP limitation)
+- Supported node types: Component, ComponentSet, Frame, Instance
+- Recommended background size: 1920x1080 (slide dimensions)
 
 ## Images
 
@@ -902,3 +983,4 @@ This example generates the following 5 slides:
 | Footnotes | Supported | GFM, displayed at slide bottom |
 | Transitions | Supported | Slide transition animations |
 | Custom Fonts | Supported | Per-element font families |
+| Background Component | Supported | Figma Component/Frame as background |

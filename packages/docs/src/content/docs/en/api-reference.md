@@ -155,10 +155,7 @@ color: "#58a6ff"
 
 | Property | Type | Description |
 |----------|------|-------------|
-| `background` | `string` | Background color (hex) |
-| `gradient` | `string` | Gradient (`color:pos%,...@angle` format) |
-| `template` | `string` | Figma Paint Style name |
-| `backgroundImage` | `string` | Background image (local path or URL) |
+| `background` | `string \| object` | Unified background config: string (color/gradient/image/component) or object (`color`, `gradient`, `template`, `image`, `component`) |
 | `color` | `string` | Base text color (applied to all elements) |
 | `headings` | `object` | Heading styles (h1-h4) |
 | `paragraphs` | `object` | Paragraph styles |

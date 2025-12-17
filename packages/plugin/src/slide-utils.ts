@@ -1,8 +1,10 @@
 import type {
+  BackgroundComponent,
   BackgroundImage,
   SlideBackground,
   SlideNumberConfig,
 } from "@figdeck/shared";
+import { SLIDE_HEIGHT, SLIDE_WIDTH } from "@figdeck/shared";
 import { base64ToUint8Array } from "./base64";
 import { createGradientTransform, parseColor } from "./colors";
 import {
@@ -31,6 +33,15 @@ const missingPaintStyleNotifications = new Set<string>();
 // Node cache for slide number templates
 const slideNumberNodeCache = createNodeCache();
 
+// Node cache for background component templates
+const backgroundComponentNodeCache = createNodeCache();
+
+// Track background component nodes we've already notified about
+const missingBackgroundComponentNotifications = new Set<string>();
+
+/** Background component node name for cleanup */
+const BACKGROUND_COMPONENT_NODE_NAME = "__figdeck_background_component__";
+
 async function resolvePaintStyleId(styleName: string): Promise<string | null> {
   const cachedId = paintStyleCache.get(styleName);
   if (cachedId) {
@@ -43,20 +54,28 @@ async function resolvePaintStyleId(styleName: string): Promise<string | null> {
   }
 
   const lookupPromise = (async (): Promise<string | null> => {
-    const localStyles = await figma.getLocalPaintStylesAsync();
-    const localStyle = localStyles.find((style) => style.name === styleName);
-
-    if (localStyle) {
-      return localStyle.id;
-    }
-
     try {
-      const importedStyle = await figma.importStyleByKeyAsync(styleName);
-      if (importedStyle && importedStyle.type === "PAINT") {
-        return importedStyle.id;
+      // Check if getLocalPaintStylesAsync is available
+      if (typeof figma.getLocalPaintStylesAsync === "function") {
+        const localStyles = await figma.getLocalPaintStylesAsync();
+        const localStyle = localStyles.find(
+          (style) => style.name === styleName,
+        );
+
+        if (localStyle) {
+          return localStyle.id;
+        }
+      }
+
+      // Try importing by key (only if the API is available)
+      if (typeof figma.importStyleByKeyAsync === "function") {
+        const importedStyle = await figma.importStyleByKeyAsync(styleName);
+        if (importedStyle && importedStyle.type === "PAINT") {
+          return importedStyle.id;
+        }
       }
     } catch (_e) {
-      // ignore and fall through to null
+      // Paint style APIs may not be available in all contexts
     }
 
     return null;
@@ -152,32 +171,197 @@ async function applyImageBackground(
 }
 
 /**
+ * Apply background component (Figma Component/Frame) to slide
+ * The component is rendered as a layer on top of the base background
+ */
+async function applyBackgroundComponent(
+  slideNode: SlideNode,
+  component: BackgroundComponent,
+): Promise<boolean> {
+  const { nodeId, fit = "cover", align = "center", opacity = 1 } = component;
+
+  // Guard against missing nodeId
+  if (!nodeId) {
+    return false;
+  }
+
+  // Find the source node
+  const sourceNode = await backgroundComponentNodeCache.findNode(nodeId, {
+    allowedTypes: ["COMPONENT", "COMPONENT_SET", "FRAME", "INSTANCE"],
+    errorPrefix: "Background component",
+  });
+
+  if (!sourceNode) {
+    if (!missingBackgroundComponentNotifications.has(nodeId)) {
+      figma.notify(`Background component not found: ${nodeId}`, {
+        error: true,
+      });
+      missingBackgroundComponentNotifications.add(nodeId);
+    }
+    return false;
+  }
+
+  // Clone the node
+  const clonedNode = cloneNode(sourceNode);
+  if (!clonedNode) {
+    backgroundComponentNodeCache.clear();
+    return false;
+  }
+
+  clonedNode.name = BACKGROUND_COMPONENT_NODE_NAME;
+
+  // Calculate scale based on fit mode
+  const sourceWidth = sourceNode.width;
+  const sourceHeight = sourceNode.height;
+  const targetWidth = SLIDE_WIDTH;
+  const targetHeight = SLIDE_HEIGHT;
+
+  let scaleX = 1;
+  let scaleY = 1;
+
+  if (fit === "stretch") {
+    // Stretch: scale to exactly fill the slide (non-uniform)
+    scaleX = targetWidth / sourceWidth;
+    scaleY = targetHeight / sourceHeight;
+  } else if (fit === "cover") {
+    // Cover: scale uniformly to cover entire slide (may crop)
+    const scale = Math.max(
+      targetWidth / sourceWidth,
+      targetHeight / sourceHeight,
+    );
+    scaleX = scale;
+    scaleY = scale;
+  } else if (fit === "contain") {
+    // Contain: scale uniformly to fit within slide (may have empty space)
+    const scale = Math.min(
+      targetWidth / sourceWidth,
+      targetHeight / sourceHeight,
+    );
+    scaleX = scale;
+    scaleY = scale;
+  }
+
+  // Apply scale by resizing
+  const newWidth = sourceWidth * scaleX;
+  const newHeight = sourceHeight * scaleY;
+
+  // Check if the node supports resize
+  if ("resize" in clonedNode) {
+    (clonedNode as FrameNode | ComponentNode | InstanceNode).resize(
+      newWidth,
+      newHeight,
+    );
+  } else if ("rescale" in clonedNode) {
+    // Fallback for nodes without resize - use scale transform
+    (clonedNode as SceneNode & { rescale: (scale: number) => void }).rescale(
+      scaleX,
+    );
+  }
+
+  // Calculate position based on alignment
+  let x = 0;
+  let y = 0;
+
+  // For cover/contain, center by default or use specified alignment
+  if (fit !== "stretch") {
+    const offsetX = (targetWidth - newWidth) / 2;
+    const offsetY = (targetHeight - newHeight) / 2;
+
+    switch (align) {
+      case "center":
+        x = offsetX;
+        y = offsetY;
+        break;
+      case "top-left":
+        x = 0;
+        y = 0;
+        break;
+      case "top-right":
+        x = targetWidth - newWidth;
+        y = 0;
+        break;
+      case "bottom-left":
+        x = 0;
+        y = targetHeight - newHeight;
+        break;
+      case "bottom-right":
+        x = targetWidth - newWidth;
+        y = targetHeight - newHeight;
+        break;
+      default:
+        x = offsetX;
+        y = offsetY;
+    }
+  }
+
+  // Apply opacity if not 1
+  if (opacity < 1 && "opacity" in clonedNode) {
+    (clonedNode as SceneNode & { opacity: number }).opacity = opacity;
+  }
+
+  // Insert at the back (index 0 = bottommost layer)
+  slideNode.insertChild(0, clonedNode);
+
+  // Set position after inserting
+  clonedNode.x = x;
+  clonedNode.y = y;
+
+  // Use absolute positioning to avoid auto-layout interference
+  // Only needed if the parent has auto-layout (layoutMode !== "NONE")
+  if (
+    "layoutPositioning" in clonedNode &&
+    "layoutMode" in slideNode &&
+    slideNode.layoutMode !== "NONE"
+  ) {
+    (clonedNode as FrameNode | InstanceNode).layoutPositioning = "ABSOLUTE";
+  }
+
+  // Clear the notification set since we successfully used the node
+  missingBackgroundComponentNotifications.delete(nodeId);
+
+  return true;
+}
+
+/**
  * Apply background fill to a slide node
+ * Background component can be combined with base fill (solid/gradient/image)
+ * The component is rendered as a layer on top of the base fill
  */
 export async function applyBackground(
   slideNode: SlideNode,
   background: SlideBackground,
 ): Promise<void> {
-  // Priority: templateStyle > gradient > solid > image
+  // Remove any existing background component first
+  // Check if slideNode has children (some slide types may not)
+  if (slideNode.children && slideNode.children.length > 0) {
+    // Iterate backwards since we're potentially removing items
+    for (let i = slideNode.children.length - 1; i >= 0; i--) {
+      const child = slideNode.children[i];
+      if (child && child.name === BACKGROUND_COMPONENT_NODE_NAME) {
+        child.remove();
+      }
+    }
+  }
+
+  let baseFillApplied = false;
+
+  // Priority for base fill: templateStyle > gradient > solid > image
   if (background.templateStyle) {
     const styleName = background.templateStyle;
-
     const styleId = await resolvePaintStyleId(styleName);
 
     if (styleId) {
       missingPaintStyleNotifications.delete(styleName);
       slideNode.fillStyleId = styleId;
-      return;
+      baseFillApplied = true;
+    } else {
+      if (!missingPaintStyleNotifications.has(styleName)) {
+        figma.notify(`Paint style "${styleName}" not found`, { error: true });
+        missingPaintStyleNotifications.add(styleName);
+      }
+      // Don't return - still try to apply component if present
     }
-
-    if (!missingPaintStyleNotifications.has(styleName)) {
-      figma.notify(`Paint style "${styleName}" not found`, { error: true });
-      missingPaintStyleNotifications.add(styleName);
-    }
-    return;
-  }
-
-  if (background.gradient) {
+  } else if (background.gradient) {
     const { stops, angle = 0 } = background.gradient;
     const gradientStops: ColorStop[] = [];
 
@@ -198,11 +382,9 @@ export async function applyBackground(
         gradientStops,
       };
       slideNode.fills = [gradientFill];
+      baseFillApplied = true;
     }
-    return;
-  }
-
-  if (background.solid) {
+  } else if (background.solid) {
     const color = parseColor(background.solid);
     if (color) {
       const solidFill: SolidPaint = {
@@ -211,21 +393,33 @@ export async function applyBackground(
         opacity: color.a ?? 1,
       };
       slideNode.fills = [solidFill];
+      baseFillApplied = true;
     } else {
       figma.notify(`Invalid color "${background.solid}"`, { error: true });
     }
-    return;
-  }
-
-  if (background.image) {
+  } else if (background.image) {
     const success = await applyImageBackground(slideNode, background.image);
-    if (!success) {
+    if (success) {
+      baseFillApplied = true;
+    } else {
       figma.notify(
         `Failed to load background image "${background.image.url}"`,
         {
           error: true,
         },
       );
+    }
+  }
+
+  // Apply background component if present (layer on top of base fill)
+  if (background.component) {
+    const success = await applyBackgroundComponent(
+      slideNode,
+      background.component,
+    );
+    if (!success && !baseFillApplied) {
+      // Both component and base fill failed - no background applied
+      console.warn("[figdeck] No background could be applied");
     }
   }
 }

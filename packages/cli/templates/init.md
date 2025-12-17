@@ -149,9 +149,9 @@ Set via YAML frontmatter:
 
 ```yaml
 ---
-background: "#16213e"              # Solid color
-gradient: "#000:0%,#fff:100%@45"   # Gradient
-backgroundImage: "./bg.png"        # Image
+background: "#16213e" # Solid color
+# background: "#000:0%,#fff:100%@45" # Gradient
+# background: "./bg.png" # Image (local path or URL)
 ---
 ```
 

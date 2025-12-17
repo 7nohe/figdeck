@@ -2,6 +2,40 @@
 title: Release Notes
 ---
 
+## [1.5.1] - 2025-12-18
+
+### New Features
+
+#### Cover Slide Option
+Added `cover: true` option to designate slides as cover slides. Cover slides are excluded from slide numbering by default.
+
+```yaml
+---
+cover: true
+---
+# Presentation Title
+```
+
+#### Unified Background Configuration with Auto-Detection
+Background configuration now supports auto-detection of background types. Simply provide a value and figdeck will automatically determine whether it's a solid color, gradient, image path, or Figma component URL.
+
+```yaml
+---
+background: "#1a1a2e"                    # Solid color (auto-detect)
+background: "#0d1117:0%,#58a6ff:100%@45" # Gradient (auto-detect)
+background: "./bg.png"                   # Local image (auto-detect)
+background: "https://figma.com/...?node-id=123-456"  # Figma component (auto-detect)
+---
+```
+
+Also added support for Figma Component/Frame as slide backgrounds with customizable fit, alignment, and opacity options.
+
+### Bug Fixes
+
+- Fixed text wrapping in column layouts (#16)
+
+---
+
 ## [1.5.0] - 2025-12-15
 
 ### New Features

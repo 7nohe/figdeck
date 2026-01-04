@@ -57,22 +57,22 @@ See [VSCode Extension Documentation](/en/vscode-extension) for details.
 The `figdeck init` command can now generate rule files for AI agents.
 
 **Supported AI Agents:**
-- **Claude Code**: Generates `CLAUDE.md` file
+- **Claude Code**: Generates `.claude/rules/figdeck.md` file
 - **Cursor**: Generates `.cursor/rules/figdeck.mdc` file
-- **GitHub Copilot**: Generates `.github/copilot-instructions.md` file
+- **GitHub Copilot**: Generates `.github/instructions/figdeck.instructions.md` file
 
 **Examples:**
 ```bash
 # Generate rules for all AI agents
-figdeck init --agents
+figdeck init --ai-rules
 
 # Generate rules for a specific agent only
-figdeck init --agents claude
-figdeck init --agents cursor
-figdeck init --agents copilot
+figdeck init --ai-rules claude
+figdeck init --ai-rules cursor
+figdeck init --ai-rules copilot
 
 # Specify multiple agents
-figdeck init --agents claude,cursor
+figdeck init --ai-rules claude,cursor
 ```
 
 This enables AI agents to understand figdeck's Markdown syntax and provide more accurate code completions and suggestions.

@@ -54,7 +54,7 @@ This is a CAUTION callout. Use it for destructive actions or security-sensitive 
 Callouts support inline formatting.
 
 :::tip
-Use `--secret` for **authentication** when using `--allow-remote`. See the [documentation](https://figdeck.vercel.app) for details.
+Use `--secret` for **authentication** when using `--allow-remote`. See the [documentation](https://figdeck.7nohe.dev) for details.
 :::
 
 ---

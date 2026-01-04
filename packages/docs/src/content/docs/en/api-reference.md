@@ -85,7 +85,7 @@ figdeck build slides.md | jq '.[] | .title'
 
 #### `serve` - WebSocket Server
 
-Starts a WebSocket server and waits for Plugin connections.
+Starts a WebSocket server and waits for Plugin connections. Watch mode is enabled by default.
 
 ```bash
 figdeck serve <file> [options]
@@ -97,25 +97,31 @@ figdeck serve <file> [options]
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--host <host>` | WebSocket host | `localhost` |
+| `--host <host>` | WebSocket host | `127.0.0.1` |
 | `-p, --port <port>` | WebSocket port | `4141` |
-| `-w, --watch` | Watch file changes and auto-update | `false` |
+| `--no-watch` | Disable watching for file changes | - |
+| `--allow-remote` | Allow binding to non-loopback hosts | - |
+| `--secret <secret>` | Require authentication with this secret | - |
+| `--no-auth` | Disable authentication (not recommended for remote) | - |
 | `-h, --help` | Show help | - |
 
 **Examples:**
 
 ```bash
-# Basic usage
+# Basic usage (watch mode enabled by default)
 figdeck serve slides.md
 
 # Specify port
 figdeck serve slides.md --port 8080
 
-# Specify host (allow external connections)
-figdeck serve slides.md --host 0.0.0.0
+# Disable watch mode
+figdeck serve slides.md --no-watch
 
-# File watch mode (auto-resend on changes)
-figdeck serve slides.md -w
+# Allow external connections (requires --allow-remote)
+figdeck serve slides.md --host 0.0.0.0 --allow-remote
+
+# Remote access with authentication
+figdeck serve slides.md --host 0.0.0.0 --allow-remote --secret my-secret
 ```
 
 ## YAML Frontmatter

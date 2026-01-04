@@ -57,22 +57,22 @@ figdeck 専用の VSCode 拡張機能を追加しました。Markdown スライ�
 `figdeck init` コマンドで AI エージェント用のルールファイルを生成できるようになりました。
 
 **対応 AI エージェント:**
-- **Claude Code**: `CLAUDE.md` ファイルを生成
+- **Claude Code**: `.claude/rules/figdeck.md` ファイルを生成
 - **Cursor**: `.cursor/rules/figdeck.mdc` ファイルを生成
-- **GitHub Copilot**: `.github/copilot-instructions.md` ファイルを生成
+- **GitHub Copilot**: `.github/instructions/figdeck.instructions.md` ファイルを生成
 
 **使用例:**
 ```bash
 # すべての AI エージェント用ルールを生成
-figdeck init --agents
+figdeck init --ai-rules
 
 # 特定のエージェント用ルールのみ生成
-figdeck init --agents claude
-figdeck init --agents cursor
-figdeck init --agents copilot
+figdeck init --ai-rules claude
+figdeck init --ai-rules cursor
+figdeck init --ai-rules copilot
 
 # 複数のエージェントを指定
-figdeck init --agents claude,cursor
+figdeck init --ai-rules claude,cursor
 ```
 
 これにより、AI エージェントが figdeck の Markdown 構文を理解し、より正確なコード補完や提案を行えるようになります。

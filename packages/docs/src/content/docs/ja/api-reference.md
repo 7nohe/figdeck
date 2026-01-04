@@ -85,7 +85,7 @@ figdeck build slides.md | jq '.[] | .title'
 
 #### `serve` - WebSocket サーバー
 
-WebSocket サーバーを起動して Plugin からの接続を待機します。
+WebSocket サーバーを起動して Plugin からの接続を待機します。ファイル監視モードはデフォルトで有効です。
 
 ```bash
 figdeck serve <file> [options]
@@ -97,25 +97,31 @@ figdeck serve <file> [options]
 
 | オプション | 説明 | デフォルト |
 |------------|------|-----------|
-| `--host <host>` | WebSocket ホスト | `localhost` |
+| `--host <host>` | WebSocket ホスト | `127.0.0.1` |
 | `-p, --port <port>` | WebSocket ポート | `4141` |
-| `-w, --watch` | ファイル変更を監視して自動更新 | `false` |
+| `--no-watch` | ファイル監視を無効化 | - |
+| `--allow-remote` | 非ループバックホストへのバインドを許可 | - |
+| `--secret <secret>` | このシークレットで認証を要求 | - |
+| `--no-auth` | 認証を無効化（リモート接続時は非推奨） | - |
 | `-h, --help` | ヘルプ表示 | - |
 
 **例:**
 
 ```bash
-# 基本的な使用
+# 基本的な使用（ファイル監視モードはデフォルトで有効）
 figdeck serve slides.md
 
 # ポート指定
 figdeck serve slides.md --port 8080
 
-# ホスト指定（外部からの接続を許可）
-figdeck serve slides.md --host 0.0.0.0
+# ファイル監視を無効化
+figdeck serve slides.md --no-watch
 
-# ファイル監視モード（変更時に自動再送信）
-figdeck serve slides.md -w
+# 外部からの接続を許可（--allow-remote が必要）
+figdeck serve slides.md --host 0.0.0.0 --allow-remote
+
+# リモートアクセス + 認証
+figdeck serve slides.md --host 0.0.0.0 --allow-remote --secret my-secret
 ```
 
 ## YAML Frontmatter

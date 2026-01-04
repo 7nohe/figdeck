@@ -78,7 +78,7 @@ Both English and Japanese versions are available.
 
 ## Deployment
 
-The documentation site is deployed to Vercel at [https://figdeck.vercel.app](https://figdeck.vercel.app).
+The documentation site is deployed at [https://figdeck.7nohe.dev](https://figdeck.7nohe.dev).
 
 ## Learn More
 
